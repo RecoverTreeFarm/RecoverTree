@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(command -v textutil)",
+      "Bash(textutil -convert txt -stdout \"RecoverTree.Game Design Document.rtf\")",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(timeout 10 npm ping)",
+      "Bash(npm ping *)",
+      "Bash(npx --yes create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --use-npm --yes)",
+      "Bash(export NPM_CONFIG_CACHE=\"/private/tmp/claude-501/-Users-dominictallariti-Documents-RecoverTree/d1998efd-7725-47c0-8ce5-49e5f92c4a3f/scratchpad/.npmcache\")",
+      "Bash(npx --yes create-next-app@latest recover-farm-app --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-turbopack --use-npm --yes)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\(JSON.stringify\\({deps:p.dependencies,dev:p.devDependencies},null,2\\)\\)\")",
+      "Bash(mv .git .gitignore .next /Users/dominictallariti/Documents/RecoverTree/)",
+      "Bash(rmdir recover-farm-app *)",
+      "Bash(cp \"farming sprites/Characters/\"*.png public/sprites/characters/)",
+      "Bash(cp \"farming sprites/Ground/\"*.png public/sprites/ground/)",
+      "Bash(cp \"farming sprites/Plants/\"*.png public/sprites/plants/)",
+      "Bash(cp \"farming sprites/Misc/\"*.png public/sprites/misc/)"
+    ]
+  }
+}

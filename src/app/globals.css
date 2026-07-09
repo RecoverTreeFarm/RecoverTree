@@ -1,26 +1,235 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ */
+/* RecoverTree — nostalgic pixel-farm theme                          */
+/* A tiny old-school farming game feel: warm, cute, low-pressure.      */
+/* ------------------------------------------------------------------ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Sky + earth palette */
+  --rf-sky: #bfe9ff;
+  --rf-sky-2: #a4dcff;
+  --rf-grass: #7ec850;
+  --rf-grass-dark: #5aa832;
+  --rf-soil: #a6693e;
+  --rf-soil-dark: #7c4a28;
+  --rf-wood: #b5764a;
+  --rf-cream: #fff6e6;
+  --rf-ink: #3a2a1a;
+  --rf-ink-soft: #6b5540;
+  --rf-red: #d9483b;
+  --rf-gold: #f2c14e;
+  --rf-blue: #5b8fd6;
+
+  --background: var(--rf-sky);
+  --foreground: var(--rf-ink);
+
+  /* Chunky pixel border */
+  --rf-border: 3px solid var(--rf-ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-rf-grass: var(--rf-grass);
+  --color-rf-soil: var(--rf-soil);
+  --color-rf-cream: var(--rf-cream);
+  --color-rf-ink: var(--rf-ink);
+  --color-rf-red: var(--rf-red);
+  --color-rf-gold: var(--rf-gold);
+  --color-rf-blue: var(--rf-blue);
 }
 
 body {
-  background: var(--background);
+  background:
+    linear-gradient(var(--rf-sky) 0%, var(--rf-sky-2) 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  letter-spacing: 0.02em;
 }
+
+/* Retro headings: chunky, uppercase, tight */
+.pixel-heading {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Crisp, un-blurred sprite scaling — the key to the pixel look */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Reusable chunky panel (our lightweight "card") */
+.pixel-panel {
+  background: var(--rf-cream);
+  border: var(--rf-border);
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 rgba(58, 42, 26, 0.25);
+}
+
+/* Chunky pixel button */
+.pixel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.6rem 1rem;
+  border: var(--rf-border);
+  border-radius: 6px;
+  background: var(--rf-gold);
+  color: var(--rf-ink);
+  box-shadow: 3px 3px 0 rgba(58, 42, 26, 0.35);
+  cursor: pointer;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  text-decoration: none;
+}
+.pixel-btn:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 rgba(58, 42, 26, 0.35);
+}
+.pixel-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 rgba(58, 42, 26, 0.35);
+}
+.pixel-btn--secondary {
+  background: var(--rf-cream);
+}
+.pixel-btn--blue {
+  background: var(--rf-blue);
+  color: var(--rf-cream);
+}
+
+/* Grass ground made of tiled 16x16 sprite */
+.grass-tile {
+  background-image: url("/sprites/ground/grass.png");
+  background-repeat: repeat;
+  background-size: 32px 32px;
+  image-rendering: pixelated;
+}
+
+/* Solid dirt plot (seam-free crop of the soil sprite) */
+.soil-tile {
+  background-image: url("/sprites/ground/soil_solid.png");
+  background-repeat: repeat;
+  background-size: 64px 64px;
+  image-rendering: pixelated;
+}
+
+/* --- Farmer animation placeholders (transforms only — no new frames) --- */
+
+/* Idle: gentle bob up and down */
+@keyframes rf-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+.rf-idle { animation: rf-bob 1.6s ease-in-out infinite; }
+
+/* Walking: same bob, but faster so it reads as movement */
+.rf-walk { animation: rf-bob 0.32s ease-in-out infinite; }
+
+/* Watering: tilt side to side, pivoting at the feet */
+@keyframes rf-tilt {
+  0%, 100% { transform: rotate(-7deg); }
+  50%      { transform: rotate(9deg); }
+}
+.rf-water-tilt {
+  animation: rf-tilt 0.5s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* Water droplets that appear over the plants while watering */
+@keyframes rf-droplet {
+  0%, 100% { opacity: 0; transform: translateY(-2px); }
+  40%, 80% { opacity: 1; transform: translateY(5px); }
+}
+.rf-droplet {
+  animation: rf-droplet 0.7s steps(3) infinite;
+}
+
+/* Fully-watered tree waiting on its 4-hour fruit timer: slow pulse */
+@keyframes rf-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+.rf-pulse {
+  animation: rf-pulse 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* --- Harvest cinematic: close-up of a tree the farmer shakes --- */
+
+/* farmer leans into the tree */
+@keyframes rf-lean {
+  0%   { transform: rotate(0deg); }
+  30%  { transform: rotate(15deg); }
+  65%  { transform: rotate(11deg); }
+  100% { transform: rotate(0deg); }
+}
+.rf-lean {
+  animation: rf-lean 1.7s ease-in-out 0.35s 1 both;
+  transform-origin: bottom right;
+}
+
+/* tree shakes back and forth */
+@keyframes rf-shake {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25%      { transform: translateX(-4px) rotate(-2.5deg); }
+  50%      { transform: translateX(4px) rotate(2.5deg); }
+  75%      { transform: translateX(-3px) rotate(-1.5deg); }
+}
+.rf-shake {
+  animation: rf-shake 0.45s ease-in-out 0.55s 3;
+  transform-origin: bottom center;
+}
+
+/* fruits fall off the tree */
+@keyframes rf-fruit-fall {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(90px) rotate(30deg); }
+}
+.rf-fruit-fall {
+  animation: rf-fruit-fall 1s ease-in forwards;
+}
+
+/* the whole cinematic fades in */
+@keyframes rf-cine-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.rf-cine-in { animation: rf-cine-in 0.3s ease-out both; }
+
+/* --- Ceremony: confetti + podium rise --- */
+@keyframes rf-confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(var(--fall-h, 400px)) rotate(540deg); opacity: 0.6; }
+}
+.rf-confetti {
+  animation: rf-confetti-fall var(--fall-t, 2.6s) linear infinite;
+}
+
+@keyframes rf-fade-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(14px); }
+}
+.rf-fade-out { animation: rf-fade-out 0.6s ease-in forwards; }
+
+/* silhouette → reveal */
+.rf-silhouette { filter: brightness(0); transition: filter 0.45s ease-out; }
+.rf-revealed { filter: none; }
+
+/* --- Particle FX: play a horizontal sprite strip once via steps() --- */
+@keyframes rf-fx-play {
+  from { background-position-x: 0; }
+  to   { background-position-x: var(--fx-end); }
+}
+/* pop.png = 8 frames (fruit appears); harvest.png = 13 frames (harvest bloom) */
+.rf-fx-pop     { animation: rf-fx-play 0.55s steps(8) forwards; }
+.rf-fx-harvest { animation: rf-fx-play 0.85s steps(13) forwards; }
