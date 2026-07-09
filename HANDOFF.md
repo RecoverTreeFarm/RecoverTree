@@ -88,18 +88,56 @@ order by 1;
   affirmation greeting; muted earthy palette
 
 ## What still needs to be built
-- **Scheduled jobs**: season auto-close, Traveling Basket and Golden Goose all
-  advance/auto-close **lazily on dashboard load** (there is no cron). Add a
-  Supabase cron / edge function so they fire on time when the community is quiet.
+- **⚠️ Season close is broken, not just unscheduled (highest priority).**
+  `close_season()` — which awards medals/badges/fertilizer and builds the
+  ceremony — **has no caller anywhere in `src/`**. Meanwhile `ensure_my_farm()`,
+  `start_meeting()` and `give_seed()` each *do* expire an ended season and create
+  the next one lazily on dashboard load:
+  ```sql
+  update seasons set status='closed' where status='active' and ends_at <= now();
+  v_season := ensure_active_season();
+  ```
+  So a month rolls over on its own, but **the awards + ceremony never run**. Worse,
+  once that lazy path fires, `close_season` can no longer close the month that
+  ended:
+  - bare `select close_season();` picks `where status='active'` → the **new**
+    season, and would wrongly close it;
+  - `select close_season('<ended-season-id>')` tries to insert another `'active'`
+    season, colliding with the `seasons_one_active_key` partial unique index →
+    **unique-violation error**.
+
+  **Fix before scheduling:** make `close_season` tolerate an already-existing next
+  season (and select the *ended* season, not the active one). Only then schedule it.
+- **Scheduled jobs**: the Traveling Basket and Golden Goose *do* advance lazily
+  (`get_traveling_basket_state` → `basket_auto_advance`; `get_golden_goose_state`
+  → `auto_close_golden_goose_assignments`), so they resolve on dashboard load but
+  not on the clock. `pg_cron` (1.6.4) and `pg_net` (0.20.3) are **available but
+  not installed** on this project — no edge function is needed. Handy detail:
+  `close_season` guards on `auth.uid() is not null and not is_admin()`, so a cron
+  job (where `auth.uid()` is null) is **already permitted** to call it.
 - **Auth email**: uses Supabase's built-in mailer (~2/hour). Wire a real email
-  provider before a wider launch.
+  provider before a wider launch. Also enable **leaked-password protection** in
+  Supabase Auth (currently off).
 - Optional polish: more badge/checklist rule types; egg-on-farm animation for the
   Golden Goose winner.
 
 ## Current known issues / notes
-- **Lazy timers**: with no cron, timed events resolve when someone loads the
-  dashboard, not exactly on the clock.
+- **Season close never runs automatically** — see the first bullet under "What
+  still needs to be built". This is a correctness bug, not polish.
+- **The dev database's seasons are a month ahead.** July 2026 is `closed` with 2
+  medals and August 2026 is `active` with `starts_at = 2026-08-01` (a future
+  date). That's because `close_season()` was run by hand from the SQL editor to
+  test the ceremony. Harmless for a dev DB, but don't read the July leaderboard
+  or ceremony as real data.
+- **Lazy timers**: with no cron, the Basket and Golden Goose resolve when someone
+  loads the dashboard, not exactly on the clock.
 - **4×4 farm grid (16 slots)**: older farms with 17–20 trees show only the first 16.
+- **Security advisor** flags two cosmetic items: `handle_new_profile` is exposed
+  over RPC (but it's a trigger function — Postgres refuses direct calls) and
+  `protect_privileged_profile_columns` has a mutable `search_path` (but it's
+  SECURITY INVOKER, so there's no privilege to hijack). The many
+  "SECURITY DEFINER callable by authenticated" warnings are expected: that's how
+  our RPCs are designed, and each self-guards with `is_admin()` / `auth.uid()`.
 - **Migration ordering**: see the caveat above before re-running any migration.
 - **Lint** reports a small pre-existing baseline (`Date.now()` purity, `<img>`
   hints) — typecheck and `next build` are clean.
@@ -114,11 +152,19 @@ order by 1;
 - **No** service-role/secret keys, DB passwords, or API secrets are in the repo.
 
 ## Next recommended step
-Smoke-test the newly-live **blossom trees**: water a tree to full, and roughly
-1 in 7 should turn pink when it starts its fruit timer; harvesting it should pay
-**20 Fruits instead of 10**. (You can force it via Admin → Game settings →
-Trees & harvest → set blossom chance to 100, then set it back to 15.)
+**Fix + schedule season close.** In one migration:
+1. Repair `close_season` so it targets the *ended* season (`ends_at <= now()`
+   with no medals yet) and tolerates an already-existing next `'active'` season,
+   instead of blindly inserting one. It's already idempotent on medals.
+2. `create extension pg_cron;` and schedule an hourly tick calling
+   `close_season()`, `basket_auto_advance()` and
+   `auto_close_golden_goose_assignments()` — all three are idempotent by design,
+   and `close_season` already permits `auth.uid() is null` (i.e. cron).
 
-After that, add a **scheduled job** (Supabase cron / edge function) so season
-close, the Traveling Basket, and the Golden Goose advance on time instead of
-only when someone opens the dashboard.
+Without step 1, a real community's season would roll over with **no ceremony and
+no awards**, and the ceremony would then be unreachable.
+
+Quick warm-up first (five minutes, and you'll want the app running anyway):
+smoke-test the newly-live **blossom trees** — Admin → Game settings → Trees &
+harvest → set blossom chance to 100, water a tree to full, confirm it turns pink
+and harvests for **20 Fruits instead of 10**, then set it back to 15.
