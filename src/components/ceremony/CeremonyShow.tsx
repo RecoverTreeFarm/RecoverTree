@@ -236,7 +236,7 @@ export function CeremonyShow({
                   className={`flex flex-col items-center ${faded ? "rf-fade-out" : ""}`}
                   style={{ transition: "opacity 0.5s" }}
                 >
-                  <Sprite src={f.avatar} size={[16, 16]} scale={3} alt="" />
+                  <Sprite src={f.avatar} size={[32, 32]} scale={1.5} alt="" />
                   <span className="mt-0.5 max-w-16 truncate text-[10px] font-bold">
                     {f.name}
                     {f.isSelf ? " ⭐" : ""}
@@ -303,7 +303,7 @@ export function CeremonyShow({
                   <p className="mt-1 text-[10px] text-[var(--rf-ink-soft)]">{b.description}</p>
                   <div className="mt-3 flex flex-col items-center gap-1 border-t-2 border-dashed border-[var(--rf-ink)]/40 pt-3">
                     <span className={revealed ? "rf-revealed rf-silhouette" : "rf-silhouette"}>
-                      <Sprite src={b.winnerAvatar} size={[16, 16]} scale={3} alt="" />
+                      <Sprite src={b.winnerAvatar} size={[32, 32]} scale={1.5} alt="" />
                     </span>
                     <span className="text-sm font-bold">
                       {revealed ? (

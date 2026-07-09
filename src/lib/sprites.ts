@@ -1,67 +1,103 @@
 /**
  * Central registry of the pixel-art sprites shipped in /public/sprites.
- * Source art lives in the repo's "Spritesheets/" folder and is copied into
- * public/ so Next.js can serve it. Keep this file as the single source of
- * truth for sprite paths + intrinsic sizes.
+ * Art is from the "CozySpriteBundle" (cohesive cozy-farm style). Character
+ * variants are composited (base body + eyes + clothes + hair) into single
+ * 32x32 idle frames. Keep this file as the single source of truth for sprite
+ * paths + intrinsic sizes.
  */
 
+/** All 10 playable farmer variants (32x32 idle frames). */
+export const FARMER_VARIANTS = [
+  "/sprites/characters/farmer_variant_01.png",
+  "/sprites/characters/farmer_variant_02.png",
+  "/sprites/characters/farmer_variant_03.png",
+  "/sprites/characters/farmer_variant_04.png",
+  "/sprites/characters/farmer_variant_05.png",
+  "/sprites/characters/farmer_variant_06.png",
+  "/sprites/characters/farmer_variant_07.png",
+  "/sprites/characters/farmer_variant_08.png",
+  "/sprites/characters/farmer_variant_09.png",
+  "/sprites/characters/farmer_variant_10.png",
+] as const;
+
+/** Characters are 32x32 now (were 16x16). */
+export const CHARACTER_SIZE = 32;
+
 export const SPRITES = {
-  // Characters (16x16). "worker" sprites read as farmers.
-  farmer: "/sprites/characters/worker_1.png",
-  farmerVariants: [
-    "/sprites/characters/worker_1.png",
-    "/sprites/characters/worker_2.png",
-    "/sprites/characters/worker_3.png",
-    "/sprites/characters/worker_4.png",
-    "/sprites/characters/worker_5.png",
-  ],
-  villagerVariants: [
-    "/sprites/characters/customer_1.png",
-    "/sprites/characters/customer_2.png",
-    "/sprites/characters/customer_3.png",
-    "/sprites/characters/customer_4.png",
-    "/sprites/characters/customer_5.png",
-    "/sprites/characters/customer_6.png",
-    "/sprites/characters/customer_7.png",
-  ],
+  // Default farmer + variant lists (all 32x32).
+  farmer: FARMER_VARIANTS[0],
+  farmerVariants: FARMER_VARIANTS,
+  // "Villagers" (e.g. the anonymous silhouette, signup art) reuse the roster.
+  villagerVariants: FARMER_VARIANTS,
 
-  // Ground
-  grass: "/sprites/ground/grass.png", // 16x16
-  soilUnwatered: "/sprites/ground/soil_unwatered.png", // 64x64 (green seams baked in)
-  soilSolid: "/sprites/ground/soil_solid.png", // 32x32 seam-free crop for the plot
-  soilWatered: "/sprites/ground/soil_watered.png", // 64x64
-  pathway: "/sprites/ground/pathway.png", // 64x64
+  // Ground (CSS-tiled via globals.css) — cozy 16x16 tiles.
+  grass: "/sprites/ground/grass_cozy.png",
+  dirt: "/sprites/ground/dirt_cozy.png",
 
-  // Plants — these are bushes but the product calls them "Trees".
-  // Each PNG is a 96x20 horizontal strip of 6 growth frames (16x20 each).
-  treeSheet: "/sprites/plants/blueberry.png",
-  treeSheetAlt: "/sprites/plants/chilli.png",
+  // Trees (cozy nature). Green growth strip + a pink blossom bearing variant.
+  treeSheet: "/sprites/plants/tree_green.png",
+  treeBlossom: "/sprites/plants/tree_pink.png",
 
   // Misc
-  barn: "/sprites/misc/barn.png", // 96x88 (user-provided red pixel barn)
-  marketStand: "/sprites/misc/market_stand_red.png", // 65x48
-  marketStandAlt: "/sprites/misc/market_stand_blue.png",
-  fence: "/sprites/misc/fence.png", // 48x48
+  barn: "/sprites/misc/barn_cozy.png", // 60x86 cozy red barn (legacy default)
+
+  // Small UI icons
+  seedPacket: "/sprites/icons/seed_packet.png", // 16x16
+
+  // Golden Goose (two flap frames + egg)
+  goose1: "/sprites/goose/goose_1.png", // wings up
+  goose2: "/sprites/goose/goose_2.png", // gliding
+  gooseEgg: "/sprites/goose/egg.png",
 } as const;
 
-/** Plant growth strip geometry (blueberry / chilli share these dims). */
+/**
+ * Selectable player houses (from CozySpriteBundle/HouseChoices, trimmed).
+ * The chosen key is stored in profiles.avatar_config as {"house": "<key>"} —
+ * same jsonb the avatar sprite lives in, so no migration is needed.
+ */
+export const HOUSE_SPRITES: Record<
+  string,
+  { src: string; w: number; h: number; label: string }
+> = {
+  house_1: { src: "/sprites/houses/house_1.png", w: 71, h: 73, label: "Cozy Cottage" },
+  house_2: { src: "/sprites/houses/house_2.png", w: 67, h: 80, label: "Old Barn" },
+  house_3: { src: "/sprites/houses/house_3.png", w: 77, h: 81, label: "Thatched Home" },
+  house_4: { src: "/sprites/houses/house_4.png", w: 77, h: 80, label: "Forest Lodge" },
+  house_5: { src: "/sprites/houses/house_5.png", w: 93, h: 64, label: "Bando Barn" },
+  house_6: { src: "/sprites/houses/house_6.png", w: 96, h: 75, label: "Blue Bungalow" },
+};
+
+export const HOUSE_KEYS = Object.keys(HOUSE_SPRITES);
+export const DEFAULT_HOUSE_KEY = "house_1";
+
+/** Resolve an avatar_config to the selected house (falls back to default). */
+export function houseKey(avatarConfig: unknown): string {
+  if (
+    avatarConfig &&
+    typeof avatarConfig === "object" &&
+    "house" in avatarConfig &&
+    typeof (avatarConfig as { house: unknown }).house === "string" &&
+    (avatarConfig as { house: string }).house in HOUSE_SPRITES
+  ) {
+    return (avatarConfig as { house: string }).house;
+  }
+  return DEFAULT_HOUSE_KEY;
+}
+
+/** Green tree growth strip geometry: 6 frames of 32x44. */
 export const TREE_SHEET = {
-  frameWidth: 16,
-  frameHeight: 20,
+  frameWidth: 32,
+  frameHeight: 44,
   frameCount: 6,
 } as const;
 
 /**
  * Tree growth model (matches trees.growth_stage in the database).
- * Sheet column 1 (frame 0) is a pile of loose berries — NOT a plant stage.
- * The five growth stages map to sheet columns 2–5:
- *   stage 1 → frame 1 (sheet column 2, sapling)
- *   stage 2 → frame 2 (sheet column 3)
- *   stage 3 → frame 3 (sheet column 4)
- *   stage 4 → frame 4 (sheet column 5, full empty bush)
- *   stage 5 → frame 4 again + fruit dots on top (BEARING)
+ *   stage 1 → frame 1 (sprout)      stage 2 → frame 2 (bush)
+ *   stage 3 → frame 3 (sapling)     stage 4 → frame 4 (full tree)
+ *   stage 5 → frame 4 + fruit dots (BEARING); pink variant if is_blossom
  * Watering advances the stage server-side; harvesting a bearing tree pays
- * out Fruits and resets it to stage 1.
+ * out Fruits (2x for a blossom tree) and resets it to stage 1.
  */
 export const TREE_BEARING_STAGE = 5;
 export const TREE_EMPTY_MATURE_FRAME = 4;
@@ -75,38 +111,38 @@ export function treeFrameForStage(stage: number): number {
 export const FRUIT_BLUE = "#3d55c8";
 
 /**
- * Harvestable fruit sprites (sliced from Spritesheets/Fruit/pxl-food-8x8.png
- * into public/sprites/fruit/fruit_N.png — ~8-10px each, transparent bg).
- * A bearing tree shows 3 of ONE kind, picked stably per tree slot.
+ * Harvestable fruit sprites (sliced from the pxl-food-8x8 icon sheet). We use
+ * a curated FRUIT-ONLY pool — the raw slices also include a few veg/mushroom/
+ * nut icons, which we skip so a "random fruit" is always actually a fruit.
+ * These small fruit sprites are the icon for the Fruit currency AND the fruits
+ * hanging on a bearing tree.
  */
-export const FRUIT_SPRITE_COUNT = 20;
+const FRUIT_POOL = [4, 11, 13, 14, 15, 12, 16, 1, 3, 5, 7, 10, 18, 19, 0] as const;
+export const FRUIT_SPRITE_COUNT = FRUIT_POOL.length;
+
+/** Default fruit shown for the Fruit currency (cherries). */
+export const DEFAULT_FRUIT_INDEX = 2;
+
+/** Pink blossom trees ALWAYS grow cherries (pool index 2). */
+export const CHERRY_FRUIT_INDEX = 2;
+
+/** Map a pool index (any integer, wraps) to a curated fruit sprite path. */
 export function fruitSprite(index: number): string {
   const i = ((index % FRUIT_SPRITE_COUNT) + FRUIT_SPRITE_COUNT) % FRUIT_SPRITE_COUNT;
-  return `/sprites/fruit/fruit_${i}.png`;
+  return `/sprites/fruit/fruit_${FRUIT_POOL[i]}.png`;
 }
 
 /**
  * Avatar sprites a user can pick for their profile. The chosen key is stored
- * in profiles.avatar_config as {"sprite": "<key>"}.
+ * in profiles.avatar_config as {"sprite": "<key>"}. Keys are variant_01..10.
  */
-export const AVATAR_SPRITES: Record<string, string> = {
-  worker_1: "/sprites/characters/worker_1.png",
-  worker_2: "/sprites/characters/worker_2.png",
-  worker_3: "/sprites/characters/worker_3.png",
-  worker_4: "/sprites/characters/worker_4.png",
-  worker_5: "/sprites/characters/worker_5.png",
-  customer_1: "/sprites/characters/customer_1.png",
-  customer_2: "/sprites/characters/customer_2.png",
-  customer_3: "/sprites/characters/customer_3.png",
-  customer_4: "/sprites/characters/customer_4.png",
-  customer_5: "/sprites/characters/customer_5.png",
-  customer_6: "/sprites/characters/customer_6.png",
-  customer_7: "/sprites/characters/customer_7.png",
-};
+export const AVATAR_SPRITES: Record<string, string> = Object.fromEntries(
+  FARMER_VARIANTS.map((src, i) => [`variant_${String(i + 1).padStart(2, "0")}`, src]),
+);
 
 export const AVATAR_KEYS = Object.keys(AVATAR_SPRITES);
 
-/** Resolve an avatar_config to a sprite path (falls back to the farmer). */
+/** Resolve an avatar_config to a sprite path (falls back to the default). */
 export function avatarSprite(avatarConfig: unknown): string {
   if (
     avatarConfig &&

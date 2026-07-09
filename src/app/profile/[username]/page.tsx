@@ -5,7 +5,8 @@ import { Container, Panel, PageHeader, PixelLink } from "@/components/pixel/ui";
 import { FarmScene } from "@/components/pixel/FarmScene";
 import { Sprite, Fruit } from "@/components/pixel/Sprite";
 import { FertilizerBag, Medal, Badge, type MedalTier } from "@/components/pixel/placeholders";
-import { avatarSprite } from "@/lib/sprites";
+import { avatarSprite, houseKey, HOUSE_SPRITES } from "@/lib/sprites";
+import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
 /**
  * Public farmer profile.
@@ -86,6 +87,18 @@ export default async function ProfilePage({
     year: "numeric",
   });
 
+  // Portrait: selected house + admin-renamable display name.
+  const hKey = houseKey(profile.avatar_config);
+  const house = HOUSE_SPRITES[hKey] ?? HOUSE_SPRITES.house_1;
+  const { data: houseNameRows } = await supabase
+    .from("game_settings")
+    .select("key, value_json")
+    .like("key", "house_name_%");
+  const houseName =
+    houseDisplayNames(
+      (houseNameRows ?? []) as Pick<SettingOverrideRow, "key" | "value_json">[],
+    )[hKey] ?? house.label;
+
   // Won awards (ceremony results). RLS allows reading these for public
   // profiles and for yourself — anonymous/hidden farmers' awards stay private
   // (their profiles aren't reachable here anyway).
@@ -115,13 +128,32 @@ export default async function ProfilePage({
 
       <div className="grid gap-6 md:grid-cols-[1fr_2fr]">
         <Panel className="flex flex-col items-center text-center">
-          <Sprite
-            src={avatarSprite(profile.avatar_config)}
-            size={[16, 16]}
-            scale={6}
-            alt="farmer avatar"
-          />
-          <h2 className="pixel-heading mt-3 text-xl">@{profile.username}</h2>
+          {/* Cozy portrait: the farmer standing in front of their house */}
+          <div
+            className="grass-tile relative h-40 w-full overflow-hidden rounded-lg"
+            style={{ border: "2px solid var(--rf-ink)" }}
+          >
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
+              <Sprite
+                src={house.src}
+                size={[house.w, house.h]}
+                scale={1.35}
+                alt={houseName}
+              />
+            </div>
+            <div className="absolute bottom-2 left-1/2 -translate-x-[110%]">
+              <Sprite
+                src={avatarSprite(profile.avatar_config)}
+                size={[32, 32]}
+                scale={1.9}
+                alt="farmer avatar"
+              />
+            </div>
+          </div>
+          <p className="mt-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+            {houseName}
+          </p>
+          <h2 className="pixel-heading mt-2 text-xl">@{profile.username}</h2>
           {profile.display_name && (
             <p className="text-xs text-[var(--rf-ink-soft)]">“{profile.display_name}”</p>
           )}

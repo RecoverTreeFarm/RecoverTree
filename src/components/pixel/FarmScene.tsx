@@ -1,3 +1,5 @@
+"use client";
+
 import { SPRITES } from "@/lib/sprites";
 import { Sprite, Tree, Fruit } from "./Sprite";
 import { ParticleBurst } from "./ParticleBurst";
@@ -8,23 +10,33 @@ export type TreeView = {
   stage: number;
   /** set while fully watered and waiting on the 4-hour fruit timer */
   readyAt?: string | null;
+  /** a bearing tree that rolled the rare pink blossom (2x fruit on harvest) */
+  isBlossom?: boolean;
 };
 
 export type FarmerAnim = "idle" | "walk" | "tilt";
 export type FarmerPos = { left: number; bottom: number };
 
-/** Grid: 5 columns, 4 rows = 20 possible tree slots. */
-export const GRID_COLS = 5;
+/** One entry in the tap-a-plant contextual menu. */
+export type SlotAction = {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+};
+
+/** Grid: 4 columns, 4 rows = 16 possible tree slots. */
+export const GRID_COLS = 4;
 export const GRID_ROWS = 4;
 export const MAX_TREES = GRID_COLS * GRID_ROWS;
 
-export const FARMER_HOME: FarmerPos = { left: 7, bottom: 40 };
+/** The farmer idles ABOVE the plot, roughly centered. */
+export const FARMER_HOME: FarmerPos = { left: 45, bottom: 66 };
 
-// Plot geometry (scene %).
-const PLOT_LEFT = 32;
-const PLOT_WIDTH = 62;
-const PLOT_BOTTOM = 12;
-const PLOT_HEIGHT = 74;
+// Plot geometry (scene %): a wide dirt band across the bottom-middle.
+const PLOT_LEFT = 6;
+const PLOT_WIDTH = 88;
+const PLOT_BOTTOM = 5;
+const PLOT_HEIGHT = 48;
 
 /** Scene-% spot for the farmer to stand at slot `i` (0 = bottom-left). */
 export function farmerPosForTree(i: number): FarmerPos {
@@ -32,11 +44,12 @@ export function farmerPosForTree(i: number): FarmerPos {
   const rowFromBottom = Math.floor(i / GRID_COLS);
   const x = PLOT_LEFT + PLOT_WIDTH * ((col + 0.5) / GRID_COLS) - 6;
   const bottom = PLOT_BOTTOM + PLOT_HEIGHT * (rowFromBottom / GRID_ROWS) + 2;
-  return { left: Math.min(88, Math.max(30, x)), bottom: Math.min(72, bottom) };
+  return { left: Math.min(86, Math.max(6, x)), bottom: Math.min(58, bottom) };
 }
 
-/** A crate of harvested fruit beside the barn (1 per 40 Fruits). */
-function Crate() {
+/** A crate of harvested fruit beside the house (1 per 40 Fruits). Each crate
+ *  shows a different fruit so a full barn reads as a varied harvest. */
+function Crate({ index = 0 }: { index?: number }) {
   return (
     <span
       className="relative inline-block"
@@ -49,16 +62,20 @@ function Crate() {
       }}
     >
       <span className="absolute left-1 top-0.5 flex gap-0.5">
-        <Fruit scale={1} />
+        <Fruit scale={1} index={index} />
       </span>
     </span>
   );
 }
 
 /**
- * The pixel-farm diorama: fixed 20-slot grid (dark circles mark empty
- * slots), the barn sprite with fruit crates (1 per 40 Fruits), and the
- * farmer walking to tended slots.
+ * The farm diorama — the main "game screen".
+ *  - The player's chosen house (profiles.avatar_config.house) sits by the plot,
+ *    with fruit crates (1 per 40 Fruits).
+ *  - Fixed 20-slot grid; tapping a plant (or empty patch) selects it and shows
+ *    a small contextual action menu (actions computed by FarmPanel).
+ *  - Timers are HIDDEN by default; a subtle progress ring fades in on
+ *    hover/selection only.
  */
 export function FarmScene({
   trees = [{ stage: 1 }],
@@ -71,6 +88,12 @@ export function FarmScene({
   fertBurst = null,
   popId = 0,
   onTreeReady,
+  house,
+  selectedSlot = null,
+  onSlotClick,
+  onDismiss,
+  slotActions = [],
+  canSelectEmpty = false,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -82,11 +105,20 @@ export function FarmScene({
   fertBurst?: { id: number; index: number } | null;
   popId?: number;
   onTreeReady?: () => void;
+  /** the player's chosen house sprite */
+  house?: { src: string; w: number; h: number };
+  /** currently selected slot (bottom-index) — shows the action menu */
+  selectedSlot?: number | null;
+  onSlotClick?: (bottomIndex: number, isEmpty: boolean) => void;
+  onDismiss?: () => void;
+  /** actions for the selected slot (empty array = no menu) */
+  slotActions?: SlotAction[];
+  /** whether empty patches are tappable (a seed is available) */
+  canSelectEmpty?: boolean;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
-  const fence = compact ? 16 : 22;
-  const treeScale = compact ? 1.5 : 2;
+  const treeScale = compact ? 0.85 : 1.2;
   const pos = farmerPos ?? FARMER_HOME;
 
   const innerAnim =
@@ -94,25 +126,13 @@ export function FarmScene({
 
   const crates = Math.min(8, Math.floor(fruitTotal / 40)); // 1 box per 40 Fruits
 
-  const fenceStrip = (style: React.CSSProperties) => (
-    <div
-      aria-hidden
-      className="pointer-events-none absolute"
-      style={{
-        backgroundImage: `url(${SPRITES.fence})`,
-        backgroundRepeat: "repeat",
-        backgroundSize: `${fence}px ${fence}px`,
-        imageRendering: "pixelated",
-        ...style,
-      }}
-    />
-  );
-
   const cells = Array.from({ length: MAX_TREES }, (_, cellIdx) => {
     const rowFromTop = Math.floor(cellIdx / GRID_COLS);
     const col = cellIdx % GRID_COLS;
     return (GRID_ROWS - 1 - rowFromTop) * GRID_COLS + col;
   });
+
+  const houseScale = compact ? 0.75 : 1;
 
   return (
     <div
@@ -120,16 +140,19 @@ export function FarmScene({
       style={{
         border: "3px solid var(--rf-ink)",
         boxShadow: "4px 4px 0 rgba(58,42,26,0.25)",
-        height: compact ? 230 : 360,
+        height: compact ? 230 : "clamp(360px, 60vh, 640px)",
       }}
+      onClick={onDismiss}
     >
-      {/* Barn + collected fruit crates */}
+      {/* Player house + collected fruit crates */}
       <div className="absolute left-3 top-3">
-        <Sprite src={SPRITES.barn} size={[96, 88]} scale={compact ? 0.7 : 1} alt="barn" />
+        {house && (
+          <Sprite src={house.src} size={[house.w, house.h]} scale={houseScale} alt="your house" />
+        )}
         {crates > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 66 : 96 }}>
+          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 70 : 100 }}>
             {Array.from({ length: crates }).map((_, i) => (
-              <Crate key={i} />
+              <Crate key={i} index={i} />
             ))}
           </div>
         )}
@@ -137,7 +160,7 @@ export function FarmScene({
 
       {/* Farmer */}
       <div
-        className="absolute z-10"
+        className="pointer-events-none absolute z-10"
         style={{
           left: `${pos.left}%`,
           bottom: `${pos.bottom}%`,
@@ -145,27 +168,24 @@ export function FarmScene({
         }}
       >
         <div className={innerAnim}>
-          <Sprite src={SPRITES.farmer} size={[16, 16]} scale={compact ? 2.5 : 3.5} alt="farmer" />
+          <Sprite src={SPRITE_FARMER} size={[32, 32]} scale={compact ? 1.3 : 1.8} alt="farmer" />
         </div>
       </div>
 
-      {/* Fenced dirt plot */}
+      {/* Raised-bed dirt plot */}
       <div
         className="soil-tile absolute"
         style={{
-          right: "6%",
+          left: `${PLOT_LEFT}%`,
           bottom: `${PLOT_BOTTOM}%`,
           width: `${PLOT_WIDTH}%`,
           height: `${PLOT_HEIGHT}%`,
-          border: "2px solid rgba(58,42,26,0.35)",
+          border: `${compact ? 4 : 6}px solid var(--rf-wood)`,
+          borderRadius: 6,
+          boxShadow:
+            "inset 0 0 0 2px var(--rf-soil-dark), 0 3px 0 rgba(58,42,26,0.3)",
         }}
       >
-        {fenceStrip({ left: -fence / 2, right: -fence / 2, top: -fence, height: fence })}
-        {fenceStrip({ left: -fence / 2, right: -fence / 2, bottom: -fence / 2, height: fence })}
-        {fenceStrip({ right: -fence / 2, top: -fence / 2, bottom: 0, width: fence })}
-        {fenceStrip({ left: -fence / 2, top: -fence / 2, height: "22%", width: fence })}
-        {fenceStrip({ left: -fence / 2, bottom: 0, height: "30%", width: fence })}
-
         <div
           className="grid h-full gap-x-1 gap-y-1 px-2 py-2"
           style={{
@@ -177,32 +197,96 @@ export function FarmScene({
         >
           {cells.map((bottomIndex, cellIdx) => {
             const tree = bottomIndex < treeCount ? treeList[bottomIndex] : null;
+            const isSelected = selectedSlot === bottomIndex;
+            const menuBelow = bottomIndex >= GRID_COLS * (GRID_ROWS - 1); // top row → open downward
+
             if (!tree) {
-              // empty plantable slot: a dark circle of turned soil
+              // empty plantable patch
               const d = compact ? 14 : 18;
+              const tappable = canSelectEmpty && !!onSlotClick;
               return (
-                <span
-                  key={cellIdx}
-                  aria-hidden
-                  className="rounded-full"
-                  style={{
-                    width: d,
-                    height: d,
-                    background: "rgba(58,42,26,0.4)",
-                    boxShadow: "inset 0 2px 2px rgba(0,0,0,0.3)",
-                  }}
-                />
+                <div key={cellIdx} className="relative flex items-end justify-center">
+                  <button
+                    type="button"
+                    aria-label={tappable ? "empty patch — plant a seed" : "empty patch"}
+                    disabled={!tappable}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSlotClick?.(bottomIndex, true);
+                    }}
+                    className={`rounded-full ${tappable ? "cursor-pointer hover:ring-2 hover:ring-[var(--rf-gold)]" : "cursor-default"}`}
+                    style={{
+                      width: d,
+                      height: d,
+                      background: "rgba(58,42,26,0.4)",
+                      boxShadow: "inset 0 2px 2px rgba(0,0,0,0.3)",
+                      border: "none",
+                      padding: 0,
+                    }}
+                  />
+                  {isSelected && slotActions.length > 0 && (
+                    <ActionMenu actions={slotActions} below={menuBelow} />
+                  )}
+                </div>
               );
             }
+
             const waiting = tree.stage === 4 && !!tree.readyAt;
             return (
-              <div key={cellIdx} className="relative flex items-end justify-center">
+              <div key={cellIdx} className="group relative flex items-end justify-center">
+                {/* Subtle ring timer — hidden until hover/selection */}
                 {waiting && tree.readyAt && (
-                  <TreeTimer readyAt={tree.readyAt} size={compact ? 26 : 30} onReady={onTreeReady} />
+                  <span
+                    className={`transition-opacity duration-200 ${
+                      isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  >
+                    <TreeTimer readyAt={tree.readyAt} size={compact ? 24 : 26} onReady={onTreeReady} />
+                  </span>
                 )}
-                <div className={waiting ? "rf-pulse" : undefined}>
-                  <Tree stage={tree.stage} scale={treeScale} fruitIndex={bottomIndex} />
-                </div>
+                {/* ripening halo + floating spark — always visible so it's
+                    obvious which trees are waiting on fruit */}
+                {waiting && (
+                  <>
+                    <span
+                      aria-hidden
+                      className="rf-ripe-glow absolute bottom-0 left-1/2"
+                      style={{ width: compact ? 34 : 46, height: compact ? 34 : 46 }}
+                    />
+                    <span
+                      aria-hidden
+                      className="rf-ripe-spark absolute left-1/2 text-[13px] leading-none"
+                      style={{ top: compact ? -6 : -10 }}
+                    >
+                      ✨
+                    </span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  aria-label={
+                    tree.stage === 5 ? "tree ready to harvest" : waiting ? "tree ripening" : "growing tree"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSlotClick?.(bottomIndex, false);
+                  }}
+                  className={`relative border-0 bg-transparent p-0 ${waiting ? "rf-ripening" : ""} ${
+                    isSelected ? "brightness-110 drop-shadow-[0_0_4px_rgba(221,181,110,0.9)]" : ""
+                  }`}
+                  style={{ cursor: onSlotClick ? "pointer" : "default" }}
+                >
+                  <Tree
+                    stage={tree.stage}
+                    scale={treeScale}
+                    fruitIndex={bottomIndex}
+                    isBlossom={tree.isBlossom}
+                  />
+                </button>
+
+                {isSelected && slotActions.length > 0 && (
+                  <ActionMenu actions={slotActions} below={menuBelow} />
+                )}
 
                 {/* big droplet while this tree is being watered */}
                 {activeTree === bottomIndex && farmerAnim === "tilt" && (
@@ -252,3 +336,29 @@ export function FarmScene({
     </div>
   );
 }
+
+/** Small game-like contextual menu next to a selected plant/patch. */
+function ActionMenu({ actions, below }: { actions: SlotAction[]; below: boolean }) {
+  return (
+    <div
+      className={`absolute left-1/2 z-30 flex -translate-x-1/2 gap-1 rounded-lg border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] p-1 shadow-[2px_2px_0_rgba(58,42,26,0.35)] ${
+        below ? "top-full mt-1" : "bottom-full mb-1"
+      }`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {actions.map((a) => (
+        <button
+          key={a.label}
+          type="button"
+          title={a.label}
+          aria-label={a.label}
+          onClick={a.onClick}
+          className="flex h-10 w-10 items-center justify-center rounded border-2 border-[var(--rf-ink)] bg-white text-lg hover:bg-[var(--rf-gold)] active:translate-y-px"
+        >
+          {a.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+const SPRITE_FARMER = SPRITES.farmer;

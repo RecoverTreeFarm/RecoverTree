@@ -16,7 +16,7 @@ export async function updateProfile(formData: FormData) {
   const displayName = String(formData.get("display_name") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
   const visibility = String(formData.get("visibility") ?? "public");
-  const sprite = String(formData.get("avatar") ?? "worker_1");
+  const sprite = String(formData.get("avatar") ?? "variant_01");
 
   const fail = (message: string) =>
     redirect(`/settings?error=${encodeURIComponent(message)}`);
@@ -28,13 +28,25 @@ export async function updateProfile(formData: FormData) {
   }
   if (!AVATAR_KEYS.includes(sprite)) fail("Please pick an avatar.");
 
+  // Merge into the existing avatar_config so other keys (e.g. the chosen
+  // farmhouse) survive an avatar change.
+  const { data: row } = await supabase
+    .from("profiles")
+    .select("avatar_config")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const currentConfig =
+    row?.avatar_config && typeof row.avatar_config === "object"
+      ? (row.avatar_config as Record<string, unknown>)
+      : {};
+
   const { error } = await supabase
     .from("profiles")
     .update({
       display_name: displayName || null,
       bio: bio || null,
       leaderboard_visibility: visibility,
-      avatar_config: { sprite },
+      avatar_config: { ...currentConfig, sprite },
     })
     .eq("user_id", user.id);
 

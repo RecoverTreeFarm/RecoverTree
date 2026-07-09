@@ -51,9 +51,10 @@ export async function SiteNav() {
       }}
     >
       <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2">
-        <Link href="/" className="flex items-center gap-2">
-          <Sprite src={SPRITES.farmer} size={[16, 16]} scale={2} alt="" />
-          <span className="pixel-heading text-lg text-[var(--rf-ink)]">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Sprite src={SPRITES.farmer} size={[32, 32]} scale={1} alt="" />
+          {/* wordmark hides on narrow phones so wrapped nav buttons don't overlap it */}
+          <span className="pixel-heading hidden text-lg text-[var(--rf-ink)] sm:inline">
             RecoverTree
           </span>
         </Link>

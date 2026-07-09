@@ -14,7 +14,7 @@ export default async function SignupPage() {
   return (
     <Container className="flex flex-col items-center">
       <div className="mb-2">
-        <Sprite src={SPRITES.villagerVariants[0]} size={[16, 16]} scale={5} alt="" />
+        <Sprite src={SPRITES.villagerVariants[0]} size={[32, 32]} scale={2.5} alt="" />
       </div>
       <PageHeader
         title="Start your farm"

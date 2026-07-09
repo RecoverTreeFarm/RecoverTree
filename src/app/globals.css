@@ -6,20 +6,21 @@
 /* ------------------------------------------------------------------ */
 
 :root {
-  /* Sky + earth palette */
-  --rf-sky: #bfe9ff;
-  --rf-sky-2: #a4dcff;
-  --rf-grass: #7ec850;
-  --rf-grass-dark: #5aa832;
-  --rf-soil: #a6693e;
-  --rf-soil-dark: #7c4a28;
-  --rf-wood: #b5764a;
-  --rf-cream: #fff6e6;
-  --rf-ink: #3a2a1a;
-  --rf-ink-soft: #6b5540;
-  --rf-red: #d9483b;
-  --rf-gold: #f2c14e;
-  --rf-blue: #5b8fd6;
+  /* Muted cozy palette — warm, soft, earthy, matched to the sprite bundle.
+     (Was a brighter arcade palette; keep contrast readable on cream.) */
+  --rf-sky: #cbd9c3;
+  --rf-sky-2: #b9cbaf;
+  --rf-grass: #8caf6b;
+  --rf-grass-dark: #67854c;
+  --rf-soil: #9b7350;
+  --rf-soil-dark: #6f5138;
+  --rf-wood: #a87e57;
+  --rf-cream: #f7efdf;
+  --rf-ink: #40342a;
+  --rf-ink-soft: #71604d;
+  --rf-red: #b5584e;
+  --rf-gold: #ddb56e;
+  --rf-blue: #7e97ad;
 
   --background: var(--rf-sky);
   --foreground: var(--rf-ink);
@@ -106,19 +107,19 @@ body {
   color: var(--rf-cream);
 }
 
-/* Grass ground made of tiled 16x16 sprite */
+/* Grass ground made of the tiled cozy 16x16 grass tile */
 .grass-tile {
-  background-image: url("/sprites/ground/grass.png");
+  background-image: url("/sprites/ground/grass_cozy.png");
   background-repeat: repeat;
   background-size: 32px 32px;
   image-rendering: pixelated;
 }
 
-/* Solid dirt plot (seam-free crop of the soil sprite) */
+/* Tilled dirt plot — tiled cozy 16x16 dirt tile */
 .soil-tile {
-  background-image: url("/sprites/ground/soil_solid.png");
+  background-image: url("/sprites/ground/dirt_cozy.png");
   background-repeat: repeat;
-  background-size: 64px 64px;
+  background-size: 32px 32px;
   image-rendering: pixelated;
 }
 
@@ -151,6 +152,68 @@ body {
 }
 .rf-droplet {
   animation: rf-droplet 0.7s steps(3) infinite;
+}
+
+/* --- Golden Goose --- */
+/* Idle goose: gentle bob + slight squash, like it's hanging out */
+@keyframes rf-goose-bob {
+  0%, 100% { transform: translateY(0) scaleX(1) scaleY(1); }
+  50%      { transform: translateY(-3px) scaleX(0.98) scaleY(1.03); }
+}
+.rf-goose-bob { animation: rf-goose-bob 1.8s ease-in-out infinite; transform-origin: bottom center; }
+
+/* Egg waiting to open: wiggle + squash/stretch */
+@keyframes rf-egg-wiggle {
+  0%, 100% { transform: rotate(-4deg) scaleY(1); }
+  25%      { transform: rotate(5deg) scaleY(0.94); }
+  50%      { transform: rotate(-3deg) scaleY(1.06); }
+  75%      { transform: rotate(3deg) scaleY(0.97); }
+}
+.rf-egg-wiggle { animation: rf-egg-wiggle 0.9s ease-in-out infinite; transform-origin: bottom center; }
+
+/* Reward icons popping out of the egg */
+@keyframes rf-reward-pop {
+  0%   { transform: translateY(6px) scale(0.4); opacity: 0; }
+  60%  { transform: translateY(-4px) scale(1.15); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.rf-reward-pop { animation: rf-reward-pop 0.5s ease-out both; }
+
+/* Notification button with unread items: slow gentle throb */
+@keyframes rf-throb {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(221,181,110,0.7); }
+  50%      { transform: scale(1.13); box-shadow: 0 0 0 10px rgba(221,181,110,0); }
+}
+.rf-throb { animation: rf-throb 1.5s ease-in-out infinite; }
+
+/* Ripening tree (waiting on its fruit timer): a livelier bob + squash so it's
+   obvious which trees are "cooking", plus a glowing halo + floating spark. */
+@keyframes rf-ripening {
+  0%, 100% { transform: translateY(0) scaleX(1) scaleY(1); }
+  30%      { transform: translateY(-4px) scaleX(0.94) scaleY(1.08); }
+  60%      { transform: translateY(-1px) scaleX(1.04) scaleY(0.96); }
+}
+.rf-ripening {
+  animation: rf-ripening 1.3s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+@keyframes rf-ripe-glow {
+  0%, 100% { opacity: 0.35; transform: translate(-50%, 30%) scale(0.9); }
+  50%      { opacity: 0.7;  transform: translate(-50%, 30%) scale(1.15); }
+}
+.rf-ripe-glow {
+  animation: rf-ripe-glow 1.6s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(221,181,110,0.9) 0%, rgba(221,181,110,0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+@keyframes rf-ripe-spark {
+  0%, 100% { transform: translate(-50%, 0) scale(0.8); opacity: 0.55; }
+  50%      { transform: translate(-50%, -5px) scale(1.15); opacity: 1; }
+}
+.rf-ripe-spark {
+  animation: rf-ripe-spark 1.3s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Fully-watered tree waiting on its 4-hour fruit timer: slow pulse */

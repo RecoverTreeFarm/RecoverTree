@@ -93,3 +93,51 @@ If you ever add a reward, it must be Seed / Water / Fertilizer — not Fruits.
 Build the **Admin page** (role management, ban/unban, audit log) — it's the last
 placeholder route and unblocks safely running the app with a real community.
 After that, add a **scheduled auto-close** so seasons roll over on their own.
+
+---
+
+## Update — 2026-07-09 session (phases 10+)
+
+A large batch of features landed. **All the Supabase migrations below are new
+and must be applied** (the MCP was network-unreachable during the session, so
+they were written but not auto-applied — run each in the Supabase SQL editor,
+in filename order):
+
+- `20260709100000_admin_and_game_settings.sql` — Admin console + `game_settings`
+  (code defaults + DB overrides), admin functions (roles/ban/invalidate/audit),
+  reward amounts made settings-driven.
+- `20260709110000_traveling_basket.sql` — Traveling Basket event.
+- `20260709120000_basket_hold_and_limits.sql` — basket total-limits + 24h
+  hold/auto-pass + water-floor-to-receive.
+- `20260709130000_blossom_trees.sql` — `trees.is_blossom`; ~15% pink blossom
+  trees pay **2× on harvest** (harvest-only; multiplier, not a direct award).
+- `20260709140000_house_names_and_fert_priority.sql` — admin-renamable house
+  names (default big barn = **Bando Barn**); fertilizer ripens blossoms first.
+- `20260709150000_golden_goose.sql` — **Golden Goose Keeper** event (see below).
+
+**What was added, app-side:**
+- **Admin console** (`/admin`) — Users / Meetings / Golden Goose / Game settings
+  / Audit log, all `is_admin()`-gated + audit-logged.
+- **Cozy visual swap** — all art now from `CozySpriteBundle/`: 10 composited
+  farmer variants (avatar picker), cozy ground/trees/barn, real fruit icons.
+- **Game-shell dashboard** — farm is the main canvas; a fixed bottom menu opens
+  everything else (Items / Code / Seed / Basket / Goose / Goals / Leaders /
+  Profile) in windows (bottom sheets on mobile). Tap a plant for contextual
+  actions; inventory items are click-to-use. Notification center + Plant-Seed
+  callout over the farm. Retro text tree-timers. Muted cozy palette.
+- **Selectable houses** — stored in `profiles.avatar_config.house` (no migration
+  for that part). Public profile shows the farmer in front of their house.
+- **Affirmation greeting** — from `affirmations.rtf` (104 lines).
+
+**Golden Goose Keeper** (trust-based; app never shows the question):
+- On a Goose day (default 7 random days/wk) one fair-lottery Keeper (fewest
+  prior turns) gets the goose. 24h Answer Collection → 24h Selection. Members
+  submit answers in-app (anonymous to the Keeper); Keeper picks a favorite →
+  that author gets a **Golden Goose Egg** (1 seed + 1 fertilizer + 10 water,
+  configurable) and the Keeper gets 1 fertilizer for finishing in time.
+  Auto-selects at 48h (Keeper then takes a gentle 2-month break from selection).
+  Keeper can "Not today" (pass) with no penalty. Public opted-in users only.
+  Fully configurable in Admin → Game settings (Golden Goose). No Fruits awarded.
+
+**Economy rule still holds everywhere:** direct rewards are only Water / Seed /
+Fertilizer; Fruits come only from harvesting trees.

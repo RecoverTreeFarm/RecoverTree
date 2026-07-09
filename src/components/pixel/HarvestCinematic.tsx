@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SPRITES } from "@/lib/sprites";
+import { SPRITES, CHERRY_FRUIT_INDEX } from "@/lib/sprites";
 import { Sprite, Tree, Fruit } from "./Sprite";
 
 /**
@@ -13,10 +13,16 @@ import { Sprite, Tree, Fruit } from "./Sprite";
 export function HarvestCinematic({
   duration = 2200,
   label = "🧺 Harvesting…",
+  fruitIndex = 0,
+  isBlossom = false,
   onDone,
 }: {
   duration?: number;
   label?: string;
+  /** the harvested tree's fruit — the falling fruit matches the tree */
+  fruitIndex?: number;
+  /** pink blossom tree: shows the pink sprite and drops cherries */
+  isBlossom?: boolean;
   onDone: () => void;
 }) {
   // The tree starts full of fruit; once the fruit begins falling it switches
@@ -56,13 +62,13 @@ export function HarvestCinematic({
       <div className="relative mb-[6%] flex items-end gap-2">
         {/* farmer leans toward the tree */}
         <div className="rf-lean">
-          <Sprite src={SPRITES.farmer} size={[16, 16]} scale={7} alt="farmer" />
+          <Sprite src={SPRITES.farmer} size={[32, 32]} scale={3.5} alt="farmer" />
         </div>
 
         {/* the shaking tree, with fruit dropping off it */}
         <div className="relative">
           <div className="rf-shake">
-            <Tree stage={treeStage} scale={9} />
+            <Tree stage={treeStage} scale={4.5} fruitIndex={fruitIndex} isBlossom={isBlossom} />
           </div>
           {drops.map((d, i) => (
             <span
@@ -70,7 +76,7 @@ export function HarvestCinematic({
               className="rf-fruit-fall absolute"
               style={{ left: d.left, top: 24, animationDelay: `${d.delay}s` }}
             >
-              <Fruit scale={2} />
+              <Fruit scale={2} index={isBlossom ? CHERRY_FRUIT_INDEX : fruitIndex} />
             </span>
           ))}
         </div>

@@ -44,7 +44,7 @@ export function SeedPanel({
       } else {
         playSfx("seed");
         setMessage(
-          `You planted a Seed for @${result.receiver_username} — and earned 💧 ${result.water_earned} water!`,
+          `You gave a Seed to @${result.receiver_username} — and earned 💧 ${result.water_earned} water!`,
         );
       }
       router.refresh();

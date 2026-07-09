@@ -105,8 +105,8 @@ export default async function LeaderboardPage() {
                         <span className="flex flex-wrap items-center gap-2">
                           <Sprite
                             src={anonymous ? SPRITES.villagerVariants[6] : avatarSprite(r.avatar_config)}
-                            size={[16, 16]}
-                            scale={2}
+                            size={[32, 32]}
+                            scale={1}
                             alt=""
                           />
                           {clickable ? (
