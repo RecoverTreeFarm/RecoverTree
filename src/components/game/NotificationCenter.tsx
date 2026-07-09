@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type FarmNotification = {
   /** stable id — dismissal is remembered per id (localStorage) */
@@ -52,6 +52,19 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
   const unread =
     dismissed === null ? [] : notifications.filter((n) => !dismissed.includes(n.id));
 
+  // Tapping anywhere outside the notification area collapses it.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [open]);
+
   function dismiss(id: string) {
     setDismissed((prev) => {
       const next = [...(prev ?? []), id];
@@ -63,7 +76,7 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
   // Position-agnostic: the parent (FarmPanel's top-right HUD stack) anchors
   // this, so the button renders first and the bubble list opens BELOW it.
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div ref={rootRef} className="flex flex-col items-end gap-1.5">
       <NotifButton open={open} setOpen={setOpen} unreadCount={unread.length} />
       {open && (
         <div className="flex max-h-56 w-60 flex-col gap-1.5 overflow-y-auto pl-1">

@@ -94,6 +94,7 @@ export function FarmScene({
   onDismiss,
   slotActions = [],
   canSelectEmpty = false,
+  farmerSrc = SPRITES.farmer,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -115,6 +116,8 @@ export function FarmScene({
   slotActions?: SlotAction[];
   /** whether empty patches are tappable (a seed is available) */
   canSelectEmpty?: boolean;
+  /** the player's chosen farmer sprite (defaults to the stock farmer) */
+  farmerSrc?: string;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
@@ -168,7 +171,7 @@ export function FarmScene({
         }}
       >
         <div className={innerAnim}>
-          <Sprite src={SPRITE_FARMER} size={[32, 32]} scale={compact ? 2.6 : 3.6} alt="farmer" />
+          <Sprite src={farmerSrc} size={[32, 32]} scale={compact ? 2.6 : 3.6} alt="farmer" />
         </div>
       </div>
 
@@ -361,4 +364,3 @@ function ActionMenu({ actions, below }: { actions: SlotAction[]; below: boolean 
     </div>
   );
 }
-const SPRITE_FARMER = SPRITES.farmer;

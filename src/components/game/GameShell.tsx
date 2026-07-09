@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { FarmPanel } from "@/components/pixel/FarmPanel";
+import { useEffect, useRef, useState } from "react";
+import { FarmPanel, type FarmPanelHandle, type FarmItemKind } from "@/components/pixel/FarmPanel";
 import { SeedPanel, type SeedMember } from "@/components/pixel/SeedPanel";
 import { BasketPanel, type BasketState } from "@/components/pixel/BasketPanel";
 import { CodeForm } from "@/components/meeting/CodeForm";
@@ -65,6 +65,36 @@ export type GameShellProps = {
 export function GameShell(props: GameShellProps) {
   const [open, setOpen] = useState<PanelId | null>(null);
   const house = HOUSE_SPRITES[props.houseKey] ?? HOUSE_SPRITES.house_1;
+  const farmRef = useRef<FarmPanelHandle | null>(null);
+
+  // Seed notification cadence: once per day — dismissed stays dismissed —
+  // UNLESS seeds ran all the way to 0 and came back, which starts a new
+  // "cycle" so the notification returns. Tracked per-browser.
+  const [seedNotifId, setSeedNotifId] = useState("seeds-pending");
+  useEffect(() => {
+    let cycle = 0;
+    try {
+      const prevRaw = window.localStorage.getItem("rf-prev-seeds");
+      const prev = prevRaw === null ? null : Number(prevRaw);
+      cycle = Number(window.localStorage.getItem("rf-seed-cycle") ?? "0") || 0;
+      if (prev === 0 && props.farm.seeds > 0) {
+        cycle += 1;
+        window.localStorage.setItem("rf-seed-cycle", String(cycle));
+      }
+      window.localStorage.setItem("rf-prev-seeds", String(props.farm.seeds));
+    } catch {
+      /* private mode etc. — falls back to the daily id */
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSeedNotifId(`seeds-${new Date().toISOString().slice(0, 10)}-c${cycle}`);
+  }, [props.farm.seeds]);
+
+  // Backpack item click → close the window and run the confirmed action on
+  // the farm (which then shows its in-place skip control).
+  function useItemFromBackpack(kind: FarmItemKind) {
+    setOpen(null);
+    farmRef.current?.useItem(kind);
+  }
 
   const menu: {
     id: PanelId | "home";
@@ -149,6 +179,8 @@ export function GameShell(props: GameShellProps) {
           fertilizer={props.farm.fertilizer}
           fruitTotal={props.farm.fruitTotal}
           house={{ src: house.src, w: house.w, h: house.h }}
+          avatarSrc={props.avatarSrc}
+          handleRef={farmRef}
           showGoose={
             !!props.goose &&
             props.goose.has_event &&
@@ -157,7 +189,7 @@ export function GameShell(props: GameShellProps) {
           }
           notificationSlot={
             <>
-              <NotificationCenter notifications={buildNotifications(props)} />
+              <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
               <WikiHelp />
             </>
           }
@@ -167,7 +199,9 @@ export function GameShell(props: GameShellProps) {
       {/* Window over the farm */}
       {open && (
         <GameWindow title={windowTitle[open]} onClose={() => setOpen(null)}>
-          {open === "inventory" && <InventoryPanel farm={props.farm} />}
+          {open === "inventory" && (
+            <InventoryPanel farm={props.farm} onUseItem={useItemFromBackpack} />
+          )}
           {open === "code" && <CodeForm />}
           {open === "seed" && (
             <SeedPanel
@@ -251,12 +285,14 @@ export function GameShell(props: GameShellProps) {
  * Ids embed the relevant counts/ids so a dismissed notification resurfaces
  * only when the underlying state actually changes.
  */
-function buildNotifications(props: GameShellProps): FarmNotification[] {
+function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNotification[] {
   const out: FarmNotification[] = [];
 
   if (props.farm.seeds > 0) {
     out.push({
-      id: `seeds-${props.farm.seeds}`,
+      // Daily id (+ a 0→positive "cycle" bump) — dismissing it holds for the
+      // whole day and count changes don't resurface it.
+      id: seedNotifId,
       text:
         props.farm.seeds === 1
           ? "You received a Seed — it’s ready to plant. 🌰"

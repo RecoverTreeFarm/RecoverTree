@@ -19,6 +19,8 @@ const SOUNDS = {
 export type SfxName = keyof typeof SOUNDS;
 
 const MUTE_KEY = "rf-muted";
+const VOLUME_KEY = "rf-volume";
+const DEFAULT_VOLUME = 0.22; // the app's original fixed level
 const cache = new Map<SfxName, HTMLAudioElement>();
 
 export function isMuted(): boolean {
@@ -32,7 +34,21 @@ export function setMuted(muted: boolean) {
   window.dispatchEvent(new Event("rf-mute-change"));
 }
 
-export function playSfx(name: SfxName, volume = 0.22) {
+/** Per-browser sound-effect volume, 0..1 (defaults to the classic 0.22). */
+export function getVolume(): number {
+  if (typeof window === "undefined") return DEFAULT_VOLUME;
+  const v = parseFloat(window.localStorage.getItem(VOLUME_KEY) ?? "");
+  return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_VOLUME;
+}
+
+export function setVolume(volume: number) {
+  if (typeof window === "undefined") return;
+  const v = Math.min(1, Math.max(0, volume));
+  window.localStorage.setItem(VOLUME_KEY, String(v));
+  window.dispatchEvent(new Event("rf-volume-change"));
+}
+
+export function playSfx(name: SfxName, volume = getVolume()) {
   if (typeof window === "undefined" || isMuted()) return;
   try {
     let audio = cache.get(name);

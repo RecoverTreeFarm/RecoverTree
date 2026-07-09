@@ -15,6 +15,7 @@ export function HarvestCinematic({
   label = "🧺 Harvesting…",
   fruitIndex = 0,
   isBlossom = false,
+  farmerSrc = SPRITES.farmer,
   onDone,
 }: {
   duration?: number;
@@ -23,6 +24,8 @@ export function HarvestCinematic({
   fruitIndex?: number;
   /** pink blossom tree: shows the pink sprite and drops cherries */
   isBlossom?: boolean;
+  /** the player's chosen farmer sprite */
+  farmerSrc?: string;
   onDone: () => void;
 }) {
   // The tree starts full of fruit; once the fruit begins falling it switches
@@ -62,7 +65,7 @@ export function HarvestCinematic({
       <div className="relative mb-[6%] flex items-end gap-2">
         {/* farmer leans toward the tree */}
         <div className="rf-lean">
-          <Sprite src={SPRITES.farmer} size={[32, 32]} scale={7} alt="farmer" />
+          <Sprite src={farmerSrc} size={[32, 32]} scale={7} alt="farmer" />
         </div>
 
         {/* the shaking tree, with fruit dropping off it */}

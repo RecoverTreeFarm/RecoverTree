@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Fruit } from "@/components/pixel/Sprite";
 import { SPRITES } from "@/lib/sprites";
+import type { FarmItemKind } from "@/components/pixel/FarmPanel";
 
 /* ---------------------------------------------------------------------------
  * Small presentational windows opened from the bottom game menu. These were
@@ -31,6 +33,7 @@ export type LeaderboardRow = {
 
 export function InventoryPanel({
   farm,
+  onUseItem,
 }: {
   farm: {
     seasonName: string;
@@ -40,33 +43,86 @@ export function InventoryPanel({
     fertilizer: number;
     treeCount: number;
   };
+  /** confirmed backpack item use — the shell closes this window and runs it */
+  onUseItem?: (kind: FarmItemKind) => void;
 }) {
-  const rows: { icon: React.ReactNode; label: string; value: number; hint: string }[] = [
-    { icon: <span aria-hidden>💧</span>, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage." },
+  // Same two-step confirm as the farm's item bar: first tap arms "… all?",
+  // second tap hands off to the farm (which then shows the skip control).
+  const [confirm, setConfirm] = useState<FarmItemKind | null>(null);
+  useEffect(() => {
+    if (!confirm) return;
+    const t = setTimeout(() => setConfirm(null), 5000);
+    return () => clearTimeout(t);
+  }, [confirm]);
+
+  const rows: {
+    icon: React.ReactNode;
+    label: string;
+    value: number;
+    hint: string;
+    kind?: FarmItemKind;
+    confirmLabel?: string;
+  }[] = [
+    { icon: <span aria-hidden>💧</span>, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage.", kind: "water", confirmLabel: "Water all?" },
     { icon: <Fruit scale={1.7} />, label: "Fruits", value: farm.fruitTotal, hint: "Your Season score — only harvesting trees makes Fruits." },
-    { icon: <span aria-hidden>✨</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree." },
-    { icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />, label: "Seeds to plant", value: farm.seeds, hint: "Received from other farmers — plant one to grow an extra tree." },
+    { icon: <span aria-hidden>✨</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
+    { icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />, label: "Seeds to plant", value: farm.seeds, hint: "Received from other farmers — plant one to grow an extra tree.", kind: "seed", confirmLabel: "Plant all?" },
     { icon: <span aria-hidden>🌳</span>, label: "Trees", value: farm.treeCount, hint: "More trees = a bigger harvest (max 20)." },
   ];
+
   return (
     <div>
       <p className="mb-3 text-[11px] uppercase tracking-wide text-[var(--rf-ink-soft)]">
         {farm.seasonName}
       </p>
       <ul className="space-y-3">
-        {rows.map((r) => (
-          <li key={r.label} className="flex items-start gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border-2 border-[var(--rf-ink)] bg-white text-lg">
-              {r.icon}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-extrabold">
-                {r.value} <span className="font-bold">{r.label}</span>
-              </p>
-              <p className="text-[11px] text-[var(--rf-ink-soft)]">{r.hint}</p>
-            </div>
-          </li>
-        ))}
+        {rows.map((r) => {
+          const usable = !!onUseItem && !!r.kind && r.value > 0;
+          const armed = usable && confirm === r.kind;
+          const body = (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded border-2 border-[var(--rf-ink)] bg-white text-lg">
+                {r.icon}
+              </span>
+              <div className="min-w-0 text-left">
+                <p className="text-sm font-extrabold">
+                  {armed ? (
+                    <span className="rounded bg-[var(--rf-gold)] px-1.5">{r.confirmLabel}</span>
+                  ) : (
+                    <>
+                      {r.value} <span className="font-bold">{r.label}</span>
+                    </>
+                  )}
+                </p>
+                <p className="text-[11px] text-[var(--rf-ink-soft)]">
+                  {armed ? "Tap again to use everything you can." : r.hint}
+                </p>
+              </div>
+            </>
+          );
+          return (
+            <li key={r.label}>
+              {usable ? (
+                <button
+                  type="button"
+                  className="flex w-full items-start gap-3 rounded border-2 border-transparent p-1 hover:border-[var(--rf-ink)] hover:bg-[var(--rf-cream)]"
+                  onClick={() => {
+                    if (armed) {
+                      setConfirm(null);
+                      onUseItem?.(r.kind!);
+                    } else {
+                      setConfirm(r.kind!);
+                    }
+                  }}
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className="flex items-start gap-3 p-1">{body}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
