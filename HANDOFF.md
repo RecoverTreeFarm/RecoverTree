@@ -29,25 +29,48 @@ If you ever add a reward, it must be Seed / Water / Fertilizer — never Fruits.
 All scoring is **server-side only** (Supabase SECURITY DEFINER functions + RLS);
 clients can read their own data but cannot write scores.
 
-## ⚠️ Migrations to apply (do this first)
-The Supabase MCP was network-unreachable during recent work, so these migrations
-were **written but not applied**. Apply each in the **Supabase SQL editor**, in
-filename order, before relying on the newer features:
-1. `20260709100000_admin_and_game_settings.sql`
-2. `20260709110000_traveling_basket.sql`
-3. `20260709120000_basket_hold_and_limits.sql`
-4. `20260709130000_blossom_trees.sql`
-5. `20260709140000_house_names_and_fert_priority.sql`
-6. `20260709150000_golden_goose.sql`
+## Database / migrations — ✅ all applied
+As of 2026-07-09 every migration is applied to the live Supabase project
+(`usmtdjmxvbuuwvmzobln`), verified by querying for the objects each one creates:
 
-The app is written to degrade gracefully if a migration isn't applied yet (the
-related panel hides or shows an "isn't set up yet" note instead of crashing).
+| Migration | What it adds |
+|---|---|
+| `20260709100000` | Admin console + `game_settings` (code defaults, DB overrides) |
+| `20260709110000` | Traveling Basket |
+| `20260709120000` | Basket total-limits + 24h hold / auto-pass |
+| `20260709130000` | Blossom trees (`trees.is_blossom`, 2× harvest) |
+| `20260709140000` | Admin-renamable house names; fertilizer ripens blossoms first |
+| `20260709150000` | Golden Goose Keeper |
+| `20260709160000` | Blossom gameplay repair (see caveat below) |
+
+### ⚠️ Migration ordering caveat (important)
+`130000`, `140000` and `150000` **each recreate `update_game_settings`**, every
+version adding more allowed setting keys. **Applying them out of order downgrades
+that function** and silently drops newer keys (e.g. `goose_enabled`). On the live
+DB, `150000` had been applied while `130000`/`140000` were skipped; `20260709160000`
+re-applies only the blossom *gameplay* pieces (column + `water_my_trees` /
+`harvest_my_trees` / `use_fertilizer`) and deliberately **never touches**
+`update_game_settings`.
+
+**To verify the DB state at any time**, paste this into the Supabase SQL editor
+(pasting SQL there does *not* register in the Migrations tab, so check objects):
+
+```sql
+select '100000 admin+settings' m, (to_regclass('public.game_settings') is not null) applied
+union all select '110000 basket', (to_regclass('public.traveling_basket_chains') is not null)
+union all select '120000 basket-hold', exists(select 1 from pg_proc where proname='basket_do_pass')
+union all select '130000 blossom', exists(select 1 from information_schema.columns where table_name='trees' and column_name='is_blossom')
+union all select '140000 house-names', exists(select 1 from pg_proc where proname='use_fertilizer' and pg_get_functiondef(oid) ilike '%is_blossom%')
+union all select '150000 goose', (to_regclass('public.golden_goose_assignments') is not null)
+union all select 'GUARD goose_enabled', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%goose_enabled%')
+order by 1;
+```
 
 ## What has been built
 - **Auth** (signup/login/logout), **profiles** + Private Mode (public/anonymous/hidden)
 - **Seasons** + starter farms; monthly season auto-created
 - **Farm loop**: water → 5 grow stages → 4-hour fruit timer → harvest; fertilizer
-  ripens a waiting tree; blossom trees (~15%) pay 2×
+  ripens a waiting tree; pink blossom trees (~15%) pay 2×
 - **Meetings**: host generates a 4-digit code; members redeem it for Water
 - **Seeds**: give a daily Seed (giver Water, receiver a plantable Seed)
 - **Monthly checklist** (random shared goals) + **season-close ceremony** (medals/badges)
@@ -65,19 +88,19 @@ related panel hides or shows an "isn't set up yet" note instead of crashing).
   affirmation greeting; muted earthy palette
 
 ## What still needs to be built
-- **Apply the migrations above** (nothing new works until they're applied)
-- **Scheduled jobs**: season auto-close, Traveling Basket, and Golden Goose all
-  advance/auto-close **lazily on dashboard load** (no cron). Add a Supabase cron
-  / edge function to fire them on time if the community is quiet.
+- **Scheduled jobs**: season auto-close, Traveling Basket and Golden Goose all
+  advance/auto-close **lazily on dashboard load** (there is no cron). Add a
+  Supabase cron / edge function so they fire on time when the community is quiet.
 - **Auth email**: uses Supabase's built-in mailer (~2/hour). Wire a real email
   provider before a wider launch.
 - Optional polish: more badge/checklist rule types; egg-on-farm animation for the
-  Golden Goose winner; goose fully wired to a real scheduler.
+  Golden Goose winner.
 
 ## Current known issues / notes
 - **Lazy timers**: with no cron, timed events resolve when someone loads the
   dashboard, not exactly on the clock.
 - **4×4 farm grid (16 slots)**: older farms with 17–20 trees show only the first 16.
+- **Migration ordering**: see the caveat above before re-running any migration.
 - **Lint** reports a small pre-existing baseline (`Date.now()` purity, `<img>`
   hints) — typecheck and `next build` are clean.
 - `/debug/auth` is a temporary developer page — delete before a real launch.
@@ -91,8 +114,11 @@ related panel hides or shows an "isn't set up yet" note instead of crashing).
 - **No** service-role/secret keys, DB passwords, or API secrets are in the repo.
 
 ## Next recommended step
-**Apply the six pending migrations in the Supabase SQL editor**, then smoke-test
-each new area (admin settings, Traveling Basket, blossom trees, Golden Goose).
-After that, add a **scheduled job** (Supabase cron/edge function) so season
-close, the Basket, and the Golden Goose advance on time instead of only on
-dashboard visits.
+Smoke-test the newly-live **blossom trees**: water a tree to full, and roughly
+1 in 7 should turn pink when it starts its fruit timer; harvesting it should pay
+**20 Fruits instead of 10**. (You can force it via Admin → Game settings →
+Trees & harvest → set blossom chance to 100, then set it back to 15.)
+
+After that, add a **scheduled job** (Supabase cron / edge function) so season
+close, the Traveling Basket, and the Golden Goose advance on time instead of
+only when someone opens the dashboard.
