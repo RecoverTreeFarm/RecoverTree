@@ -62,7 +62,7 @@ export function HarvestCinematic({
       <div className="relative mb-[6%] flex items-end gap-2">
         {/* farmer leans toward the tree */}
         <div className="rf-lean">
-          <Sprite src={SPRITES.farmer} size={[32, 32]} scale={3.5} alt="farmer" />
+          <Sprite src={SPRITES.farmer} size={[32, 32]} scale={7} alt="farmer" />
         </div>
 
         {/* the shaking tree, with fruit dropping off it */}

@@ -426,15 +426,24 @@ export function FarmPanel({
           </button>
         )}
 
-        {/* The Golden Goose hangs out on the Keeper's farm (flies when busy) */}
+        {/* The Golden Goose hangs out on the Keeper's farm. While the farmer
+            is doing something it takes off — full size, flapping, swooping
+            around the play area (rf-goose-fly animates left/top waypoints). */}
         {showGoose && (
-          <div className="pointer-events-none absolute left-1/2 top-[8%] z-20 -translate-x-1/2">
-            <GooseSprite flying={busy} scale={1.3} />
+          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+            <div
+              className={`absolute -translate-x-1/2 ${busy ? "rf-goose-fly" : ""}`}
+              style={{ left: "50%", top: "8%" }}
+            >
+              <GooseSprite flying={busy} scale={1.3} />
+            </div>
           </div>
         )}
 
-        {/* Notification center — bottom-left of the play area */}
-        {notificationSlot}
+        {/* Bottom-left sidebar: "!" notifications on top, "?" wiki below */}
+        <div className="absolute bottom-2 left-2 z-30 flex flex-col items-start gap-1.5">
+          {notificationSlot}
+        </div>
 
         {/* Plant Seed callout — bottom-right, only when Seeds are available */}
         {seeds > 0 && !cinematic && (

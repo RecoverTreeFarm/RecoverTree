@@ -6,21 +6,21 @@ import type {
   AdminMeetingSession,
   AdminAuditLog,
   AdminChecklistGoal,
-  AdminGooseRow,
 } from "@/lib/admin";
 import type { SettingOverrideRow } from "@/lib/gameSettings";
 import { UserManagement } from "./UserManagement";
 import { MeetingSessions } from "./MeetingSessions";
 import { AuditLogs } from "./AuditLogs";
 import { GameSettings } from "./GameSettings";
-import { GooseAdmin } from "./GooseAdmin";
 
-type Tab = "users" | "sessions" | "goose" | "logs" | "settings";
+// The standalone Golden Goose tab was removed by request — Golden Goose
+// SETTINGS remain editable under Game settings. (The admin cancel RPC still
+// exists server-side if a management UI is ever wanted again.)
+type Tab = "users" | "sessions" | "logs" | "settings";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "users", label: "Users" },
   { id: "sessions", label: "Meetings" },
-  { id: "goose", label: "Golden Goose" },
   { id: "settings", label: "Game settings" },
   { id: "logs", label: "Audit log" },
 ];
@@ -32,7 +32,6 @@ export function AdminConsole({
   logs,
   goals,
   overrides,
-  goose,
 }: {
   currentUserId: string;
   users: AdminUser[];
@@ -40,7 +39,6 @@ export function AdminConsole({
   logs: AdminAuditLog[];
   goals: AdminChecklistGoal[];
   overrides: SettingOverrideRow[];
-  goose: AdminGooseRow[];
 }) {
   const [tab, setTab] = useState<Tab>("users");
 
@@ -69,7 +67,6 @@ export function AdminConsole({
         <UserManagement users={users} currentUserId={currentUserId} />
       )}
       {tab === "sessions" && <MeetingSessions sessions={sessions} />}
-      {tab === "goose" && <GooseAdmin rows={goose} />}
       {tab === "settings" && (
         <GameSettings overrides={overrides} goals={goals} />
       )}

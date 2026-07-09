@@ -145,7 +145,7 @@ export default async function ProfilePage({
               <Sprite
                 src={avatarSprite(profile.avatar_config)}
                 size={[32, 32]}
-                scale={1.9}
+                scale={3.8}
                 alt="farmer avatar"
               />
             </div>

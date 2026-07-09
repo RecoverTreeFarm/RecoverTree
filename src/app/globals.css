@@ -162,6 +162,18 @@ body {
 }
 .rf-goose-bob { animation: rf-goose-bob 1.8s ease-in-out infinite; transform-origin: bottom center; }
 
+/* Flying goose: playful swoop around the play area while the farmer acts.
+   Animates left/top waypoints inside the farm's inset-0 wrapper; stays clear
+   of the corners where UI lives (notifications, skip, plant-seed). */
+@keyframes rf-goose-fly {
+  0%   { left: 50%; top: 8%; }
+  22%  { left: 16%; top: 24%; }
+  45%  { left: 32%; top: 48%; }
+  70%  { left: 74%; top: 34%; }
+  100% { left: 50%; top: 8%; }
+}
+.rf-goose-fly { animation: rf-goose-fly 3.6s ease-in-out infinite; }
+
 /* Egg waiting to open: wiggle + squash/stretch */
 @keyframes rf-egg-wiggle {
   0%, 100% { transform: rotate(-4deg) scaleY(1); }

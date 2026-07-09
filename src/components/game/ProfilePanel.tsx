@@ -54,7 +54,7 @@ export function ProfilePanel({
   return (
     <div>
       <div className="flex items-center gap-3">
-        <Sprite src={profile.avatarSrc} size={[32, 32]} scale={2} alt="your farmer" />
+        <Sprite src={profile.avatarSrc} size={[32, 32]} scale={4} alt="your farmer" />
         <div className="min-w-0">
           <p className="truncate font-bold">
             <Link href={`/profile/${profile.username}`} className="underline">

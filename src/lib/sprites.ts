@@ -46,9 +46,19 @@ export const SPRITES = {
 
   // Golden Goose (two flap frames + egg)
   goose1: "/sprites/goose/goose_1.png", // wings up
-  goose2: "/sprites/goose/goose_2.png", // gliding
+  goose2: "/sprites/goose/goose_2.png", // gliding (wing down)
   gooseEgg: "/sprites/goose/egg.png",
 } as const;
+
+/**
+ * Season-cycle icons (sliced from CozySpriteBundle/Seasons Icons.png), one per
+ * cycle position 1..5 (Sparch..Octobrrr). Soft glow baked in — render with
+ * normal smoothing (no .pixelated) at small sizes.
+ */
+export function seasonIcon(cyclePosition: number | null): string | null {
+  if (!cyclePosition || cyclePosition < 1 || cyclePosition > 5) return null;
+  return `/sprites/seasons/season_${cyclePosition}.png`;
+}
 
 /**
  * Selectable player houses (from CozySpriteBundle/HouseChoices, trimmed).
@@ -93,19 +103,30 @@ export const TREE_SHEET = {
 
 /**
  * Tree growth model (matches trees.growth_stage in the database).
- *   stage 1 → frame 1 (sprout)      stage 2 → frame 2 (bush)
- *   stage 3 → frame 3 (sapling)     stage 4 → frame 4 (full tree)
- *   stage 5 → frame 4 + fruit dots (BEARING); pink variant if is_blossom
+ *   stage 1 → frame 0 (tiny sprout)   stage 2 → frame 1 (bush)
+ *   stage 3 → frame 2 (sapling)       stage 4 → frame 3 (young tree)
+ *   stage 5 → frame 4 + fruit sprites (BEARING); pink variant if is_blossom
+ * Frames alone read too alike in the middle, so each stage ALSO renders at a
+ * growing size (TREE_STAGE_SIZE) — visual only, growth logic unchanged.
  * Watering advances the stage server-side; harvesting a bearing tree pays
  * out Fruits (2x for a blossom tree) and resets it to stage 1.
  */
 export const TREE_BEARING_STAGE = 5;
 export const TREE_EMPTY_MATURE_FRAME = 4;
 
-/** Convert a growth stage (1..5) to a sheet frame index. */
+/** Convert a growth stage (1..5) to a sheet frame index (0-based). */
 export function treeFrameForStage(stage: number): number {
-  return Math.min(Math.max(stage, 1), TREE_EMPTY_MATURE_FRAME);
+  return Math.min(Math.max(stage, 1), TREE_BEARING_STAGE) - 1;
 }
+
+/** Per-stage size multiplier so every growth phase is clearly taller/fuller. */
+export const TREE_STAGE_SIZE: Record<number, number> = {
+  1: 0.55,
+  2: 0.7,
+  3: 0.85,
+  4: 1,
+  5: 1,
+};
 
 /** Blueberry blue sampled from the sheet's berry pixels. */
 export const FRUIT_BLUE = "#3d55c8";

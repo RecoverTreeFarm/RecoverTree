@@ -70,6 +70,27 @@ export default async function DashboardPage() {
     isBlossom: (t.is_blossom as boolean | undefined) ?? false,
   }));
 
+  // Season countdown for the header (icon + "N days left in Sparch").
+  let seasonDaysLeft: number | null = null;
+  let seasonCyclePosition: number | null = null;
+  if (farm) {
+    const { data: seasonRow } = await supabase
+      .from("seasons")
+      .select("ends_at, cycle_position")
+      .eq("id", farm.season_id)
+      .maybeSingle();
+    if (seasonRow?.ends_at) {
+      // Server component renders per-request, so "now" is stable per render.
+      // eslint-disable-next-line react-hooks/purity
+      const now = Date.now();
+      seasonDaysLeft = Math.max(
+        0,
+        Math.ceil((new Date(seasonRow.ends_at as string).getTime() - now) / 86_400_000),
+      );
+    }
+    seasonCyclePosition = (seasonRow?.cycle_position as number | null) ?? null;
+  }
+
   // Members you can Seed: public profiles other than yourself (RLS already
   // hides anonymous/hidden farmers from this query).
   const { data: memberRows } = await supabase
@@ -157,6 +178,8 @@ export default async function DashboardPage() {
           fertilizer: farm?.fertilizer_count ?? 0,
           treeCount: farm?.tree_count ?? trees.length,
         }}
+        seasonDaysLeft={seasonDaysLeft}
+        seasonCyclePosition={seasonCyclePosition}
         members={members}
         sentToday={Boolean(todaySeed)}
         sentToName={sentToName}

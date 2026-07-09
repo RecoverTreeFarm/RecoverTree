@@ -88,7 +88,7 @@ export default async function SettingsPage({
                     defaultChecked={key === currentSprite}
                     className="sr-only"
                   />
-                  <Sprite src={AVATAR_SPRITES[key]} size={[32, 32]} scale={1.5} alt={key} />
+                  <Sprite src={AVATAR_SPRITES[key]} size={[32, 32]} scale={3} alt={key} />
                 </label>
               ))}
             </div>

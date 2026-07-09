@@ -2,6 +2,7 @@ import {
   SPRITES,
   TREE_SHEET,
   TREE_BEARING_STAGE,
+  TREE_STAGE_SIZE,
   treeFrameForStage,
   fruitSprite,
   DEFAULT_FRUIT_INDEX,
@@ -76,7 +77,11 @@ export function Tree({
   const clamped = Math.max(1, Math.min(TREE_BEARING_STAGE, stage));
   const bearing = clamped === TREE_BEARING_STAGE;
   const frame = treeFrameForStage(clamped);
-  const fruitPx = 6 * scale; // fruit render size
+  // Each growth phase renders visibly bigger than the last (visual only —
+  // growth logic lives server-side). Bottom-aligned by the grid, so trees
+  // grow "up" out of the soil.
+  const effScale = scale * (TREE_STAGE_SIZE[clamped] ?? 1);
+  const fruitPx = 6 * effScale; // fruit render size
   const pink = bearing && isBlossom;
   // Pink blossom trees ALWAYS grow cherries; normal trees keep their
   // per-slot fruit.
@@ -88,14 +93,14 @@ export function Tree({
       aria-label={pink ? "blossom tree bearing fruit" : bearing ? "tree bearing fruit" : "tree"}
       className={`relative pixelated ${className}`}
       style={{
-        width: frameWidth * scale,
-        height: frameHeight * scale,
+        width: frameWidth * effScale,
+        height: frameHeight * effScale,
         backgroundImage: `url(${pink ? SPRITES.treeBlossom : SPRITES.treeSheet})`,
         backgroundRepeat: "no-repeat",
         backgroundSize: pink
-          ? `${frameWidth * scale}px ${frameHeight * scale}px`
-          : `${frameWidth * frameCount * scale}px ${frameHeight * scale}px`,
-        backgroundPosition: pink ? "0 0" : `-${frame * frameWidth * scale}px 0`,
+          ? `${frameWidth * effScale}px ${frameHeight * effScale}px`
+          : `${frameWidth * frameCount * effScale}px ${frameHeight * effScale}px`,
+        backgroundPosition: pink ? "0 0" : `-${frame * frameWidth * effScale}px 0`,
         imageRendering: "pixelated",
       }}
     >
@@ -107,7 +112,7 @@ export function Tree({
             src={fruitSprite(effectiveFruit)}
             alt=""
             className="pixelated absolute"
-            style={{ left: x * scale, top: y * scale, width: fruitPx, height: fruitPx }}
+            style={{ left: x * effScale, top: y * effScale, width: fruitPx, height: fruitPx }}
           />
         ))}
     </div>

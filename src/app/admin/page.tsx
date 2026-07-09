@@ -8,7 +8,6 @@ import type {
   AdminMeetingSession,
   AdminAuditLog,
   AdminChecklistGoal,
-  AdminGooseRow,
 } from "@/lib/admin";
 import type { SettingOverrideRow } from "@/lib/gameSettings";
 
@@ -48,13 +47,12 @@ export default async function AdminPage() {
   // Pull everything the console needs via the admin RPCs (each re-checks
   // is_admin() in the DB). If the migration hasn't been applied yet the RPCs
   // won't exist — surface that clearly instead of crashing.
-  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes, gooseRes] = await Promise.all([
+  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes] = await Promise.all([
     supabase.rpc("list_admin_users"),
     supabase.rpc("list_admin_meeting_sessions"),
     supabase.rpc("list_admin_audit_logs"),
     supabase.rpc("list_admin_checklist_goals"),
     supabase.rpc("get_game_settings"),
-    supabase.rpc("list_admin_golden_goose"),
   ]);
 
   const missingFn =
@@ -95,7 +93,6 @@ export default async function AdminPage() {
         logs={(logsRes.data ?? []) as AdminAuditLog[]}
         goals={(goalsRes.data ?? []) as AdminChecklistGoal[]}
         overrides={(settingsRes.data ?? []) as SettingOverrideRow[]}
-        goose={(gooseRes.data ?? []) as AdminGooseRow[]}
       />
     </Container>
   );

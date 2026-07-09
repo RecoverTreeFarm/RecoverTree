@@ -11,9 +11,10 @@ import { ProfilePanel, type ProfileInfo } from "./ProfilePanel";
 import { ChecklistPanel, LeaderboardPanel, InventoryPanel } from "./panels";
 import type { ChecklistItem, LeaderboardRow } from "./panels";
 import { NotificationCenter, type FarmNotification } from "./NotificationCenter";
+import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
 import type { GooseState } from "@/lib/goose";
-import { HOUSE_SPRITES, SPRITES } from "@/lib/sprites";
+import { HOUSE_SPRITES, SPRITES, seasonIcon } from "@/lib/sprites";
 
 type PanelId =
   | "inventory"
@@ -42,6 +43,10 @@ export type GameShellProps = {
     fertilizer: number;
     treeCount: number;
   };
+  /** whole days until the current season ends (null if unknown) */
+  seasonDaysLeft: number | null;
+  /** 1..5 position in the season cycle — picks the header icon */
+  seasonCyclePosition: number | null;
   members: SeedMember[];
   sentToday: boolean;
   sentToName: string | null;
@@ -115,13 +120,27 @@ export function GameShell(props: GameShellProps) {
       {/* Tiny greeting: a quiet affirmation from the provided list */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <Sprite src={props.avatarSrc} size={[32, 32]} scale={1.25} alt="" />
+          <Sprite src={props.avatarSrc} size={[32, 32]} scale={2.5} alt="" />
           <span className="truncate text-sm font-bold text-[var(--rf-ink-soft)]">
             {props.affirmation}
           </span>
         </div>
-        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-          {props.farm.seasonName}
+        {/* Season chip: icon + days-left countdown, top-right */}
+        <span className="flex shrink-0 items-center gap-1.5">
+          {seasonIcon(props.seasonCyclePosition) && (
+            // Glow is baked into the icon — smooth scaling looks right here.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={seasonIcon(props.seasonCyclePosition)!}
+              alt=""
+              className="h-6 w-auto"
+            />
+          )}
+          <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+            {props.seasonDaysLeft !== null
+              ? `${props.seasonDaysLeft} ${props.seasonDaysLeft === 1 ? "day" : "days"} left in ${props.farm.seasonName}`
+              : props.farm.seasonName}
+          </span>
         </span>
       </div>
 
@@ -140,7 +159,12 @@ export function GameShell(props: GameShellProps) {
             props.goose.i_am_keeper &&
             (props.goose.status === "answer_collection" || props.goose.status === "selection_open")
           }
-          notificationSlot={<NotificationCenter notifications={buildNotifications(props)} />}
+          notificationSlot={
+            <>
+              <NotificationCenter notifications={buildNotifications(props)} />
+              <WikiHelp />
+            </>
+          }
         />
       </div>
 

@@ -106,7 +106,7 @@ export default async function LeaderboardPage() {
                           <Sprite
                             src={anonymous ? SPRITES.villagerVariants[6] : avatarSprite(r.avatar_config)}
                             size={[32, 32]}
-                            scale={1}
+                            scale={2}
                             alt=""
                           />
                           {clickable ? (

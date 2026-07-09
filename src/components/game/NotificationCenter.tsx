@@ -60,44 +60,12 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
     });
   }
 
+  // Position-agnostic: the parent (FarmPanel's bottom-left overlay stack)
+  // anchors this, so the bubble list renders ABOVE the button.
   return (
-    <div className="absolute right-2 top-2 z-30 flex flex-col items-end gap-1.5">
-      <button
-        type="button"
-        aria-label={
-          unread.length > 0 ? `${unread.length} unread notifications` : "Notifications"
-        }
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`relative flex items-center justify-center rounded-full border-2 font-extrabold ${
-          unread.length > 0 ? "rf-throb h-11 w-11 text-lg" : "h-9 w-9 text-sm"
-        }`}
-        style={{
-          borderColor: "var(--rf-ink)",
-          background: unread.length > 0 ? "var(--rf-gold)" : "var(--rf-cream)",
-          color: "var(--rf-ink)",
-          opacity: unread.length > 0 ? 1 : 0.6,
-          boxShadow: unread.length > 0 ? "0 0 0 3px rgba(221,181,110,0.45)" : "none",
-        }}
-      >
-        !
-        {unread.length > 0 && (
-          <span
-            aria-hidden
-            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-extrabold leading-none"
-            style={{
-              borderColor: "var(--rf-ink)",
-              background: "var(--rf-red)",
-              color: "var(--rf-cream)",
-            }}
-          >
-            {unread.length}
-          </span>
-        )}
-      </button>
-
+    <div className="flex flex-col items-start gap-1.5">
       {open && (
-        <div className="flex max-h-56 w-60 flex-col gap-1.5 overflow-y-auto pl-1">
+        <div className="flex max-h-56 w-60 flex-col gap-1.5 overflow-y-auto pr-1">
           {unread.length === 0 ? (
             <div
               className="rounded-lg border-2 px-2.5 py-1.5 text-[11px] font-bold"
@@ -130,6 +98,41 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
           )}
         </div>
       )}
+
+      <button
+        type="button"
+        aria-label={
+          unread.length > 0 ? `${unread.length} unread notifications` : "Notifications"
+        }
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+          unread.length > 0 ? "rf-throb text-lg font-black" : "text-sm font-bold"
+        }`}
+        style={{
+          borderColor: "var(--rf-ink)",
+          // unread: dark circle with a readable yellow "!"; calm otherwise
+          background: unread.length > 0 ? "var(--rf-ink)" : "var(--rf-cream)",
+          color: unread.length > 0 ? "var(--rf-gold)" : "var(--rf-ink-soft)",
+          opacity: unread.length > 0 ? 1 : 0.6,
+          boxShadow: unread.length > 0 ? "0 0 0 3px rgba(221,181,110,0.45)" : "none",
+        }}
+      >
+        !
+        {unread.length > 0 && (
+          <span
+            aria-hidden
+            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-extrabold leading-none"
+            style={{
+              borderColor: "var(--rf-ink)",
+              background: "var(--rf-red)",
+              color: "var(--rf-cream)",
+            }}
+          >
+            {unread.length}
+          </span>
+        )}
+      </button>
     </div>
   );
 }
