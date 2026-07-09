@@ -12,18 +12,12 @@ import { UserManagement } from "./UserManagement";
 import { MeetingSessions } from "./MeetingSessions";
 import { AuditLogs } from "./AuditLogs";
 import { GameSettings } from "./GameSettings";
+import { DebugTools, type DebugInventoryRow, type DebugEventStates } from "./DebugTools";
 
 // The standalone Golden Goose tab was removed by request — Golden Goose
 // SETTINGS remain editable under Game settings. (The admin cancel RPC still
 // exists server-side if a management UI is ever wanted again.)
-type Tab = "users" | "sessions" | "logs" | "settings";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "users", label: "Users" },
-  { id: "sessions", label: "Meetings" },
-  { id: "settings", label: "Game settings" },
-  { id: "logs", label: "Audit log" },
-];
+type Tab = "users" | "sessions" | "logs" | "settings" | "debug";
 
 export function AdminConsole({
   currentUserId,
@@ -32,6 +26,7 @@ export function AdminConsole({
   logs,
   goals,
   overrides,
+  debug,
 }: {
   currentUserId: string;
   users: AdminUser[];
@@ -39,13 +34,23 @@ export function AdminConsole({
   logs: AdminAuditLog[];
   goals: AdminChecklistGoal[];
   overrides: SettingOverrideRow[];
+  /** null = debug settings disabled → no Debug tab */
+  debug: { players: DebugInventoryRow[]; events: DebugEventStates | null } | null;
 }) {
   const [tab, setTab] = useState<Tab>("users");
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "users", label: "Users" },
+    { id: "sessions", label: "Meetings" },
+    { id: "settings", label: "Game settings" },
+    ...(debug ? [{ id: "debug" as Tab, label: "Debug 🧪" }] : []),
+    { id: "logs", label: "Audit log" },
+  ];
 
   return (
     <div>
       <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Admin sections">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             role="tab"
@@ -69,6 +74,9 @@ export function AdminConsole({
       {tab === "sessions" && <MeetingSessions sessions={sessions} />}
       {tab === "settings" && (
         <GameSettings overrides={overrides} goals={goals} />
+      )}
+      {tab === "debug" && debug && (
+        <DebugTools players={debug.players} events={debug.events} />
       )}
       {tab === "logs" && <AuditLogs logs={logs} />}
     </div>

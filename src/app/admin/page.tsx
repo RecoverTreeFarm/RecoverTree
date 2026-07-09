@@ -9,7 +9,8 @@ import type {
   AdminAuditLog,
   AdminChecklistGoal,
 } from "@/lib/admin";
-import type { SettingOverrideRow } from "@/lib/gameSettings";
+import { debugSettingsEnabled, type SettingOverrideRow } from "@/lib/gameSettings";
+import type { DebugInventoryRow, DebugEventStates } from "@/components/admin/DebugTools";
 
 /**
  * Admin console. Access is enforced SERVER-SIDE here (non-admins get an
@@ -79,6 +80,21 @@ export default async function AdminPage() {
     );
   }
 
+  // Debug tab data — only fetched when the admin has switched the
+  // `debug_settings_enabled` game setting on (the RPCs also re-check it).
+  const overrides = (settingsRes.data ?? []) as SettingOverrideRow[];
+  let debug: { players: DebugInventoryRow[]; events: DebugEventStates | null } | null = null;
+  if (debugSettingsEnabled(overrides)) {
+    const [invRes, eventsRes] = await Promise.all([
+      supabase.rpc("debug_list_inventories"),
+      supabase.rpc("debug_event_states"),
+    ]);
+    debug = {
+      players: (invRes.data ?? []) as DebugInventoryRow[],
+      events: eventsRes.error ? null : ((eventsRes.data ?? null) as DebugEventStates | null),
+    };
+  }
+
   return (
     <Container>
       <PageHeader
@@ -92,7 +108,8 @@ export default async function AdminPage() {
         sessions={(sessionsRes.data ?? []) as AdminMeetingSession[]}
         logs={(logsRes.data ?? []) as AdminAuditLog[]}
         goals={(goalsRes.data ?? []) as AdminChecklistGoal[]}
-        overrides={(settingsRes.data ?? []) as SettingOverrideRow[]}
+        overrides={overrides}
+        debug={debug}
       />
     </Container>
   );

@@ -440,8 +440,8 @@ export function FarmPanel({
           </div>
         )}
 
-        {/* Bottom-left sidebar: "!" notifications on top, "?" wiki below */}
-        <div className="absolute bottom-2 left-2 z-30 flex flex-col items-start gap-1.5">
+        {/* Top-right HUD: "!" notifications on top, "?" guidebook below */}
+        <div className="absolute right-2 top-2 z-30 flex flex-col items-end gap-1.5">
           {notificationSlot}
         </div>
 

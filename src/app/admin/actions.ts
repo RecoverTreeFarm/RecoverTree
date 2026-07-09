@@ -50,6 +50,9 @@ function friendly(message: string): string {
   if (m.includes("DAY_OUT_OF_RANGE") || m.includes("INVALID_DAY")) return "Weekdays must be Sunday–Saturday.";
   if (m.includes("UNKNOWN_SETTING_KEY")) return "One of the settings isn’t recognized.";
   if (m.includes("TEXT_LENGTH") || m.includes("INVALID_TEXT")) return "Names must be 1–40 characters.";
+  if (m.includes("DEBUG_DISABLED")) return "Debug settings are turned off — enable them in Game settings first.";
+  if (m.includes("QUANTITY_OUT_OF_RANGE")) return "Quantities must be between 0 and 1,000,000.";
+  if (m.includes("HOURS_OUT_OF_RANGE")) return "Hours must be between 1 and 720.";
   if (m.includes("INVALID_")) return "One of the values isn’t valid.";
   return "Something went wrong — please try again.";
 }
@@ -142,6 +145,93 @@ export async function resetGameSettings(): Promise<Result> {
   const { supabase, error } = await requireAdmin();
   if (error) return { ok: false, message: error };
   const { error: rpcError } = await supabase.rpc("reset_game_settings_to_defaults");
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * DEBUG tools (admin-only + `debug_settings_enabled` must be ON — every RPC
+ * below re-checks BOTH server-side and writes an admin_audit_logs row).
+ * None of these can grant Fruits: they touch water/seed/fertilizer only.
+ * ------------------------------------------------------------------------- */
+
+export async function debugSetInventory(
+  targetUserId: string,
+  water: number,
+  seeds: number,
+  fertilizer: number,
+): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_set_inventory", {
+    p_user: targetUserId,
+    p_water: Math.floor(water),
+    p_seed: Math.floor(seeds),
+    p_fertilizer: Math.floor(fertilizer),
+  });
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugGiveBundle(targetUserId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_give_bundle", {
+    p_user: targetUserId,
+  });
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugResetInventory(targetUserId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_reset_inventory", {
+    p_user: targetUserId,
+  });
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugRipenTrees(targetUserId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_ripen_trees", {
+    p_user: targetUserId,
+  });
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugAdvanceTime(hours: number): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_advance_time", {
+    p_hours: Math.floor(hours),
+  });
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugRunGameTick(): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_run_game_tick");
+  revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function debugEndSeasonNow(): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("debug_end_season_now");
   revalidatePath("/admin");
   if (rpcError) return { ok: false, message: friendly(rpcError.message) };
   return { ok: true };

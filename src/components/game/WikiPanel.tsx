@@ -38,10 +38,7 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
   const [chapterId, setChapterId] = useState(WIKI_CHAPTERS[0].id);
   const chapter = WIKI_CHAPTERS.find((c) => c.id === chapterId) ?? WIKI_CHAPTERS[0];
 
-  const tabBase =
-    "flex shrink-0 items-center gap-1.5 rounded border-2 px-2 py-1.5 text-left text-[11px] font-bold leading-tight";
-
-  function Tab({ c }: { c: WikiChapter }) {
+  function Tab({ c, compact = false }: { c: WikiChapter; compact?: boolean }) {
     const active = c.id === chapter.id;
     return (
       <button
@@ -49,7 +46,9 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
         role="tab"
         aria-selected={active}
         onClick={() => setChapterId(c.id)}
-        className={`${tabBase} ${
+        className={`flex items-center gap-1.5 rounded border-2 text-left font-bold leading-tight ${
+          compact ? "px-1.5 py-1 text-[10px]" : "shrink-0 px-2 py-1.5 text-[11px]"
+        } ${
           active
             ? "border-[var(--rf-ink)] bg-[var(--rf-gold)] text-[var(--rf-ink)]"
             : "border-transparent text-[var(--rf-ink-soft)] hover:border-[var(--rf-ink)] hover:bg-[var(--rf-cream)]"
@@ -69,7 +68,10 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
         onClick={onClose}
         className="absolute inset-0 bg-black/40"
       />
-      <div className="pixel-panel absolute inset-x-0 bottom-16 mx-auto flex max-h-[76vh] w-full flex-col rounded-t-xl border-b-0 p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[82vh] sm:w-[min(94vw,46rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border-b-[3px]">
+      {/* Phone: a CONTAINED sheet (inset on every side — never pinned to the
+          viewport top, nothing can clip off the right edge). Desktop: the
+          same centered game window as before. */}
+      <div className="pixel-panel absolute inset-x-2 bottom-20 top-16 flex flex-col rounded-lg p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[82vh] sm:w-[min(94vw,46rem)] sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div
           className="flex items-center justify-between px-4 py-2"
           style={{ borderBottom: "2px solid var(--rf-ink)" }}
@@ -85,15 +87,16 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Mobile: horizontal scrollable chapter row */}
+        {/* Phone: chapter chips WRAP inside the sheet (own scroll area if
+            tall) — nothing scrolls off the right edge. */}
         <div
           role="tablist"
           aria-label="Chapters"
-          className="flex gap-1 overflow-x-auto px-2 py-1.5 sm:hidden"
+          className="flex max-h-36 shrink-0 flex-wrap gap-1 overflow-y-auto px-2 py-1.5 sm:hidden"
           style={{ borderBottom: "2px solid var(--rf-ink)" }}
         >
           {WIKI_CHAPTERS.map((c) => (
-            <Tab key={c.id} c={c} />
+            <Tab key={c.id} c={c} compact />
           ))}
         </div>
 

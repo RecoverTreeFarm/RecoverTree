@@ -221,6 +221,15 @@ export const SETTING_DEFS: SettingDef[] = [
     kind: "boolean",
     default: true,
   },
+
+  // --- Debug (admin testing tools; off by default) -------------------------
+  {
+    key: "debug_settings_enabled",
+    label: "Enabled Debug Settings",
+    kind: "boolean",
+    default: false,
+    help: "When on, a Debug tab with admin-only testing tools appears in the admin console. Leave off in normal play.",
+  },
 ];
 
 /** How the Game Settings UI is grouped into tabs/sections. */
@@ -279,7 +288,22 @@ export const SETTING_SECTIONS: SettingSection[] = [
       { title: "Keeper + rules", keys: ["goose_keeper_completion_reward_type", "goose_keeper_completion_reward_amount", "goose_auto_select_enabled", "goose_pass_enabled", "goose_opt_in_required_for_private_users"] },
     ],
   },
+  {
+    id: "debug",
+    title: "Debug",
+    blurb:
+      "Admin-only testing tools. Turn this on and save to reveal a Debug tab in the admin console; turn it off before normal play.",
+    groups: [{ title: "Debug", keys: ["debug_settings_enabled"] }],
+  },
 ];
+
+/** Effective value of the debug switch from settings override rows. */
+export function debugSettingsEnabled(
+  overrides: Pick<SettingOverrideRow, "key" | "value_json">[],
+): boolean {
+  const o = overrides.find((r) => r.key === "debug_settings_enabled");
+  return o ? o.value_json === true : false;
+}
 
 export const SETTING_DEFS_BY_KEY: Record<string, SettingDef> = Object.fromEntries(
   SETTING_DEFS.map((d) => [d.key, d]),

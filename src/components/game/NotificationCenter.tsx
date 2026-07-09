@@ -60,12 +60,13 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
     });
   }
 
-  // Position-agnostic: the parent (FarmPanel's bottom-left overlay stack)
-  // anchors this, so the bubble list renders ABOVE the button.
+  // Position-agnostic: the parent (FarmPanel's top-right HUD stack) anchors
+  // this, so the button renders first and the bubble list opens BELOW it.
   return (
-    <div className="flex flex-col items-start gap-1.5">
+    <div className="flex flex-col items-end gap-1.5">
+      <NotifButton open={open} setOpen={setOpen} unreadCount={unread.length} />
       {open && (
-        <div className="flex max-h-56 w-60 flex-col gap-1.5 overflow-y-auto pr-1">
+        <div className="flex max-h-56 w-60 flex-col gap-1.5 overflow-y-auto pl-1">
           {unread.length === 0 ? (
             <div
               className="rounded-lg border-2 px-2.5 py-1.5 text-[11px] font-bold"
@@ -98,41 +99,51 @@ export function NotificationCenter({ notifications }: { notifications: FarmNotif
           )}
         </div>
       )}
-
-      <button
-        type="button"
-        aria-label={
-          unread.length > 0 ? `${unread.length} unread notifications` : "Notifications"
-        }
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 ${
-          unread.length > 0 ? "rf-throb text-lg font-black" : "text-sm font-bold"
-        }`}
-        style={{
-          borderColor: "var(--rf-ink)",
-          // unread: dark circle with a readable yellow "!"; calm otherwise
-          background: unread.length > 0 ? "var(--rf-ink)" : "var(--rf-cream)",
-          color: unread.length > 0 ? "var(--rf-gold)" : "var(--rf-ink-soft)",
-          opacity: unread.length > 0 ? 1 : 0.6,
-          boxShadow: unread.length > 0 ? "0 0 0 3px rgba(221,181,110,0.45)" : "none",
-        }}
-      >
-        !
-        {unread.length > 0 && (
-          <span
-            aria-hidden
-            className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-extrabold leading-none"
-            style={{
-              borderColor: "var(--rf-ink)",
-              background: "var(--rf-red)",
-              color: "var(--rf-cream)",
-            }}
-          >
-            {unread.length}
-          </span>
-        )}
-      </button>
     </div>
+  );
+}
+
+function NotifButton({
+  open,
+  setOpen,
+  unreadCount,
+}: {
+  open: boolean;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  unreadCount: number;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+      aria-expanded={open}
+      onClick={() => setOpen((o) => !o)}
+      className={`relative flex h-10 w-10 items-center justify-center rounded-full border-2 ${
+        unreadCount > 0 ? "rf-throb text-lg font-black" : "text-sm font-bold"
+      }`}
+      style={{
+        borderColor: "var(--rf-ink)",
+        // unread: dark circle with a readable yellow "!"; calm otherwise
+        background: unreadCount > 0 ? "var(--rf-ink)" : "var(--rf-cream)",
+        color: unreadCount > 0 ? "var(--rf-gold)" : "var(--rf-ink-soft)",
+        opacity: unreadCount > 0 ? 1 : 0.6,
+        boxShadow: unreadCount > 0 ? "0 0 0 3px rgba(221,181,110,0.45)" : "none",
+      }}
+    >
+      !
+      {unreadCount > 0 && (
+        <span
+          aria-hidden
+          className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 px-1 text-[10px] font-extrabold leading-none"
+          style={{
+            borderColor: "var(--rf-ink)",
+            background: "var(--rf-red)",
+            color: "var(--rf-cream)",
+          }}
+        >
+          {unreadCount}
+        </span>
+      )}
+    </button>
   );
 }

@@ -43,6 +43,7 @@ As of 2026-07-09 every migration is applied to the live Supabase project
 | `20260709150000` | Golden Goose Keeper |
 | `20260709160000` | Blossom gameplay repair (see caveat below) |
 | `20260709170000` | Named season cycle, `close_season` repair, pg_cron scheduling |
+| `20260709180000` | Admin debug tools (`debug_settings_enabled` + `debug_*` RPCs, off by default) |
 
 ### ⚠️ Migration ordering caveat (important)
 `130000`, `140000`, `150000` and now `170000` **each recreate
@@ -68,8 +69,17 @@ union all select '150000 goose', (to_regclass('public.golden_goose_assignments')
 union all select 'GUARD goose_enabled', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%goose_enabled%')
 union all select '170000 season-cycle', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%season_length_days_5%')
 union all select '170000 cron-tick', exists(select 1 from cron.job where jobname='recovertree-game-tick')
+union all select '180000 debug-tools', exists(select 1 from pg_proc where proname='debug_set_inventory')
+union all select 'GUARD debug key', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%debug_settings_enabled%')
 order by 1;
 ```
+
+The `update_game_settings` newest version now lives in `20260709180000`
+(the ordering caveat above continues — copy ITS arrays before any future
+recreation). Admin debug tools (inventory editor, time advance, run tick, end
+season) live behind the `debug_settings_enabled` setting (Admin → Game
+settings → Debug); every `debug_*` RPC re-checks admin + that switch
+server-side and audit-logs, and none of them can grant Fruits.
 
 ## What has been built
 - **Auth** (signup/login/logout), **profiles** + Private Mode (public/anonymous/hidden)

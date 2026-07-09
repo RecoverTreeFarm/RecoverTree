@@ -51,13 +51,21 @@ export const SPRITES = {
 } as const;
 
 /**
- * Season-cycle icons (sliced from CozySpriteBundle/Seasons Icons.png), one per
- * cycle position 1..5 (Sparch..Octobrrr). Soft glow baked in — render with
- * normal smoothing (no .pixelated) at small sizes.
+ * Season-cycle emoji, one per cycle position 1..5 (Sparch..Octobrrr).
+ * Replaces the sliced sprite icons (public/sprites/seasons/ kept on disk but
+ * no longer rendered) — emojis read crisply at header size on every device.
  */
-export function seasonIcon(cyclePosition: number | null): string | null {
-  if (!cyclePosition || cyclePosition < 1 || cyclePosition > 5) return null;
-  return `/sprites/seasons/season_${cyclePosition}.png`;
+const SEASON_EMOJI: Record<number, string> = {
+  1: "🌱", // Sparch — sprouting spring
+  2: "🌸", // Maypril — blossoms and rain
+  3: "☀️", // Junduly — high summer
+  4: "🍂", // Suntember — falling leaves
+  5: "🎃", // Octobrrr — spooky and chilly
+};
+
+export function seasonEmoji(cyclePosition: number | null): string | null {
+  if (!cyclePosition) return null;
+  return SEASON_EMOJI[cyclePosition] ?? null;
 }
 
 /**

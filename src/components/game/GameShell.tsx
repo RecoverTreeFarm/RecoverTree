@@ -14,7 +14,7 @@ import { NotificationCenter, type FarmNotification } from "./NotificationCenter"
 import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
 import type { GooseState } from "@/lib/goose";
-import { HOUSE_SPRITES, SPRITES, seasonIcon } from "@/lib/sprites";
+import { HOUSE_SPRITES, SPRITES, seasonEmoji } from "@/lib/sprites";
 
 type PanelId =
   | "inventory"
@@ -125,16 +125,12 @@ export function GameShell(props: GameShellProps) {
             {props.affirmation}
           </span>
         </div>
-        {/* Season chip: icon + days-left countdown, top-right */}
+        {/* Season chip: emoji + days-left countdown, top-right */}
         <span className="flex shrink-0 items-center gap-1.5">
-          {seasonIcon(props.seasonCyclePosition) && (
-            // Glow is baked into the icon — smooth scaling looks right here.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={seasonIcon(props.seasonCyclePosition)!}
-              alt=""
-              className="h-6 w-auto"
-            />
+          {seasonEmoji(props.seasonCyclePosition) && (
+            <span aria-hidden className="text-lg leading-none">
+              {seasonEmoji(props.seasonCyclePosition)}
+            </span>
           )}
           <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
             {props.seasonDaysLeft !== null
