@@ -8,8 +8,9 @@
  * only be water/seed/fertilizer — never Fruits; amounts can't go negative;
  * schedule values are range-checked).
  *
- * IMPORTANT: keep this list in sync with the arrays inside
- * supabase/migrations/20260709100000_admin_and_game_settings.sql.
+ * IMPORTANT: keep this list in sync with the allowed-key arrays in the LATEST
+ * migration that recreates update_game_settings (currently
+ * supabase/migrations/20260709170000_named_season_cycle_and_close_repair.sql).
  */
 
 export const REWARD_TYPES = ["water", "seed", "fertilizer"] as const;
@@ -94,6 +95,18 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: "house_name_house_4", label: "House 4 name", kind: "text", default: "Forest Lodge" },
   { key: "house_name_house_5", label: "House 5 name", kind: "text", default: "Bando Barn" },
   { key: "house_name_house_6", label: "House 6 name", kind: "text", default: "Blue Bungalow" },
+
+  // --- Season cycle (admin-renamable names + per-season lengths) ------------
+  { key: "season_name_1", label: "Season 1 name", kind: "text", default: "Sparch" },
+  { key: "season_name_2", label: "Season 2 name", kind: "text", default: "Maypril" },
+  { key: "season_name_3", label: "Season 3 name", kind: "text", default: "Junduly" },
+  { key: "season_name_4", label: "Season 4 name", kind: "text", default: "Suntember" },
+  { key: "season_name_5", label: "Season 5 name", kind: "text", default: "Octobrrr" },
+  { key: "season_length_days_1", label: "Season 1 length (days)", kind: "number", default: 30, min: 1, max: 365 },
+  { key: "season_length_days_2", label: "Season 2 length (days)", kind: "number", default: 30, min: 1, max: 365 },
+  { key: "season_length_days_3", label: "Season 3 length (days)", kind: "number", default: 30, min: 1, max: 365 },
+  { key: "season_length_days_4", label: "Season 4 length (days)", kind: "number", default: 30, min: 1, max: 365 },
+  { key: "season_length_days_5", label: "Season 5 length (days)", kind: "number", default: 30, min: 1, max: 365 },
 
   // --- Trees / harvest ------------------------------------------------------
   {
@@ -218,6 +231,16 @@ export const SETTING_SECTIONS: SettingSection[] = [
     blurb: "Display names for the selectable farmhouses. Players keep their selection; only the label changes.",
     groups: [
       { title: "Names", keys: ["house_name_house_1", "house_name_house_2", "house_name_house_3", "house_name_house_4", "house_name_house_5", "house_name_house_6"] },
+    ],
+  },
+  {
+    id: "seasons",
+    title: "Seasons",
+    blurb:
+      "Five seasons cycle forever: Sparch → Maypril → Junduly → Suntember → Octobrrr → back to Sparch. Every community starts on season 1. Name and length edits apply to the season currently running (its end date is recomputed from its start).",
+    groups: [
+      { title: "Names", keys: ["season_name_1", "season_name_2", "season_name_3", "season_name_4", "season_name_5"] },
+      { title: "Lengths (days)", keys: ["season_length_days_1", "season_length_days_2", "season_length_days_3", "season_length_days_4", "season_length_days_5"] },
     ],
   },
   {

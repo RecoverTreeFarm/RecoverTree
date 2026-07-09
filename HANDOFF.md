@@ -42,15 +42,18 @@ As of 2026-07-09 every migration is applied to the live Supabase project
 | `20260709140000` | Admin-renamable house names; fertilizer ripens blossoms first |
 | `20260709150000` | Golden Goose Keeper |
 | `20260709160000` | Blossom gameplay repair (see caveat below) |
+| `20260709170000` | Named season cycle, `close_season` repair, pg_cron scheduling |
 
 ### ⚠️ Migration ordering caveat (important)
-`130000`, `140000` and `150000` **each recreate `update_game_settings`**, every
-version adding more allowed setting keys. **Applying them out of order downgrades
-that function** and silently drops newer keys (e.g. `goose_enabled`). On the live
-DB, `150000` had been applied while `130000`/`140000` were skipped; `20260709160000`
-re-applies only the blossom *gameplay* pieces (column + `water_my_trees` /
-`harvest_my_trees` / `use_fertilizer`) and deliberately **never touches**
-`update_game_settings`.
+`130000`, `140000`, `150000` and now `170000` **each recreate
+`update_game_settings`**, every version adding more allowed setting keys.
+**Applying them out of order downgrades that function** and silently drops newer
+keys (e.g. `goose_enabled`, `season_name_*`). The newest version lives in
+`20260709170000` — its key arrays were copied verbatim from the live v4 and
+extended with the ten season keys. Never apply an older version on top; any
+future migration that touches this function must copy the arrays from the
+newest file first. (`20260709160000` repaired blossom gameplay only and never
+touches `update_game_settings`.)
 
 **To verify the DB state at any time**, paste this into the Supabase SQL editor
 (pasting SQL there does *not* register in the Migrations tab, so check objects):
@@ -63,17 +66,32 @@ union all select '130000 blossom', exists(select 1 from information_schema.colum
 union all select '140000 house-names', exists(select 1 from pg_proc where proname='use_fertilizer' and pg_get_functiondef(oid) ilike '%is_blossom%')
 union all select '150000 goose', (to_regclass('public.golden_goose_assignments') is not null)
 union all select 'GUARD goose_enabled', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%goose_enabled%')
+union all select '170000 season-cycle', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%season_length_days_5%')
+union all select '170000 cron-tick', exists(select 1 from cron.job where jobname='recovertree-game-tick')
 order by 1;
 ```
 
 ## What has been built
 - **Auth** (signup/login/logout), **profiles** + Private Mode (public/anonymous/hidden)
-- **Seasons** + starter farms; monthly season auto-created
+- **Named season cycle** + starter farms. Seasons are NOT calendar months: five
+  named seasons loop forever — **Sparch → Maypril → Junduly → Suntember →
+  Octobrrr → Sparch…** — 30 days each by default. Every community's first season
+  is Sparch, starting the moment the game starts. Admins can rename each season
+  and change each length (Admin → Game settings → Seasons); edits apply to the
+  **currently running** season immediately (its end date is recomputed from its
+  start). To end a season early, shorten its length — never force-close.
+- **Season close on the clock**: `pg_cron` runs `run_scheduled_game_jobs()`
+  every 10 minutes — season ceremony (`close_season`), Traveling Basket
+  auto-advance, Golden Goose auto-close. `close_season` only ever closes a
+  season whose `ends_at` has passed and whose `seasons.ceremony_completed_at`
+  is still null, and it reuses a lazily-created next season instead of
+  colliding with the one-active-season unique index. When there is nothing to
+  do it returns quietly (no rows).
 - **Farm loop**: water → 5 grow stages → 4-hour fruit timer → harvest; fertilizer
   ripens a waiting tree; pink blossom trees (~15%) pay 2×
 - **Meetings**: host generates a 4-digit code; members redeem it for Water
 - **Seeds**: give a daily Seed (giver Water, receiver a plantable Seed)
-- **Monthly checklist** (random shared goals) + **season-close ceremony** (medals/badges)
+- **Seasonal checklist** (random shared goals per season) + **season-close ceremony** (medals/badges)
 - **Traveling Basket** — a community basket travels farmer-to-farmer with a 24h
   hold/auto-pass; keep it for double or pass it on; locks in for everyone at target
 - **Golden Goose Keeper** — trust-based event: a fair-lottery Keeper asks a
@@ -88,49 +106,21 @@ order by 1;
   affirmation greeting; muted earthy palette
 
 ## What still needs to be built
-- **⚠️ Season close is broken, not just unscheduled (highest priority).**
-  `close_season()` — which awards medals/badges/fertilizer and builds the
-  ceremony — **has no caller anywhere in `src/`**. Meanwhile `ensure_my_farm()`,
-  `start_meeting()` and `give_seed()` each *do* expire an ended season and create
-  the next one lazily on dashboard load:
-  ```sql
-  update seasons set status='closed' where status='active' and ends_at <= now();
-  v_season := ensure_active_season();
-  ```
-  So a month rolls over on its own, but **the awards + ceremony never run**. Worse,
-  once that lazy path fires, `close_season` can no longer close the month that
-  ended:
-  - bare `select close_season();` picks `where status='active'` → the **new**
-    season, and would wrongly close it;
-  - `select close_season('<ended-season-id>')` tries to insert another `'active'`
-    season, colliding with the `seasons_one_active_key` partial unique index →
-    **unique-violation error**.
-
-  **Fix before scheduling:** make `close_season` tolerate an already-existing next
-  season (and select the *ended* season, not the active one). Only then schedule it.
-- **Scheduled jobs**: the Traveling Basket and Golden Goose *do* advance lazily
-  (`get_traveling_basket_state` → `basket_auto_advance`; `get_golden_goose_state`
-  → `auto_close_golden_goose_assignments`), so they resolve on dashboard load but
-  not on the clock. `pg_cron` (1.6.4) and `pg_net` (0.20.3) are **available but
-  not installed** on this project — no edge function is needed. Handy detail:
-  `close_season` guards on `auth.uid() is not null and not is_admin()`, so a cron
-  job (where `auth.uid()` is null) is **already permitted** to call it.
 - **Auth email**: uses Supabase's built-in mailer (~2/hour). Wire a real email
   provider before a wider launch. Also enable **leaked-password protection** in
-  Supabase Auth (currently off).
+  Supabase Auth (currently off — one click in the Auth settings).
 - Optional polish: more badge/checklist rule types; egg-on-farm animation for the
   Golden Goose winner.
 
 ## Current known issues / notes
-- **Season close never runs automatically** — see the first bullet under "What
-  still needs to be built". This is a correctness bug, not polish.
-- **The dev database's seasons are a month ahead.** July 2026 is `closed` with 2
-  medals and August 2026 is `active` with `starts_at = 2026-08-01` (a future
-  date). That's because `close_season()` was run by hand from the SQL editor to
-  test the ceremony. Harmless for a dev DB, but don't read the July leaderboard
-  or ceremony as real data.
-- **Lazy timers**: with no cron, the Basket and Golden Goose resolve when someone
-  loads the dashboard, not exactly on the clock.
+- **Dev seasons were reset onto the cycle on 2026-07-09.** The old month-based
+  seasons ("July 2026" with 2 test medals, the accidental future-dated
+  "August 2026") are closed and marked ceremony-done; a fresh 30-day **Sparch**
+  started that day. Don't read the old months' leaderboards/ceremonies as real
+  data. Users get their new-season farm automatically on next dashboard load.
+- **Timed events resolve within ~10 minutes** (the cron tick), plus the old lazy
+  paths still fire on dashboard load as a belt-and-braces fallback. Check cron
+  health with `select * from cron.job_run_details order by start_time desc limit 5;`
 - **4×4 farm grid (16 slots)**: older farms with 17–20 trees show only the first 16.
 - **Security advisor** flags two cosmetic items: `handle_new_profile` is exposed
   over RPC (but it's a trigger function — Postgres refuses direct calls) and
@@ -152,19 +142,12 @@ order by 1;
 - **No** service-role/secret keys, DB passwords, or API secrets are in the repo.
 
 ## Next recommended step
-**Fix + schedule season close.** In one migration:
-1. Repair `close_season` so it targets the *ended* season (`ends_at <= now()`
-   with no medals yet) and tolerates an already-existing next `'active'` season,
-   instead of blindly inserting one. It's already idempotent on medals.
-2. `create extension pg_cron;` and schedule an hourly tick calling
-   `close_season()`, `basket_auto_advance()` and
-   `auto_close_golden_goose_assignments()` — all three are idempotent by design,
-   and `close_season` already permits `auth.uid() is null` (i.e. cron).
+Season close, the season cycle, and cron are done and verified live (a
+backdated-close test produced Maypril + ceremony markers, then was reverted;
+the cron tick has fired successfully on its own). Two small things remain:
 
-Without step 1, a real community's season would roll over with **no ceremony and
-no awards**, and the ceremony would then be unreachable.
-
-Quick warm-up first (five minutes, and you'll want the app running anyway):
-smoke-test the newly-live **blossom trees** — Admin → Game settings → Trees &
-harvest → set blossom chance to 100, water a tree to full, confirm it turns pink
-and harvests for **20 Fruits instead of 10**, then set it back to 15.
+1. **Smoke-test blossom trees in the browser** — Admin → Game settings → Trees &
+   harvest → set blossom chance to 100, water a tree to full, confirm it turns
+   pink and harvests for **20 Fruits instead of 10**, then set it back to 15.
+2. **Enable leaked-password protection** in Supabase Auth (one click) and pick a
+   real email provider before any wider launch.
