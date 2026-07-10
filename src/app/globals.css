@@ -428,3 +428,26 @@ body {
   background: var(--rf-ink);
   border-radius: 2px;
 }
+
+/* ---- Travel cinematic (walking between map locations) -------------------- */
+/* A strip twice the viewport width scrolls left; content is duplicated so
+   the loop is seamless. Far layer scrolls slowly, near layer quickly. */
+@keyframes rf-travel-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.rf-travel-far  { animation: rf-travel-scroll 6s linear infinite; }
+.rf-travel-near { animation: rf-travel-scroll 2.4s linear infinite; }
+
+/* ---- Donation closeup: an item drops into the crate ---------------------- */
+@keyframes rf-drop-in {
+  0%   { transform: translate(-50%, -90px) scale(1); opacity: 1; }
+  70%  { transform: translate(-50%, -8px) scale(0.9); opacity: 1; }
+  100% { transform: translate(-50%, 6px) scale(0.35); opacity: 0; }
+}
+.rf-drop-in {
+  position: absolute;
+  left: 50%;
+  animation: rf-drop-in 0.7s ease-in forwards;
+  pointer-events: none;
+}

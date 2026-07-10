@@ -54,6 +54,7 @@ export function FarmPanel({
   water,
   seeds,
   fertilizer,
+  coins = 0,
   fruitTotal,
   house,
   notificationSlot,
@@ -69,6 +70,8 @@ export function FarmPanel({
   water: number;
   seeds: number;
   fertilizer: number;
+  /** 🪙 Coins — spendable currency, shown read-only (no bulk action) */
+  coins?: number;
   fruitTotal: number;
   house?: { src: string; w: number; h: number };
   /** rendered top-right over the farm (notifications + guidebook) */
@@ -781,6 +784,9 @@ export function FarmPanel({
         </button>
         <span className="ml-1 inline-flex items-center gap-1 text-sm font-extrabold" title="Fruits this Season">
           <Fruit scale={1.7} /> {fruitTotal}
+        </span>
+        <span className="text-sm font-extrabold" title="Coins — spend on future shop goodies (not leaderboard score)">
+          🪙 {coins}
         </span>
         <span className="text-sm font-extrabold" title="Trees">
           🌳 {viewTrees.length}

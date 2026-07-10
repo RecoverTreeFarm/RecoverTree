@@ -6,6 +6,7 @@ import { Panel } from "@/components/pixel/ui";
 import {
   REWARD_TYPES,
   SCHEDULE_MODES,
+  GARDEN_FREQUENCIES,
   WEEKDAYS,
   SETTING_SECTIONS,
   SETTING_DEFS_BY_KEY,
@@ -119,6 +120,16 @@ function Field({
     control = (
       <select className={inputClass} value={value as string} onChange={(e) => onChange(e.target.value as SettingValue)}>
         {SCHEDULE_MODES.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+    );
+  } else if (def.kind === "garden_frequency") {
+    control = (
+      <select className={inputClass} value={value as string} onChange={(e) => onChange(e.target.value as SettingValue)}>
+        {GARDEN_FREQUENCIES.map((m) => (
           <option key={m} value={m}>
             {m}
           </option>

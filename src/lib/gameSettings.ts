@@ -10,7 +10,7 @@
  *
  * IMPORTANT: keep this list in sync with the allowed-key arrays in the LATEST
  * migration that recreates update_game_settings (currently
- * supabase/migrations/20260709170000_named_season_cycle_and_close_repair.sql).
+ * supabase/migrations/20260709230000_coins.sql).
  */
 
 export const REWARD_TYPES = ["water", "seed", "fertilizer"] as const;
@@ -18,6 +18,10 @@ export type RewardType = (typeof REWARD_TYPES)[number];
 
 export const SCHEDULE_MODES = ["random", "specific"] as const;
 export type ScheduleMode = (typeof SCHEDULE_MODES)[number];
+
+/** Community Garden cadence. TODO(garden-monthly): add "monthly" when built. */
+export const GARDEN_FREQUENCIES = ["weekly", "manual"] as const;
+export type GardenFrequency = (typeof GARDEN_FREQUENCIES)[number];
 
 /** 0 = Sunday … 6 = Saturday (matches JS Date.getDay). */
 export const WEEKDAYS = [
@@ -33,6 +37,7 @@ export const WEEKDAYS = [
 export type SettingKind =
   | "reward_type"
   | "schedule_mode"
+  | "garden_frequency"
   | "days_per_week"
   | "enabled_days"
   | "boolean"
@@ -187,6 +192,7 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: "basket_max_water_per_pass", label: "Basket — max water per person (total)", kind: "number", default: 25 },
   { key: "basket_max_seed_per_pass", label: "Basket — max seed per person (total)", kind: "number", default: 1 },
   { key: "basket_max_fertilizer_per_pass", label: "Basket — max fertilizer per person (total)", kind: "number", default: 2 },
+  { key: "basket_max_coin_per_pass", label: "Basket — max coins per person (total)", kind: "number", default: 25 },
 
   // --- Golden Goose (planned mechanic; settings only) ---------------------
   {
@@ -220,6 +226,95 @@ export const SETTING_DEFS: SettingDef[] = [
     label: "Goose — opt-in required for private users",
     kind: "boolean",
     default: true,
+  },
+
+  // --- Community Garden (collaborative shared event) ------------------------
+  {
+    key: "garden_enabled",
+    label: "Community Garden enabled",
+    kind: "boolean",
+    default: true,
+    help: "Master switch. When off, no garden events start (an already-active one still finishes).",
+  },
+  {
+    key: "garden_frequency",
+    label: "Garden — event frequency",
+    kind: "garden_frequency",
+    default: "weekly",
+    help: "Weekly starts a garden every Monday and ends it Sunday. Manual means admins start each event by hand.",
+  },
+  {
+    key: "garden_event_duration_days",
+    label: "Garden — manual event length (days)",
+    kind: "number",
+    default: 7,
+    min: 1,
+    help: "How long an admin-started (manual) garden runs. Weekly gardens always end on Sunday.",
+  },
+  { key: "garden_required_water", label: "Garden goal — water", kind: "number", default: 250, min: 1 },
+  { key: "garden_required_seeds", label: "Garden goal — seeds", kind: "number", default: 25, min: 1 },
+  { key: "garden_required_fertilizer", label: "Garden goal — fertilizer", kind: "number", default: 25, min: 1 },
+  { key: "garden_daily_water_limit", label: "Daily limit — water per person", kind: "number", default: 50 },
+  { key: "garden_daily_seed_limit", label: "Daily limit — seeds per person", kind: "number", default: 3 },
+  { key: "garden_daily_fertilizer_limit", label: "Daily limit — fertilizer per person", kind: "number", default: 3 },
+  { key: "garden_reward_water", label: "Garden Share Bundle — water", kind: "number", default: 25 },
+  { key: "garden_reward_seeds", label: "Garden Share Bundle — seeds", kind: "number", default: 2 },
+  { key: "garden_reward_fertilizer", label: "Garden Share Bundle — fertilizer", kind: "number", default: 1 },
+  { key: "garden_reward_coins", label: "Garden Share Bundle — coins", kind: "number", default: 15 },
+  {
+    key: "garden_partial_reward_enabled",
+    label: "Partial reward enabled",
+    kind: "boolean",
+    default: false,
+    help: "When on, a garden that doesn’t fully bloom but reaches the threshold still gives contributors a small thank-you.",
+  },
+  {
+    key: "garden_partial_threshold_percent",
+    label: "Partial reward threshold (%)",
+    kind: "number",
+    default: 50,
+    max: 100,
+  },
+  { key: "garden_partial_reward_water", label: "Partial reward — water", kind: "number", default: 10 },
+  { key: "garden_partial_reward_coins", label: "Partial reward — coins", kind: "number", default: 5 },
+  {
+    key: "garden_show_names",
+    label: "Show contributor names in the garden",
+    kind: "boolean",
+    default: true,
+    help: "When off, everyone in the garden appears as “A neighbor”. Anonymous and hidden farmers are never named either way.",
+  },
+  {
+    key: "garden_private_users_can_contribute",
+    label: "Private users can contribute",
+    kind: "boolean",
+    default: true,
+    help: "When on, anonymous/hidden farmers can still add supplies (they appear anonymously or not at all).",
+  },
+
+  // --- Coins (🪙 spendable currency; never leaderboard score) --------------
+  {
+    key: "medal_coin_gold",
+    label: "Gold medal — coins",
+    kind: "number",
+    default: 100,
+    help: "Ceremony coin reward for 1st place (on top of the medal + fertilizer).",
+  },
+  { key: "medal_coin_silver", label: "Silver medal — coins", kind: "number", default: 60 },
+  { key: "medal_coin_bronze", label: "Bronze medal — coins", kind: "number", default: 35 },
+  {
+    key: "coin_bonus_seed",
+    label: "Coin bonus — rewards that give Seeds",
+    kind: "number",
+    default: 5,
+    help: "Any reward that grants Seeds (Goose Egg, receiving the daily Seed) also grants this many Coins.",
+  },
+  {
+    key: "coin_bonus_fertilizer",
+    label: "Coin bonus — rewards that give Fertilizer",
+    kind: "number",
+    default: 10,
+    help: "Any reward that grants Fertilizer (Goose Egg, Keeper completion, checklist goals, badges) also grants this many Coins. Medals use their own coin amounts instead.",
   },
 
   // --- Debug (admin testing tools; off by default) -------------------------
@@ -274,7 +369,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
     groups: [
       { title: "Schedule", keys: ["basket_enabled", "basket_schedule_mode", "basket_random_days_per_week", "basket_enabled_days", "basket_hold_hours"] },
       { title: "Basket size & behavior", keys: ["basket_small_target_count", "basket_large_target_count", "basket_large_basket_chance_percent", "basket_keep_multiplier", "basket_auto_pass_water"] },
-      { title: "Contribution limits (per person, total)", keys: ["basket_max_water_per_pass", "basket_max_seed_per_pass", "basket_max_fertilizer_per_pass"] },
+      { title: "Contribution limits (per person, total)", keys: ["basket_max_water_per_pass", "basket_max_seed_per_pass", "basket_max_fertilizer_per_pass", "basket_max_coin_per_pass"] },
     ],
   },
   {
@@ -286,6 +381,30 @@ export const SETTING_SECTIONS: SettingSection[] = [
       { title: "Timing", keys: ["goose_answer_collection_hours", "goose_selection_hours", "goose_total_cycle_hours", "goose_exclusion_months_on_missed_selection"] },
       { title: "Egg reward", keys: ["goose_egg_seed_amount", "goose_egg_fertilizer_amount", "goose_egg_water_amount"] },
       { title: "Keeper + rules", keys: ["goose_keeper_completion_reward_type", "goose_keeper_completion_reward_amount", "goose_auto_select_enabled", "goose_pass_enabled", "goose_opt_in_required_for_private_users"] },
+    ],
+  },
+  {
+    id: "garden",
+    title: "Community Garden",
+    blurb:
+      "The whole group tends ONE shared garden together — no winners, no leaderboard. Contributions spend water/seeds/fertilizer; the Garden Share Bundle pays only water/seeds/fertilizer — never Fruits.",
+    groups: [
+      { title: "Schedule", keys: ["garden_enabled", "garden_frequency", "garden_event_duration_days"] },
+      { title: "Goals", keys: ["garden_required_water", "garden_required_seeds", "garden_required_fertilizer"] },
+      { title: "Daily limits (per person)", keys: ["garden_daily_water_limit", "garden_daily_seed_limit", "garden_daily_fertilizer_limit"] },
+      { title: "Completion reward", keys: ["garden_reward_water", "garden_reward_seeds", "garden_reward_fertilizer", "garden_reward_coins"] },
+      { title: "Partial reward", keys: ["garden_partial_reward_enabled", "garden_partial_threshold_percent", "garden_partial_reward_water", "garden_partial_reward_coins"] },
+      { title: "Privacy", keys: ["garden_show_names", "garden_private_users_can_contribute"] },
+    ],
+  },
+  {
+    id: "coins",
+    title: "Coins",
+    blurb:
+      "🪙 Coins are a spendable currency for future shop goodies. They can be awarded directly (unlike Fruits) but never count toward the leaderboard — that still ranks harvested Fruits only.",
+    groups: [
+      { title: "Ceremony medals", keys: ["medal_coin_gold", "medal_coin_silver", "medal_coin_bronze"] },
+      { title: "Automatic bonuses", keys: ["coin_bonus_seed", "coin_bonus_fertilizer"] },
     ],
   },
   {

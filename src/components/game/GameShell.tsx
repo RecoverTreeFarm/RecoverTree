@@ -12,8 +12,11 @@ import type { ChecklistItem, LeaderboardRow } from "./panels";
 import { NotificationCenter, type FarmNotification } from "./NotificationCenter";
 import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
+import { GardenScene } from "./GardenPanel";
+import { TravelCinematic } from "./TravelCinematic";
 import { MapModalBody } from "./MapPanel";
 import type { GooseState } from "@/lib/goose";
+import type { GardenState } from "@/lib/garden";
 import { HOUSE_SPRITES, seasonEmoji } from "@/lib/sprites";
 
 type PanelId =
@@ -27,6 +30,14 @@ type PanelId =
   | "leaderboard"
   | "profile";
 
+/** Places the player can BE (walkable scenes, reached via the map). */
+type LocationId = "farm" | "garden";
+
+const LOCATION_LABELS: Record<LocationId, string> = {
+  farm: "your farm",
+  garden: "the Community Garden",
+};
+
 export type GameShellProps = {
   /** house key → display name (admin-renamable) */
   houseNames: Record<string, string>;
@@ -39,6 +50,8 @@ export type GameShellProps = {
     water: number;
     seeds: number;
     fertilizer: number;
+    /** 🪙 spendable currency — never counts toward the leaderboard */
+    coins: number;
     treeCount: number;
   };
   /** whole days until the current season ends (null if unknown) */
@@ -50,6 +63,7 @@ export type GameShellProps = {
   sentToName: string | null;
   basket: BasketState | null;
   goose: GooseState | null;
+  garden: GardenState | null;
   checklist: ChecklistItem[];
   leaderboard: LeaderboardRow[];
   profile: ProfileInfo;
@@ -64,6 +78,17 @@ export function GameShell(props: GameShellProps) {
   const [open, setOpen] = useState<PanelId | null>(null);
   const house = HOUSE_SPRITES[props.houseKey] ?? HOUSE_SPRITES.house_1;
   const farmRef = useRef<FarmPanelHandle | null>(null);
+
+  // Where the player IS (farm / garden) + an in-flight trip. Traveling plays
+  // the walking cinematic, then swaps the scene.
+  const [location, setLocation] = useState<LocationId>("farm");
+  const [traveling, setTraveling] = useState<LocationId | null>(null);
+
+  function travel(to: LocationId) {
+    setOpen(null);
+    if (traveling || to === location) return;
+    setTraveling(to);
+  }
 
   // Seed notification cadence: once per day — dismissed stays dismissed —
   // UNLESS seeds ran all the way to 0 and came back, which starts a new
@@ -153,9 +178,9 @@ export function GameShell(props: GameShellProps) {
   const showGoose = answersOpen && iAmKeeper;
 
   // The Keeper's box stays until the event is COMPLETELY over — i.e. until the
-  // selection deadline passes — so they can reopen the review screen after
-  // choosing. (Note: `select_golden_goose_winner` marks the event completed and
-  // pays the egg on the first pick, so re-picking is refused server-side.)
+  // selection deadline passes — so they can reopen the review screen and
+  // CHANGE their pick. The pick is provisional: the egg is delivered to
+  // whatever pick is saved when the deadline passes (auto_close pays it).
   const keeperReviewOpen =
     gooseEvent &&
     iAmKeeper &&
@@ -192,30 +217,63 @@ export function GameShell(props: GameShellProps) {
         </span>
       </div>
 
-      {/* THE FARM — the main canvas (inventory bar + overlays live inside) */}
+      {/* THE CURRENT LOCATION — your farm, or the shared Community Garden */}
       <div className="relative">
-        <FarmPanel
-          trees={props.trees}
-          water={props.farm.water}
-          seeds={props.farm.seeds}
-          fertilizer={props.farm.fertilizer}
-          fruitTotal={props.farm.fruitTotal}
-          house={{ src: house.src, w: house.w, h: house.h }}
-          avatarSrc={props.avatarSrc}
-          handleRef={farmRef}
-          showGoose={showGoose}
-          onOpenGoose={() => setOpen("goose")}
-          onOpenBasket={() => setOpen("basket")}
-          basketOnFarm={basketOnFarm}
-          submissionBoxRole={submissionBox}
-          notificationSlot={
-            <>
-              <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
-              <WikiHelp />
-            </>
-          }
-        />
+        {location === "farm" ? (
+          <FarmPanel
+            trees={props.trees}
+            water={props.farm.water}
+            seeds={props.farm.seeds}
+            fertilizer={props.farm.fertilizer}
+            coins={props.farm.coins}
+            fruitTotal={props.farm.fruitTotal}
+            house={{ src: house.src, w: house.w, h: house.h }}
+            avatarSrc={props.avatarSrc}
+            handleRef={farmRef}
+            showGoose={showGoose}
+            onOpenGoose={() => setOpen("goose")}
+            onOpenBasket={() => setOpen("basket")}
+            basketOnFarm={basketOnFarm}
+            submissionBoxRole={submissionBox}
+            notificationSlot={
+              <>
+                <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
+                <WikiHelp />
+              </>
+            }
+          />
+        ) : props.garden ? (
+          <GardenScene
+            state={props.garden}
+            myWater={props.farm.water}
+            mySeeds={props.farm.seeds}
+            myFertilizer={props.farm.fertilizer}
+            avatarSrc={props.avatarSrc}
+            notificationSlot={
+              <>
+                <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
+                <WikiHelp />
+              </>
+            }
+          />
+        ) : (
+          <p className="text-sm text-[var(--rf-ink-soft)]">
+            The Community Garden isn’t set up yet.
+          </p>
+        )}
       </div>
+
+      {/* Travel cinematic between locations */}
+      {traveling && (
+        <TravelCinematic
+          farmerSrc={props.avatarSrc}
+          destinationLabel={LOCATION_LABELS[traveling]}
+          onDone={() => {
+            setLocation(traveling);
+            setTraveling(null);
+          }}
+        />
+      )}
 
       {/* Window over the farm */}
       {open && (
@@ -224,7 +282,12 @@ export function GameShell(props: GameShellProps) {
             <InventoryPanel farm={props.farm} onUseItem={useItemFromBackpack} />
           )}
           {open === "code" && <CodeForm />}
-          {open === "map" && <MapModalBody />}
+          {open === "map" && (
+            <MapModalBody
+              onOpenGarden={() => travel("garden")}
+              onGoHome={() => travel("farm")}
+            />
+          )}
           {open === "seed" && (
             <SeedPanel
               members={props.members}
@@ -239,6 +302,7 @@ export function GameShell(props: GameShellProps) {
                 myWater={props.farm.water}
                 mySeeds={props.farm.seeds}
                 myFertilizer={props.farm.fertilizer}
+                myCoins={props.farm.coins}
               />
             ) : (
               <p className="text-sm text-[var(--rf-ink-soft)]">
@@ -282,7 +346,16 @@ export function GameShell(props: GameShellProps) {
                 type="button"
                 aria-label={m.label}
                 aria-pressed={active}
-                onClick={() => setOpen(m.id === "home" ? null : active ? null : (m.id as PanelId))}
+                onClick={() => {
+                  if (m.id === "home") {
+                    // "Farm" always brings you home — traveling back if you're
+                    // out at the Community Garden.
+                    if (location !== "farm") travel("farm");
+                    else setOpen(null);
+                    return;
+                  }
+                  setOpen(active ? null : (m.id as PanelId));
+                }}
                 className="ui-btn-plate flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 px-0.5 py-1"
               >
                 <span className="flex h-8 items-end justify-center">{m.icon}</span>
@@ -371,7 +444,7 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
     if (g.my_rewards.some((r) => r.reason.startsWith("golden_goose_egg"))) {
       out.push({
         id: `goose-egg-${g.assignment_id}`,
-        text: "Your answer won the Golden Goose Egg — 1 seed, 1 fertilizer, and 10 water! 🥚",
+        text: "Your answer won the Golden Goose Egg — a seed, fertilizer, water, and a few Coins! 🥚",
       });
     }
     // Day 1: everyone is told to look for the question in the group chat…
@@ -402,17 +475,76 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
     }
   }
 
+  // Community Garden
+  const cg = props.garden;
+  if (cg?.has_event) {
+    // event started: everyone hears about it once per event
+    out.push({
+      id: `garden-open-${cg.event_id}`,
+      text: "The Community Garden is open this week. Everyone’s care helps it grow. 🌳",
+    });
+    // milestone notifications (ids embed the threshold, so each fires once)
+    const pct = cg.progress_percent;
+    if (!cg.completed && pct >= 25 && pct < 50) {
+      out.push({
+        id: `garden-ms-${cg.event_id}-25`,
+        text: "The Community Tree is starting to sprout. 🌱",
+      });
+    }
+    if (!cg.completed && pct >= 50 && pct < 75) {
+      out.push({
+        id: `garden-ms-${cg.event_id}-50`,
+        text: "The Community Tree is growing tall. 🌿",
+      });
+    }
+    if (!cg.completed && pct >= 75) {
+      out.push({
+        id: `garden-ms-${cg.event_id}-75`,
+        text: "The Community Tree is almost blooming. ✨",
+      });
+    }
+    if (cg.completed) {
+      out.push({
+        id: `garden-bloom-${cg.event_id}`,
+        text: "The Community Garden bloomed! Contributors received a Garden Share Bundle. 🌸",
+      });
+    }
+    if (cg.my_rewards.length > 0) {
+      out.push({
+        id: `garden-reward-${cg.event_id}`,
+        text: "Your Garden Share Bundle arrived — check your items. 🧺",
+      });
+    }
+  } else if (cg?.last_event && cg.last_event.status !== "active") {
+    // the week wrapped up (gentle, once per event)
+    if (cg.last_event.status === "expired") {
+      out.push({
+        id: `garden-ended-${cg.last_event.event_id}`,
+        text: "The Community Garden wrapped up for the week. Every bit of care helped. 🌱",
+      });
+    }
+    if (cg.last_event.my_rewards.length > 0) {
+      out.push({
+        id: `garden-reward-${cg.last_event.event_id}`,
+        text: "Your Garden Share Bundle arrived — check your items. 🧺",
+      });
+    }
+  }
+
   return out;
 }
 
-/** Small game window: bottom sheet on mobile, centered window on desktop. */
+/** Small game window: bottom sheet on mobile, centered window on desktop.
+ *  `wide` widens the desktop window for scene-like content (the garden). */
 function GameWindow({
   title,
   onClose,
+  wide = false,
   children,
 }: {
   title: string;
   onClose: () => void;
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -424,7 +556,9 @@ function GameWindow({
         className="absolute inset-0 bg-black/40"
       />
       <div
-        className="ui-frame absolute inset-x-0 bottom-16 mx-auto flex max-h-[72vh] w-full flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:w-[min(92vw,30rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
+        className={`ui-frame absolute inset-x-0 bottom-16 mx-auto flex max-h-[72vh] w-full flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:-translate-x-1/2 sm:-translate-y-1/2 ${
+          wide ? "sm:w-[min(94vw,40rem)]" : "sm:w-[min(92vw,30rem)]"
+        }`}
       >
         <div
           className="flex items-center justify-between px-4 py-2"

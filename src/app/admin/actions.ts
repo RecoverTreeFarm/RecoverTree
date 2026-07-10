@@ -202,6 +202,7 @@ export async function debugSetInventory(
   water: number,
   seeds: number,
   fertilizer: number,
+  coins: number,
 ): Promise<Result> {
   const { supabase, error } = await requireAdmin();
   if (error) return { ok: false, message: error };
@@ -210,6 +211,7 @@ export async function debugSetInventory(
     p_water: Math.floor(water),
     p_seed: Math.floor(seeds),
     p_fertilizer: Math.floor(fertilizer),
+    p_coins: Math.floor(coins),
   });
   revalidatePath("/admin");
   if (rpcError) return { ok: false, message: friendly(rpcError.message) };
@@ -275,5 +277,53 @@ export async function debugEndSeasonNow(): Promise<Result> {
   const { error: rpcError } = await supabase.rpc("debug_end_season_now");
   revalidatePath("/admin");
   if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * Community Garden — start/end the shared event, re-run reward distribution.
+ * ------------------------------------------------------------------------- */
+
+function gardenFriendly(message: string): string {
+  const m = message;
+  if (m.includes("GARDEN_ALREADY_ACTIVE")) return "A Community Garden is already open — end it first.";
+  if (m.includes("NOT_FOUND")) return "That garden event no longer exists.";
+  if (m.includes("NOT_ACTIVE")) return "That garden event isn’t active.";
+  if (m.includes("ALREADY_DISTRIBUTED")) return "Rewards for that garden already went out.";
+  if (m.includes("NOTHING_TO_DISTRIBUTE")) return "No rewards are due for that garden.";
+  return friendly(m);
+}
+
+export async function startGardenEvent(): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("admin_start_community_garden");
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  if (rpcError) return { ok: false, message: gardenFriendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function endGardenEvent(eventId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("admin_end_community_garden", {
+    p_event: eventId,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  if (rpcError) return { ok: false, message: gardenFriendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function distributeGardenRewards(eventId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("admin_distribute_garden_rewards", {
+    p_event: eventId,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  if (rpcError) return { ok: false, message: gardenFriendly(rpcError.message) };
   return { ok: true };
 }

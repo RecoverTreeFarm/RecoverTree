@@ -178,6 +178,7 @@ export async function passBasket(
   water: number,
   seed: number,
   fertilizer: number,
+  coin = 0,
 ) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("pass_traveling_basket", {
@@ -185,6 +186,7 @@ export async function passBasket(
     p_water: water,
     p_seed: seed,
     p_fertilizer: fertilizer,
+    p_coin: coin,
   });
   revalidatePath("/dashboard");
   if (error) return { ok: false as const, message: basketError(error.message) };
@@ -282,11 +284,64 @@ export async function setGooseOptIn(optIn: boolean) {
   return { ok: true as const };
 }
 
+/* ---------------------------------------------------------------------------
+ * Community Garden. All rules live in the database (active-event checks,
+ * daily limits, inventory deduction, reward distribution). Copy stays gentle.
+ * ------------------------------------------------------------------------- */
+
+function gardenError(message: string): string {
+  const m = message;
+  if (m.includes("NO_ACTIVE_GARDEN")) return "The garden is resting right now — check back soon.";
+  if (m.includes("GARDEN_ENDED")) return "The garden wrapped up for the week — see you at the next one.";
+  if (m.includes("GARDEN_COMPLETE")) return "The garden is already fully cared for. 🌸";
+  if (m.includes("DAILY_LIMIT_EXCEEDED")) return "You’ve reached today’s garden limit. Come back tomorrow!";
+  if (m.includes("NOT_ENOUGH_ITEMS")) return "You’re out of that supply.";
+  if (m.includes("MUST_ADD_ITEM")) return "Add a little something first.";
+  if (m.includes("NEGATIVE_NOT_ALLOWED")) return "Amounts can’t be negative.";
+  if (m.includes("PRIVATE_CONTRIBUTIONS_DISABLED")) return "Garden contributions aren’t available for private profiles right now.";
+  if (m.includes("BANNED")) return "Your account can’t take part right now.";
+  if (m.includes("NO_FARM") || m.includes("NO_PROFILE")) return "Set up your farm first, then try again.";
+  return "Something went sideways — please try again.";
+}
+
+export async function contributeToGarden(water: number, seed: number, fertilizer: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("contribute_to_community_garden", {
+    p_water: water,
+    p_seed: seed,
+    p_fertilizer: fertilizer,
+  });
+  revalidatePath("/dashboard");
+  if (error) return { ok: false as const, message: gardenError(error.message) };
+  const row = data as {
+    contributed: boolean;
+    completed: boolean;
+    current_water: number;
+    current_seeds: number;
+    current_fertilizer: number;
+    progress_percent: number;
+  };
+  return { ok: true as const, ...row };
+}
+
+/**
+ * Presence heartbeat while the garden window is open. Returns the (privacy-
+ * filtered) list of other visitors so the scene can refresh who's around
+ * without re-rendering the whole dashboard.
+ */
+export async function pingGardenPresence() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ping_community_garden_presence");
+  if (error) return { ok: false as const, others: [] as unknown[] };
+  const row = data as { has_event: boolean; others: unknown[] };
+  return { ok: true as const, others: row.others ?? [] };
+}
+
 export async function keepBasket() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("keep_traveling_basket");
   revalidatePath("/dashboard");
   if (error) return { ok: false as const, message: basketError(error.message) };
-  const row = data as { water: number; seed: number; fertilizer: number };
+  const row = data as { water: number; seed: number; fertilizer: number; coin?: number };
   return { ok: true as const, ...row };
 }

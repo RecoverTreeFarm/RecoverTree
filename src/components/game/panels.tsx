@@ -41,6 +41,7 @@ export function InventoryPanel({
     water: number;
     seeds: number;
     fertilizer: number;
+    coins: number;
     treeCount: number;
   };
   /** confirmed backpack item use — the shell closes this window and runs it */
@@ -67,6 +68,7 @@ export function InventoryPanel({
     { icon: <Fruit scale={1.7} />, label: "Fruits", value: farm.fruitTotal, hint: "Your Season score — only harvesting trees makes Fruits." },
     { icon: <span aria-hidden>✨</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
     { icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />, label: "Seeds to plant", value: farm.seeds, hint: "Received from other farmers — plant one to grow an extra tree.", kind: "seed", confirmLabel: "Plant all?" },
+    { icon: <span aria-hidden>🪙</span>, label: "Coins", value: farm.coins, hint: "Earned alongside Seed and Fertilizer rewards. For future shop goodies — Coins never affect the leaderboard." },
     { icon: <span aria-hidden>🌳</span>, label: "Trees", value: farm.treeCount, hint: "More trees = a bigger harvest (max 20)." },
   ];
 

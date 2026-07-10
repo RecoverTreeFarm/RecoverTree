@@ -175,11 +175,12 @@ export function GoosePanel({ state }: { state: GooseState }) {
       {state.i_am_keeper && state.status === "selection_open" && (
         <div>
           <p className="text-sm font-bold">
-            Time to send the Golden Goose Egg. 🥚
+            Time to pick your favorite answer. 🥚
           </p>
           <p className="mt-1 text-xs text-[var(--rf-ink-soft)]">
-            Pick your favorite anonymous answer before the goose flies away
-            ({selectionLeft} left).
+            The Golden Goose Egg goes to whichever answer is your pick when the
+            goose flies away ({selectionLeft} left) — you can change your mind
+            until then.
           </p>
           <div className="mt-2 space-y-2">
             {state.anonymous_answers.length === 0 && (
@@ -187,33 +188,48 @@ export function GoosePanel({ state }: { state: GooseState }) {
                 No answers came in this time — the goose will move on.
               </p>
             )}
-            {state.anonymous_answers.map((a, i) => (
-              <div key={a.id} className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] p-2">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-                  Anonymous Answer #{i + 1}
-                </p>
-                <p className="mt-0.5 whitespace-pre-wrap text-xs">{a.answer_text}</p>
-                {picking === a.id ? (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-[11px] font-bold">Send the egg to this answer?</span>
-                    <button type="button" disabled={pending}
-                      onClick={() => run(() => selectGooseWinner(a.id), "The Golden Goose Egg is on its way! 🥚")}
-                      className="pixel-btn text-[11px]">
-                      Yes, pick this
+            {state.anonymous_answers.map((a, i) => {
+              const isPick = state.my_pick_submission_id === a.id;
+              return (
+                <div
+                  key={a.id}
+                  className={`rounded border-2 border-[var(--rf-ink)] p-2 ${
+                    isPick ? "bg-[var(--rf-gold)]/40" : "bg-[var(--rf-cream)]"
+                  }`}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+                    Anonymous Answer #{i + 1}
+                    {isPick && <span className="ml-1 text-[var(--rf-ink)]">★ your pick</span>}
+                  </p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-xs">{a.answer_text}</p>
+                  {isPick ? (
+                    <p className="mt-1 text-[11px] font-bold text-[var(--rf-grass-dark)]">
+                      ✓ This answer gets the egg when the goose leaves.
+                    </p>
+                  ) : picking === a.id ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[11px] font-bold">
+                        {state.my_pick_submission_id ? "Change your pick to this answer?" : "Pick this answer?"}
+                      </span>
+                      <button type="button" disabled={pending}
+                        onClick={() => run(() => selectGooseWinner(a.id), "Pick saved — you can still change it until the goose flies away. 🥚")}
+                        className="pixel-btn text-[11px]">
+                        Yes, pick this
+                      </button>
+                      <button type="button" disabled={pending} onClick={() => setPicking(null)}
+                        className="pixel-btn pixel-btn--secondary text-[11px]">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => setPicking(a.id)}
+                      className="pixel-btn pixel-btn--secondary mt-2 text-[11px]">
+                      {state.my_pick_submission_id ? "Make this my pick" : "Pick favorite"}
                     </button>
-                    <button type="button" disabled={pending} onClick={() => setPicking(null)}
-                      className="pixel-btn pixel-btn--secondary text-[11px]">
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setPicking(a.id)}
-                    className="pixel-btn pixel-btn--secondary mt-2 text-[11px]">
-                    Pick favorite
-                  </button>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -283,6 +299,7 @@ function EggReveal({ rewards }: { rewards: { reward_type: string; amount: number
   const water = rewards.filter((r) => r.reward_type === "water").reduce((s, r) => s + r.amount, 0);
   const seed = rewards.filter((r) => r.reward_type === "seed").reduce((s, r) => s + r.amount, 0);
   const fert = rewards.filter((r) => r.reward_type === "fertilizer").reduce((s, r) => s + r.amount, 0);
+  const coin = rewards.filter((r) => r.reward_type === "coin").reduce((s, r) => s + r.amount, 0);
   return (
     <div className="mb-4 rounded-lg border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] p-3 text-center">
       <p className="text-sm font-bold">Your answer was chosen! 🎉</p>
@@ -295,6 +312,7 @@ function EggReveal({ rewards }: { rewards: { reward_type: string; amount: number
         {water > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.05s" }}>💧 {water}</span>}
         {seed > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.2s" }}>🌰 {seed}</span>}
         {fert > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.35s" }}>✨ {fert}</span>}
+        {coin > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.5s" }}>🪙 {coin}</span>}
       </div>
     </div>
   );

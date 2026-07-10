@@ -16,8 +16,10 @@ Design Document.rtf`.
 
 ## ⚠️ Most important project rule — the economy
 **Fruits are the score, and Fruits ONLY come from harvesting trees.**
-Every other reward is one of three currencies — **Seed, Water, or Fertilizer** —
-**never Fruits**:
+Every other reward is one of four currencies — **Seed, Water, Fertilizer, or
+Coins 🪙** — **never Fruits**. Coins (added 2026-07-09) MAY be awarded
+directly, but they **never count toward the leaderboard** (that still ranks
+`fruit_total` only) and are for future shop/cosmetic spending (no shop yet):
 - Attend/host a meeting → **Water**
 - Give a Seed → giver gets **Water**; receiver gets a plantable **Seed**
 - Complete a checklist goal → **Water + Fertilizer**
@@ -50,13 +52,16 @@ run by hand.**
 | `20260709180000` | Admin debug tools (`debug_settings_enabled`, off by default) |
 | `20260709190000` | Single-tree actions (water/fertilize/harvest ONE tree) |
 | `20260709200000` | `bulletin_posts` (homepage notice board) + admin RPCs |
+| `20260709210000` | Golden Goose deferred pick (Keeper can change favorite until deadline) |
+| `20260709220000` | Community Garden (shared weekly event) + `update_game_settings` v7 |
+| `20260709230000` | Coins 🪙 (`farms.coin_count`, `coin_events` ledger, rewards everywhere) + v8 |
 
 ### ⚠️ Migration ordering caveat (still important)
-`130000`, `140000`, `150000`, `170000` and `180000` **each recreate
-`update_game_settings`**, every version adding more allowed setting keys.
-Applying an older one on top silently drops newer keys. **The newest version
-lives in `20260709180000`** — any future migration that touches this function
-must copy ITS allowed-key arrays first.
+`130000`, `140000`, `150000`, `170000`, `180000`, `220000` and `230000` **each
+recreate `update_game_settings`**, every version adding more allowed setting
+keys. Applying an older one on top silently drops newer keys. **The newest
+version lives in `20260709230000`** — any future migration that touches this
+function must copy ITS allowed-key arrays first.
 
 Verify DB state any time (paste into the Supabase SQL editor):
 
@@ -71,6 +76,9 @@ union all select 'debug tools', exists(select 1 from pg_proc where proname='debu
 union all select 'cron tick', exists(select 1 from cron.job where jobname='recovertree-game-tick')
 union all select 'GUARD goose_enabled', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%goose_enabled%')
 union all select 'GUARD debug key', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%debug_settings_enabled%')
+union all select 'GUARD garden key', exists(select 1 from pg_proc where proname='update_game_settings' and pg_get_functiondef(oid) ilike '%garden_enabled%')
+union all select 'garden', (to_regclass('public.community_garden_events') is not null)
+union all select 'goose deferred pick', exists(select 1 from pg_proc where proname='select_golden_goose_winner' and pg_get_functiondef(oid) ilike '%provisional%')
 order by 1;
 ```
 
@@ -113,7 +121,38 @@ order by 1;
   `publish_at`; RLS hides unpublished posts from the public.
 - **In-game Guidebook** — a "?" button opens 13 cozy chapters, incl. a
   Report-a-Bug placeholder.
-- **World map** — a placeholder viewer opened from the bottom menu.
+- **World map + travel** — the map (bottom menu) has two destinations:
+  the **Community Garden** and **Your RecoverTree Farm**. Traveling between
+  locations plays a ~2.3s **walking cinematic** (`TravelCinematic.tsx`:
+  parallax trees/flowers, jingle) before the scene swaps. `GameShell` holds a
+  `location` state ("farm" | "garden"); the bottom-menu Farm button travels
+  home when you're out.
+- **Community Garden** — a weekly collaborative event (Monday→Sunday, auto-
+  started; `garden_frequency` can be set to `manual` for admin-started events).
+  It is a **walkable location** (not a popup): click grass to walk your
+  farmer; visitors' farmers idle around (60s presence ping; public = named,
+  anonymous = darkened "A neighbor", hidden = not shown; 5-min timeout walks
+  them off screen). Everyone contributes Water/Seeds/Fertilizer toward one
+  giant shared tree (5 visual stages by combined progress; fully bloomed =
+  the pink community tree with petals). Clicking the **donation box** walks
+  the farmer over, then opens a **closeup of the crate** — added items
+  visibly drop in with a sound + sparkle. Daily per-person limits only. When
+  all three goals are met, every contributor gets a **Garden Share Bundle**
+  (25💧 / 2🌰 / 1✨ / 15🪙 — settings-driven, never Fruits). A partial reward
+  (10💧 + 5🪙 at ≥50%) exists but is **OFF by default**. Admin: Garden tab
+  (start/end/distribute) + a Community Garden settings section.
+- **Coins 🪙** — fourth currency (`farms.coin_count`, `coin_events` ledger,
+  `grant_coins`/`coin_bonus_for` helpers). Never below 0, never leaderboard.
+  Awarded by: Garden bundle (15/5), ceremony medals (gold 100 / silver 60 /
+  bronze 35 — `medal_coin_*` settings, no bonus stacking), and the automatic
+  bonus rule: any reward granting Seeds also grants `coin_bonus_seed` (5) and
+  any granting Fertilizer grants `coin_bonus_fertilizer` (10) — applied to the
+  Goose Egg (+15), Keeper completion (+10), receiving the daily Seed (+5),
+  checklist fertilizer rewards (+10), badge fertilizer (+10). Coins can ride
+  in the Traveling Basket (contribute up to `basket_max_coin_per_pass` 25,
+  paid out on lock-in/keep like everything else). Debug tools edit coins
+  (audit-logged); shown in the farm bar, backpack, basket, egg reveal, admin
+  Coins settings section. **No shop exists yet — Coins are held, not spent.**
 - **Cozy game-shell dashboard** — the farm is the canvas; a fixed bottom menu
   opens everything else in windows. Clicking bare grass walks the farmer there;
   he can't stand on the house. Event objects are depth-sorted like a 2D game.
@@ -142,12 +181,13 @@ order by 1;
   tapped. Honouring the tapped hole needs a `plant_seed(p_slot)` RPC and a slot
   column on `trees`. The farmer walks to the plot the seed really lands in, so
   the animation never lies.
-- **The Golden Goose Keeper cannot change their pick.**
-  `select_golden_goose_winner` awards the egg, pays the Keeper's fertilizer, and
-  marks the event `completed` on the FIRST pick; a second call is refused. The
-  box now stays on their farm until the selection deadline so they can reopen the
-  review screen, but real re-picking would require changing the reward rules
-  (deferring the egg award to the deadline). **Ask before doing this.**
+- **The Golden Goose Keeper CAN now change their pick** (user-approved reward
+  rule change, migration `20260709210000`): `select_golden_goose_winner` only
+  saves `selected_submission_id` and the event stays `selection_open`; the egg
+  + Keeper completion fertilizer are paid by `auto_close_golden_goose_assignments`
+  at the deadline, to whatever pick is saved then. No pick saved → old behavior
+  (random auto-select or expire, Keeper takes the exclusion break). Consequence:
+  the winner's EggReveal appears only AFTER the deadline, not at pick time.
 - `water_my_trees` (the old bulk RPC) is no longer called by the UI — bulk
   watering now loops `water_one_tree` so each tree grows individually. The old
   function still exists in the database.
@@ -178,16 +218,41 @@ tap the goose → he walks over and the panel opens. A quick DOM probe:
 `document.elementFromPoint(x, y)` over a tree should return the tree, never a
 full-screen wrapper.
 
-## Next recommended step
-**Pick one of the two open questions above**, because both change behavior the
-players will notice:
+## Coins TODOs / notes
+- **`ensure_my_farm` does NOT return `coin_count`** — the dashboard reads the
+  column directly (`fetchCoinCount` in `dashboard/page.tsx`). If you ever
+  recreate `ensure_my_farm`, consider adding coins to its summary.
+- The **ceremony show (`CeremonyShow.tsx`) doesn't display coin rewards yet**
+  — winners receive them (coin_events reason `medal_reward`), the recap just
+  doesn't mention them.
+- Basket coin limits follow the basket's TOTAL-per-person structure
+  (`basket_max_coin_per_pass` 25). The suggested separate per-day cap doesn't
+  exist for any basket resource; adding one would be a design change.
+- `debug_advance_time` doesn't touch coins (nothing to advance).
 
-1. Decide whether the Golden Goose Keeper should be able to **change their
-   favorite answer** before the deadline. If yes, that's a migration that defers
-   the egg award — a reward-rule change, so it needs your explicit go-ahead.
-2. Decide whether a seed should land in the **exact hole you tap**. If yes, add
-   `plant_seed(p_slot)` + a slot column on `trees`.
+## Community Garden TODOs
+- **TODO(garden-monthly):** only `weekly` and `manual` frequencies exist;
+  `monthly` needs a scheduling rule in `create_or_get_current_community_garden`
+  plus the validator/`gameSettings.ts` allowing the value.
+- Contributions may overshoot a goal (e.g. water 251/250) — harmless, display
+  caps at the goal; clamp server-side if it ever matters.
+- Daily limits use the **UTC** calendar date (`current_date` in Postgres).
+- Presence walk-off is client-side only (an entry vanishing from the poll
+  animates off); there is no server "leaving" state.
+- The Golden Goose re-pick UI was **not exercised live** (needs a Keeper in
+  the selection phase); the SQL paths were reviewed and the state shape is
+  typechecked. Sanity-check on the next real goose day.
+- `debug_settings_enabled` was found **ON** in the live DB (HANDOFF previously
+  said off) — turn it off in Admin → Game settings before real play.
+
+## Next recommended step
+The Golden Goose re-pick question is **resolved** (built, 2026-07-09). Still open:
+
+1. Decide whether a seed should land in the **exact hole you tap**. If yes, add
+   `plant_seed(p_slot)` + a slot column on `trees` (deliberately not built yet
+   — user said to hold off).
 
 If you'd rather ship than build: enable **leaked-password protection** in
-Supabase Auth and wire a real email provider — those are the only things
-standing between this and letting real members in.
+Supabase Auth, wire a real email provider, and revoke `anon` EXECUTE on
+`handle_new_profile()` (flagged by the Supabase security advisor) — those are
+the things standing between this and letting real members in.

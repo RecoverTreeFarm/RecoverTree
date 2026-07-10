@@ -20,6 +20,7 @@ export type DebugInventoryRow = {
   water: number;
   seeds: number;
   fertilizer: number;
+  coins: number;
   fruit_total: number;
   tree_count: number;
 };
@@ -102,6 +103,7 @@ function PlayerRow({ p }: { p: DebugInventoryRow }) {
   const [water, setWater] = useState(String(p.water));
   const [seeds, setSeeds] = useState(String(p.seeds));
   const [fert, setFert] = useState(String(p.fertilizer));
+  const [coins, setCoins] = useState(String(p.coins));
   const [msg, setMsg] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -143,18 +145,23 @@ function PlayerRow({ p }: { p: DebugInventoryRow }) {
           <input type="number" min={0} max={1000000} value={fert} disabled={pending}
             onChange={(e) => setFert(e.target.value)} className={`${numCls} mt-0.5 block`} />
         </label>
+        <label className="text-[11px] font-bold">
+          🪙 Coins
+          <input type="number" min={0} max={1000000} value={coins} disabled={pending}
+            onChange={(e) => setCoins(e.target.value)} className={`${numCls} mt-0.5 block`} />
+        </label>
         <button type="button" disabled={pending} className="pixel-btn text-[11px] disabled:opacity-50"
           onClick={() =>
             run(
-              () => debugSetInventory(p.user_id, Number(water) || 0, Number(seeds) || 0, Number(fert) || 0),
+              () => debugSetInventory(p.user_id, Number(water) || 0, Number(seeds) || 0, Number(fert) || 0, Number(coins) || 0),
               "Inventory saved.",
             )
           }>
           Save
         </button>
         <button type="button" disabled={pending} className={btnCls}
-          title="+25 water, +2 seeds, +2 fertilizer (server-side preset)"
-          onClick={() => run(() => debugGiveBundle(p.user_id), "Bundle granted (+25💧 +2🌰 +2✨).")}>
+          title="+25 water, +2 seeds, +2 fertilizer, +25 coins (server-side preset)"
+          onClick={() => run(() => debugGiveBundle(p.user_id), "Bundle granted (+25💧 +2🌰 +2✨ +25🪙).")}>
           Give bundle
         </button>
         <button type="button" disabled={pending} className={btnCls}
@@ -167,7 +174,7 @@ function PlayerRow({ p }: { p: DebugInventoryRow }) {
             <span className="text-[11px] font-bold">Zero out items?</span>
             <button type="button" disabled={pending} className="pixel-btn text-[11px]"
               style={{ background: "var(--rf-red)", color: "var(--rf-cream)" }}
-              onClick={() => run(() => debugResetInventory(p.user_id), "Inventory reset to 0 / 0 / 0.")}>
+              onClick={() => run(() => debugResetInventory(p.user_id), "Inventory reset to 0 / 0 / 0 / 0.")}>
               Yes, reset
             </button>
             <button type="button" disabled={pending} className={btnCls} onClick={() => setConfirmReset(false)}>

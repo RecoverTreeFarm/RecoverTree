@@ -16,7 +16,7 @@ export const GOOSE_QUESTIONS: readonly string[] = [
 ];
 
 export type GooseReward = {
-  reward_type: "seed" | "water" | "fertilizer";
+  reward_type: "seed" | "water" | "fertilizer" | "coin";
   amount: number;
   reason: string;
 };
@@ -47,6 +47,9 @@ export type GooseState =
       submission_count: number;
       anonymous_answers: { id: string; answer_text: string }[];
       my_rewards: GooseReward[];
+      /** Keeper only, during selection: the saved (provisional) favorite.
+       *  The egg goes to whatever is saved here when the deadline passes. */
+      my_pick_submission_id?: string | null;
       answer_collection_ends_at: string;
       selection_deadline_at: string;
       pass_enabled: boolean;

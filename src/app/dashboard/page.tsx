@@ -6,6 +6,7 @@ import { GameShell } from "@/components/game/GameShell";
 import type { BasketState } from "@/components/pixel/BasketPanel";
 import type { ChecklistItem, LeaderboardRow } from "@/components/game/panels";
 import type { GooseState } from "@/lib/goose";
+import type { GardenState } from "@/lib/garden";
 import { avatarSprite, houseKey } from "@/lib/sprites";
 import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
@@ -19,6 +20,20 @@ type FarmSummary = {
   seed_count: number;
   tree_count: number;
 };
+
+/** Coins live on the same farms row but aren't in ensure_my_farm's summary
+ *  (that function predates them) — read the column directly. */
+async function fetchCoinCount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  farmId: string,
+): Promise<number> {
+  const { data } = await supabase
+    .from("farms")
+    .select("coin_count")
+    .eq("id", farmId)
+    .maybeSingle();
+  return (data?.coin_count as number | undefined) ?? 0;
+}
 
 /**
  * The dashboard is a cozy game screen: a tiny greeting, a thin stat strip,
@@ -40,6 +55,7 @@ export default async function DashboardPage() {
   // month's Season if needed, and guarantees this user's farm + starter tree.
   const { data: farmRows, error: farmError } = await supabase.rpc("ensure_my_farm");
   const farm = ((farmRows ?? []) as FarmSummary[])[0] ?? null;
+  const coins = farm ? await fetchCoinCount(supabase, farm.farm_id) : 0;
 
   // This user's trees. is_blossom arrives with the blossom migration — fall
   // back to base columns if it isn't applied yet so the farm still renders.
@@ -129,6 +145,12 @@ export default async function DashboardPage() {
   const { data: gooseData, error: gooseErr } = await supabase.rpc("get_golden_goose_state");
   const goose = gooseErr ? null : ((gooseData ?? null) as GooseState | null);
 
+  // Community Garden state (hidden if the migration isn't applied yet).
+  const { data: gardenData, error: gardenErr } = await supabase.rpc(
+    "get_community_garden_state",
+  );
+  const garden = gardenErr ? null : ((gardenData ?? null) as GardenState | null);
+
   // Leaderboard preview (top few). Private Mode enforced in get_leaderboard.
   const { data: lbRows } = await supabase.rpc("get_leaderboard");
   const leaderboard = ((lbRows ?? []) as LeaderboardRow[]).slice(0, 8);
@@ -171,6 +193,7 @@ export default async function DashboardPage() {
           water: farm?.water_count ?? 0,
           seeds: farm?.seed_count ?? 0,
           fertilizer: farm?.fertilizer_count ?? 0,
+          coins,
           treeCount: farm?.tree_count ?? trees.length,
         }}
         seasonDaysLeft={seasonDaysLeft}
@@ -180,6 +203,7 @@ export default async function DashboardPage() {
         sentToName={sentToName}
         basket={basket}
         goose={goose}
+        garden={garden}
         checklist={checklist}
         leaderboard={leaderboard}
         profile={{
