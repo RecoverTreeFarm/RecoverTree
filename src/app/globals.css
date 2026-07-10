@@ -476,3 +476,27 @@ body {
   animation-iteration-count: infinite;
   z-index: 4;
 }
+
+/* ---- Neighbor departure: quick fade + a little puff of particles --------- */
+@keyframes rf-vanish {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.82); }
+}
+.rf-vanish { animation: rf-vanish 0.55s ease-in forwards; }
+
+@keyframes rf-poof {
+  0%   { opacity: 0.9; transform: translate(-50%, 0) scale(0.4); }
+  100% { opacity: 0;   transform: translate(calc(-50% + var(--poof-x, 0px)), var(--poof-y, -14px)) scale(1.1); }
+}
+.rf-poof {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--rf-cream);
+  border: 1px solid var(--rf-ink);
+  animation: rf-poof 0.55s ease-out forwards;
+  pointer-events: none;
+}

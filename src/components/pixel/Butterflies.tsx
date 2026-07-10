@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 /**
  * Drifting butterflies (CozySpriteBundle/nature/Butterfly.png — a 32x16 strip
  * of two 16x16 wing frames). Each one flaps on its own timer and floats along
- * a looping CSS path, so a handful never look synchronized.
+ * a looping CSS path.
+ *
+ * They start at RANDOM points along their path (via a negative animation
+ * delay) and at random heights, so a handful never look clustered or
+ * synchronized. Randomization happens after mount to avoid an SSR/CSR
+ * hydration mismatch.
  *
  * Decorative only: pointer-events-none, aria-hidden.
  */
@@ -13,22 +18,17 @@ import { useEffect, useState } from "react";
 const SRC = "/sprites/nature/butterfly.png";
 const FRAME = 16;
 
-function Butterfly({
-  scale,
-  flapMs,
-  delay,
-  duration,
-  top,
-  drift,
-}: {
+type Spec = {
   scale: number;
   flapMs: number;
+  /** negative → the loop is already partway through when it mounts */
   delay: string;
   duration: string;
   top: string;
-  /** vertical bob distance for this one's path */
   drift: string;
-}) {
+};
+
+function Butterfly({ scale, flapMs, delay, duration, top, drift }: Spec) {
   const [frame, setFrame] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), flapMs);
@@ -58,17 +58,37 @@ function Butterfly({
   );
 }
 
-/** A few butterflies drifting across the scene. */
+const rand = (min: number, max: number) => min + Math.random() * (max - min);
+
+function makeSpecs(count: number): Spec[] {
+  return Array.from({ length: count }, () => {
+    const duration = rand(11, 20);
+    // 40% smaller than before (old scales were ~1.2–1.9 → now ~0.7–1.15)
+    return {
+      scale: rand(0.7, 1.15),
+      flapMs: Math.round(rand(160, 250)),
+      // negative, up to a full loop: scatters them across the path at t=0
+      delay: `-${(Math.random() * duration).toFixed(1)}s`,
+      duration: `${duration.toFixed(1)}s`,
+      top: `${Math.round(rand(10, 62))}%`,
+      drift: `${Math.round(rand(12, 30)) * (Math.random() < 0.5 ? -1 : 1)}px`,
+    };
+  });
+}
+
+/** A few butterflies drifting across the scene from random spots. */
 export function Butterflies({ count = 3 }: { count?: number }) {
-  const specs = [
-    { scale: 1.6, flapMs: 190, delay: "0s", duration: "13s", top: "18%", drift: "22px" },
-    { scale: 1.3, flapMs: 240, delay: "3.5s", duration: "17s", top: "42%", drift: "-16px" },
-    { scale: 1.9, flapMs: 160, delay: "7s", duration: "11s", top: "30%", drift: "28px" },
-    { scale: 1.2, flapMs: 220, delay: "5s", duration: "19s", top: "58%", drift: "-24px" },
-  ];
+  // Empty on the server + first paint; real (random) specs after mount, so the
+  // randomness can't cause a hydration mismatch.
+  const [specs, setSpecs] = useState<Spec[]>([]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSpecs(makeSpecs(count));
+  }, [count]);
+
   return (
     <>
-      {specs.slice(0, count).map((s, i) => (
+      {specs.map((s, i) => (
         <Butterfly key={i} {...s} />
       ))}
     </>

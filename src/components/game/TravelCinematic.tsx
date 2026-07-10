@@ -8,42 +8,76 @@ import { Butterflies } from "@/components/pixel/Butterflies";
 
 const TRAVEL_MS = 2300;
 
-/** A roadside tree (the clean 32x32 community-tree crop). */
-function StripTree({ scale }: { scale: number }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={SPRITES.treeCommunity}
-      alt=""
-      aria-hidden
-      className="pixelated inline-block shrink-0"
-      style={{ width: 32 * scale, height: 32 * scale, imageRendering: "pixelated" }}
-    />
-  );
-}
+/* Scatter tables — items are placed absolutely (left % of the half, bottom px
+   off the ground) so they sit at varied spots and depths instead of one line.
+   Fixed values (not random) so the two seamless-loop halves match exactly. */
+const FAR_TREES: { left: number; bottom: number; scale: number }[] = [
+  { left: 4, bottom: 6, scale: 2.8 },
+  { left: 20, bottom: 22, scale: 2.1 },
+  { left: 33, bottom: 2, scale: 3.1 },
+  { left: 50, bottom: 16, scale: 2.3 },
+  { left: 66, bottom: 26, scale: 1.9 },
+  { left: 80, bottom: 4, scale: 2.9 },
+  { left: 92, bottom: 18, scale: 2.2 },
+];
 
-/** Half of a seamless parallax loop — rendered twice back to back. */
+const NEAR_DECOR: { e: string; left: number; bottom: number; size: number }[] = [
+  { e: "🌼", left: 5, bottom: 8, size: 22 },
+  { e: "🌷", left: 15, bottom: 46, size: 15 },
+  { e: "🪨", left: 27, bottom: 4, size: 24 },
+  { e: "🌻", left: 39, bottom: 62, size: 15 },
+  { e: "🌿", left: 50, bottom: 24, size: 19 },
+  { e: "🌼", left: 61, bottom: 52, size: 14 },
+  { e: "🪨", left: 72, bottom: 14, size: 21 },
+  { e: "🌷", left: 83, bottom: 38, size: 16 },
+  { e: "🌼", left: 94, bottom: 6, size: 20 },
+];
+
+/** Half of the far tree line — scattered along/behind the horizon. */
 function FarHalf() {
   return (
-    <span className="flex w-1/2 shrink-0 items-end justify-around">
-      <StripTree scale={2.8} />
-      <StripTree scale={2.2} />
-      <StripTree scale={3.1} />
-      <StripTree scale={2} />
-      <StripTree scale={2.5} />
+    <span className="relative block h-full w-1/2 shrink-0">
+      {FAR_TREES.map((t, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={SPRITES.treeCommunity}
+          alt=""
+          aria-hidden
+          className="pixelated absolute"
+          style={{
+            left: `${t.left}%`,
+            bottom: t.bottom,
+            width: 32 * t.scale,
+            height: 32 * t.scale,
+            imageRendering: "pixelated",
+            transform: "translateX(-50%)",
+          }}
+        />
+      ))}
     </span>
   );
 }
 
+/** Half of the near ground decor — flowers/rocks scattered across the plane. */
 function NearHalf() {
   return (
-    <span className="flex w-1/2 shrink-0 items-end justify-around text-2xl leading-none">
-      <span aria-hidden>🌼</span>
-      <span aria-hidden>🌷</span>
-      <span aria-hidden>🪨</span>
-      <span aria-hidden>🌻</span>
-      <span aria-hidden>🌼</span>
-      <span aria-hidden>🌿</span>
+    <span className="relative block h-full w-1/2 shrink-0 leading-none">
+      {NEAR_DECOR.map((d, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className="absolute"
+          style={{
+            left: `${d.left}%`,
+            bottom: d.bottom,
+            fontSize: d.size,
+            transform: "translateX(-50%)",
+          }}
+        >
+          {d.e}
+        </span>
+      ))}
     </span>
   );
 }
@@ -89,9 +123,9 @@ export function TravelCinematic({
         style={{ right: "12%", top: "10%", width: 46, height: 46, background: "var(--rf-gold)", boxShadow: "0 0 24px var(--rf-gold)" }}
       />
 
-      {/* far tree line (slow) — sits on the horizon */}
-      <div className="absolute inset-x-0" style={{ top: "calc(62% - 110px)" }}>
-        <div className="rf-travel-far flex w-[200%] items-end" style={{ height: 110 }}>
+      {/* far tree line (slow) — scattered along the horizon */}
+      <div className="absolute inset-x-0" style={{ top: "calc(62% - 120px)", height: 120 }}>
+        <div className="rf-travel-far flex w-[200%]" style={{ height: "100%" }}>
           <FarHalf />
           <FarHalf />
         </div>
@@ -103,9 +137,9 @@ export function TravelCinematic({
         style={{ top: "62%", borderTop: "4px solid var(--rf-grass-dark)" }}
       />
 
-      {/* near flowers (fast) — in front of the farmer's feet */}
-      <div className="absolute inset-x-0" style={{ top: "calc(62% + 66px)" }}>
-        <div className="rf-travel-near flex w-[200%] items-end" style={{ height: 32 }}>
+      {/* near flowers/rocks (fast) — scattered across the ground plane */}
+      <div className="absolute inset-x-0 bottom-0" style={{ top: "calc(62% + 40px)" }}>
+        <div className="rf-travel-near flex w-[200%]" style={{ height: "100%" }}>
           <NearHalf />
           <NearHalf />
         </div>

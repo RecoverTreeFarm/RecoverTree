@@ -322,7 +322,17 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<{ key: StoreItemKey; sale: boolean } | null>(null);
+  const [qty, setQty] = useState(1);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  function pick(key: StoreItemKey, sale: boolean) {
+    setSelected({ key, sale });
+    setQty(1); // fresh quantity every time an item is chosen
+    setMsg(null);
+  }
+
+  // The Goose Entry is one-per-event; everything else can be bought in bulk.
+  const canPickQty = selected ? selected.key !== "goose_entry" : false;
 
   const gooseBuyable = state.goose_entry_status === "available_to_buy";
   const gooseNote =
@@ -341,28 +351,43 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
     return state.prices[key];
   }
 
-  function buy(key: StoreItemKey, sale: boolean) {
+  function buy(key: StoreItemKey, sale: boolean, count: number) {
     setMsg(null);
     startTransition(async () => {
-      const r = await purchaseStoreItem(key, sale);
-      if (!r.ok) {
+      const item = STORE_ITEMS[key];
+      // Each purchase is its own atomic, re-priced server call. Loop for
+      // quantity; if coins run out partway we stop and report what landed.
+      let bought = 0;
+      let unitsGranted = 0;
+      let coinsLeft = state.coins;
+      let lastError = "";
+      for (let n = 0; n < count; n++) {
+        const r = await purchaseStoreItem(key, sale);
+        if (!r.ok) {
+          lastError = r.message;
+          break;
+        }
+        bought += 1;
+        unitsGranted += r.quantity;
+        coinsLeft = r.coins_left;
+      }
+
+      if (bought === 0) {
         playSfx("error");
-        setMsg({ ok: false, text: r.message });
+        setMsg({ ok: false, text: lastError || "Couldn’t ring that up — try again." });
         return;
       }
+
       playSfx("harvest");
-      const item = STORE_ITEMS[key];
-      setMsg({
-        ok: true,
-        text:
-          key === "goose_entry"
-            ? "Xtra Goose Entry ready. Find it under your Golden Goose answer. 🎟️"
-            : `Added to your inventory: ${item.icon} ${r.quantity > 1 ? `${r.quantity} ` : ""}${item.name}. 🪙 ${r.coins_left} left.`,
-      });
-      // the same "you got something" banner every reward uses
-      announceReward(
-        `${item.icon} ${r.quantity > 1 ? `${r.quantity} ` : ""}${item.name} — added to your inventory`,
-      );
+      if (key === "goose_entry") {
+        setMsg({ ok: true, text: "Xtra Goose Entry ready. Find it under your Golden Goose answer. 🎟️" });
+        announceReward("🎟️ Xtra Goose Entry — ready");
+      } else {
+        const label = `${item.icon} ${unitsGranted} ${item.name}`;
+        const shortfall = bought < count ? " (Coins ran out.)" : "";
+        setMsg({ ok: true, text: `Added to your inventory: ${label}. 🪙 ${coinsLeft} left.${shortfall}` });
+        announceReward(`${label} — added to your inventory`);
+      }
       setSelected(null);
       router.refresh();
     });
@@ -414,7 +439,7 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
                   key={i}
                   type="button"
                   disabled={disabled || pending}
-                  onClick={() => setSelected({ key: cell.key, sale: false })}
+                  onClick={() => pick(cell.key, false)}
                   className={shelfCellCls(disabled)}
                   title={item.blurb}
                 >
@@ -447,7 +472,7 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => setSelected({ key: state.sale!.item_key, sale: true })}
+                onClick={() => pick(state.sale!.item_key, true)}
                 className="relative flex h-28 w-full flex-col items-center justify-end rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-gold)]/35 pb-2 hover:bg-[var(--rf-gold)]/60"
               >
                 <span className="absolute -top-2 right-1 rotate-6 rounded border border-[var(--rf-ink)] bg-[var(--rf-red)] px-1 text-[9px] font-extrabold text-[var(--rf-cream)]">
@@ -488,32 +513,75 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
               )}
             </p>
             <p className="mt-0.5 text-[11px] text-[var(--rf-ink-soft)]">{STORE_ITEMS[selected.key].blurb}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-[11px] font-bold">
-                Purchase for 🪙 {priceOf(selected.key, selected.sale)}?
-              </span>
-              <button
-                type="button"
-                disabled={pending || state.coins < priceOf(selected.key, selected.sale)}
-                onClick={() => buy(selected.key, selected.sale)}
-                className="pixel-btn text-[11px] disabled:opacity-50"
-              >
-                {pending ? "Ringing up…" : "Yes, buy it"}
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={() => setSelected(null)}
-                className="pixel-btn pixel-btn--secondary text-[11px]"
-              >
-                Not now
-              </button>
-            </div>
-            {state.coins < priceOf(selected.key, selected.sale) && (
-              <p className="mt-1 text-[10px] font-bold text-[var(--rf-red)]">
-                Not enough Coins — the garden, goose, and ceremonies all pay them out. 🪙
-              </p>
+
+            {/* quantity picker (not the one-per-event Goose Entry) */}
+            {canPickQty && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+                  Quantity
+                </span>
+                <button
+                  type="button"
+                  aria-label="Fewer"
+                  disabled={pending || qty <= 1}
+                  onClick={() => setQty((q) => Math.max(1, q - 1))}
+                  className="pixel-btn pixel-btn--secondary px-2 py-0.5 text-xs disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="w-8 text-center text-sm font-extrabold tabular-nums">{qty}</span>
+                <button
+                  type="button"
+                  aria-label="More"
+                  disabled={pending || qty >= 99}
+                  onClick={() => setQty((q) => Math.min(99, q + 1))}
+                  className="pixel-btn pixel-btn--secondary px-2 py-0.5 text-xs disabled:opacity-40"
+                >
+                  +
+                </button>
+                {selected.key === "water" && (
+                  <span className="text-[10px] text-[var(--rf-ink-soft)]">
+                    = 💧 {state.water_amount * qty}
+                  </span>
+                )}
+              </div>
             )}
+
+            {(() => {
+              const unit = priceOf(selected.key, selected.sale);
+              const total = unit * qty;
+              const tooPoor = state.coins < total;
+              return (
+                <>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold">
+                      {qty > 1 ? `Buy ${qty} for` : "Purchase for"} 🪙 {total}?
+                    </span>
+                    <button
+                      type="button"
+                      disabled={pending || tooPoor}
+                      onClick={() => buy(selected.key, selected.sale, qty)}
+                      className="pixel-btn text-[11px] disabled:opacity-50"
+                    >
+                      {pending ? "Ringing up…" : "Yes, buy it"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => setSelected(null)}
+                      className="pixel-btn pixel-btn--secondary text-[11px]"
+                    >
+                      Not now
+                    </button>
+                  </div>
+                  {tooPoor && (
+                    <p className="mt-1 text-[10px] font-bold text-[var(--rf-red)]">
+                      Not enough Coins — the garden, goose, and ceremonies all pay them out. 🪙
+                    </p>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 

@@ -57,10 +57,11 @@ export function usePresence(location: LocationKey, initial: Neighbor[]) {
       ];
       setVisitors(merged);
       if (leaving.length > 0) {
+        // remove them right after the fade/poof finishes (rf-vanish is 0.55s)
         setTimeout(() => {
           if (!alive) return;
           setVisitors((vs) => vs.filter((v) => !v.leaving));
-        }, 1800);
+        }, 600);
       }
     };
     void sync();
@@ -166,6 +167,15 @@ export function useWandering(count: number, spots: { left: number; bottom: numbe
   return targets;
 }
 
+/** Puff-particle offsets (px) for a departing neighbor. */
+const POOF = [
+  { x: -12, y: -16 },
+  { x: 12, y: -14 },
+  { x: 0, y: -22 },
+  { x: -8, y: -6 },
+  { x: 9, y: -4 },
+];
+
 /** One neighbor, strolling between spots. Tap to say hi. */
 export function NeighborSprite({
   v,
@@ -194,20 +204,36 @@ export function NeighborSprite({
         e.stopPropagation();
         onGreet();
       }}
-      className="absolute flex flex-col items-center border-0 bg-transparent p-0"
+      className={`absolute flex flex-col items-center border-0 bg-transparent p-0 ${
+        v.leaving ? "rf-vanish" : ""
+      }`}
       style={{
         left: `${spot.left}%`,
         bottom: `${spot.bottom}%`,
         zIndex: Math.round(60 - spot.bottom),
-        // strolling between spots (left/bottom) + the walk-off (transform)
-        transition:
-          "left 2.4s linear, bottom 2.4s linear, transform 1.6s ease-in, opacity 1.6s ease-in",
-        transform: v.leaving ? "translateX(240px)" : "none",
-        opacity: v.leaving ? 0 : 1,
+        // only the stroll between spots animates position; leaving is an
+        // instant fade (rf-vanish) rather than a slow walk-off
+        transition: v.leaving ? "none" : "left 2.4s linear, bottom 2.4s linear",
       }}
     >
       {heart && <span aria-hidden className="rf-reward-pop absolute -top-5 text-lg">💗</span>}
-      <div className={v.leaving || walking ? "rf-walk" : "rf-idle"}>
+      {/* a small puff of particles as they blink out */}
+      {v.leaving && (
+        <>
+          {POOF.map((p, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="rf-poof"
+              style={
+                { "--poof-x": `${p.x}px`, "--poof-y": `${p.y}px` } as React.CSSProperties &
+                  Record<string, string>
+              }
+            />
+          ))}
+        </>
+      )}
+      <div className={walking && !v.leaving ? "rf-walk" : "rf-idle"}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
