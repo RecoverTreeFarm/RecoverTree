@@ -130,6 +130,13 @@ order by 1;
   the Golden Goose winner; interactive map locations.
 
 ## Current known issues / TODOs
+- **⚠️ Watch full-screen overlays on the farm.** The Golden Goose swoops across
+  the whole play area, so its wrapper is `absolute inset-0`. It MUST keep
+  `pointer-events-none`, with `pointer-events-auto` on the goose button itself.
+  Dropping that once (commit `437f3c2`) turned it into an invisible sheet over
+  the farm and made trees and grass unclickable **for the Keeper only** — the
+  one person who sees the goose. Fixed in `829966d`. Any future farm overlay
+  (egg animation, weather, confetti) needs the same treatment.
 - **TODO(selected-hole planting)** — `plant_seed` always fills the NEXT open
   plot, so a seed lands in the first free hole, not necessarily the one you
   tapped. Honouring the tapped hole needs a `plant_seed(p_slot)` RPC and a slot
@@ -162,6 +169,14 @@ order by 1;
 - **No** service-role/secret keys, DB passwords, or API secrets are in the repo.
 - Admin **debug tools are OFF** in the live database and are double-gated
   (admin role AND the `debug_settings_enabled` setting).
+
+## How to sanity-check the farm after any UI change
+Log in as the **Keeper** of an active Golden Goose event (not just any account —
+the goose only renders for them) and confirm you can still:
+tap a tree → the action menu opens; click bare grass → the farmer walks;
+tap the goose → he walks over and the panel opens. A quick DOM probe:
+`document.elementFromPoint(x, y)` over a tree should return the tree, never a
+full-screen wrapper.
 
 ## Next recommended step
 **Pick one of the two open questions above**, because both change behavior the
