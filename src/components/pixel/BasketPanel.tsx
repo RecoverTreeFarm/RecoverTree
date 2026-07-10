@@ -262,9 +262,13 @@ export function BasketPanel({
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <label className="text-[10px] font-bold uppercase">
                 💧 Water
-                <input type="number" min={0} max={Math.min(limits?.water_per_pass ?? 25, myWater)}
+                {/* water always travels in fives — the app-wide water rule */}
+                <input type="number" min={0} step={5} max={Math.min(limits?.water_per_pass ?? 25, myWater)}
                   value={String(water)} disabled={pending}
-                  onChange={(e) => setWater(Math.max(0, Math.min(limits?.water_per_pass ?? 25, myWater, Math.floor(Number(e.target.value) || 0))))}
+                  onChange={(e) => {
+                    const n = Math.max(0, Math.min(limits?.water_per_pass ?? 25, myWater, Math.floor(Number(e.target.value) || 0)));
+                    setWater(n - (n % 5));
+                  }}
                   className={`${inputClass} mt-0.5 block`} />
               </label>
               <label className="text-[10px] font-bold uppercase">

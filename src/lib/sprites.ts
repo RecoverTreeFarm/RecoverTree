@@ -39,6 +39,10 @@ export const SPRITES = {
   // 32x44 growth frame). The old mis-cropped tree_pink.png is unused.
   treeSheet: "/sprites/plants/tree_green.png",
   treeBlossom: "/sprites/plants/tree_cherry.png",
+  // The user's clean 32x32 crop (CozySpriteBundle/nature/TreeCropped.png) —
+  // used for the Community Garden's giant tree + scene dressing (the strip's
+  // mature frame had crop artifacts at large scales).
+  treeCommunity: "/sprites/plants/tree_community.png",
 
   // Misc
   barn: "/sprites/misc/barn_cozy.png", // 60x86 cozy red barn (legacy default)

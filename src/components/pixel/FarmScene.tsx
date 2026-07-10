@@ -304,7 +304,8 @@ export function FarmScene({
         }}
       >
         <div className={innerAnim}>
-          <Sprite src={farmerSrc} size={[32, 32]} scale={compact ? 2.6 : 3.6} alt="farmer" />
+          {/* 20% smaller than the original 2.6/3.6 (user request) */}
+          <Sprite src={farmerSrc} size={[32, 32]} scale={compact ? 2.1 : 2.9} alt="farmer" />
         </div>
       </div>
 

@@ -292,6 +292,36 @@ export const SETTING_DEFS: SettingDef[] = [
     help: "When on, anonymous/hidden farmers can still add supplies (they appear anonymously or not at all).",
   },
 
+  // --- General Store (🏪 purchases spend Coins; never Fruits) --------------
+  {
+    key: "store_enabled",
+    label: "General Store enabled",
+    kind: "boolean",
+    default: true,
+    help: "Master switch. When off, the register is closed (the location still exists).",
+  },
+  {
+    key: "store_water_amount",
+    label: "Water bundle size",
+    kind: "number",
+    default: 25,
+    min: 5,
+    help: "How much Water one purchase grants. Must be a multiple of 5 (the app-wide water rule).",
+  },
+  { key: "store_water_price", label: "Water bundle price (coins)", kind: "number", default: 10, min: 1 },
+  { key: "store_fertilizer_price", label: "Fertilizer price (coins)", kind: "number", default: 30, min: 1 },
+  { key: "store_seed_price", label: "Seed price (coins)", kind: "number", default: 50, min: 1 },
+  { key: "store_goose_entry_price", label: "Xtra Goose Entry price (coins)", kind: "number", default: 40, min: 1 },
+  {
+    key: "store_sale_enabled",
+    label: "Daily sale enabled",
+    kind: "boolean",
+    default: true,
+    help: "One random item per day at a 10–40% discount (deeper discounts are rarer).",
+  },
+  { key: "store_sale_min_percent", label: "Sale discount — minimum (%)", kind: "number", default: 10, max: 100 },
+  { key: "store_sale_max_percent", label: "Sale discount — maximum (%)", kind: "number", default: 40, max: 100 },
+
   // --- Coins (🪙 spendable currency; never leaderboard score) --------------
   {
     key: "medal_coin_gold",
@@ -395,6 +425,17 @@ export const SETTING_SECTIONS: SettingSection[] = [
       { title: "Completion reward", keys: ["garden_reward_water", "garden_reward_seeds", "garden_reward_fertilizer", "garden_reward_coins"] },
       { title: "Partial reward", keys: ["garden_partial_reward_enabled", "garden_partial_threshold_percent", "garden_partial_reward_water", "garden_partial_reward_coins"] },
       { title: "Privacy", keys: ["garden_show_names", "garden_private_users_can_contribute"] },
+    ],
+  },
+  {
+    id: "store",
+    title: "General Store",
+    blurb:
+      "🏪 The shop on the map. Purchases spend Coins and grant Water/Seeds/Fertilizer or an Xtra Goose Entry — never Fruits. Water is sold in multiples of 5.",
+    groups: [
+      { title: "Store", keys: ["store_enabled", "store_water_amount"] },
+      { title: "Prices (coins)", keys: ["store_water_price", "store_fertilizer_price", "store_seed_price", "store_goose_entry_price"] },
+      { title: "Daily sale", keys: ["store_sale_enabled", "store_sale_min_percent", "store_sale_max_percent"] },
     ],
   },
   {

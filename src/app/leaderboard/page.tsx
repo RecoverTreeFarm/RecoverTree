@@ -50,6 +50,16 @@ export default async function LeaderboardPage() {
   const { data } = await supabase.rpc("get_leaderboard");
   const rows = (data ?? []) as LeaderboardRow[];
 
+  // The most recently ceremonied season — replaying is visual only (the
+  // ceremony page never re-awards; close_season is the only reward path).
+  const { data: lastCeremonied } = await supabase
+    .from("seasons")
+    .select("id, name")
+    .not("ceremony_completed_at", "is", null)
+    .order("ceremony_completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return (
     <Container>
       <PageHeader
@@ -57,6 +67,14 @@ export default async function LeaderboardPage() {
         subtitle="A light, friendly ranking by Fruits this Season. Anonymous farmers appear as Anonymous Farmer; hidden farmers stay off the board."
         route="/leaderboard"
       />
+
+      {lastCeremonied && (
+        <div className="mb-4">
+          <PixelLink href={`/ceremony/${lastCeremonied.id}`} variant="secondary">
+            🎉 Replay last month’s ceremony ({lastCeremonied.name as string})
+          </PixelLink>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <Panel className="text-center">

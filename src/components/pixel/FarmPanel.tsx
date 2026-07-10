@@ -782,15 +782,24 @@ export function FarmPanel({
           title="Plant seeds in the open plots">
           {itemLabel("seed")}
         </button>
-        <span className="ml-1 inline-flex items-center gap-1 text-sm font-extrabold" title="Fruits this Season">
-          <Fruit scale={1.7} /> {fruitTotal}
-        </span>
-        <span className="text-sm font-extrabold" title="Coins — spend on future shop goodies (not leaderboard score)">
-          🪙 {coins}
-        </span>
-        <span className="text-sm font-extrabold" title="Trees">
-          🌳 {viewTrees.length}
-        </span>
+        <InfoChip
+          icon={<Fruit scale={1.7} />}
+          count={fruitTotal}
+          name="Fruits"
+          blurb={`Your Season score — only harvesting trees makes Fruits. You have ${fruitTotal}.`}
+        />
+        <InfoChip
+          icon={<span aria-hidden>🪙</span>}
+          count={coins}
+          name="Coins"
+          blurb={`Spend on future shop goodies — Coins never affect the leaderboard. You have ${coins}.`}
+        />
+        <InfoChip
+          icon={<span aria-hidden>🌳</span>}
+          count={viewTrees.length}
+          name="Trees"
+          blurb={`More trees = a bigger harvest (max ${MAX_TREES}). You have ${viewTrees.length}.`}
+        />
       </div>
 
       <div className="relative">
@@ -917,6 +926,63 @@ export function FarmPanel({
         >
           {message}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A passive stat chip (Fruits / Coins / Trees) with a small cozy popup on
+ * hover, tap, or focus that says what the thing is and how many you have.
+ */
+function InfoChip({
+  icon,
+  count,
+  name,
+  blurb,
+}: {
+  icon: React.ReactNode;
+  count: number;
+  name: string;
+  blurb: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // tap-away closes the popup (mirrors NotificationCenter behavior)
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [open]);
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-label={`${name}: ${count}`}
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 border-0 bg-transparent p-0 text-sm font-extrabold"
+      >
+        {icon} {count}
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          className="absolute left-1/2 top-full z-40 mt-1.5 w-48 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-2.5 py-1.5 shadow-[0_2px_0_var(--rf-ink)]"
+        >
+          <p className="text-[11px] font-extrabold">{name}</p>
+          <p className="text-[10px] leading-snug text-[var(--rf-ink-soft)]">{blurb}</p>
+        </div>
       )}
     </div>
   );

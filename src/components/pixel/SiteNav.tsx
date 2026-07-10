@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Sprite } from "./Sprite";
-import { SPRITES, avatarSprite } from "@/lib/sprites";
+import { SPRITES } from "@/lib/sprites";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SoundToggle } from "@/components/pixel/SoundToggle";
@@ -25,17 +24,14 @@ export async function SiteNav() {
   const user = data.user;
 
   // Role-aware links: Host for meeting_host/admin, Admin for admin only.
-  // The nav "logo" is the player's own farmer, so it follows avatar changes.
   let role: string | null = null;
-  let navFarmer: string = SPRITES.farmer;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, avatar_config")
+      .select("role")
       .eq("user_id", user.id)
       .maybeSingle();
     role = profile?.role ?? null;
-    navFarmer = avatarSprite(profile?.avatar_config);
   }
   const links = [
     ...memberLinks,
@@ -55,7 +51,13 @@ export async function SiteNav() {
     >
       <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2">
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <Sprite src={navFarmer} size={[32, 32]} scale={2} alt="" />
+          {/* the pink cherry blossom tree is the app's emblem */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={SPRITES.treeBlossom}
+            alt=""
+            className="pixelated h-11 w-auto"
+          />
           {/* wordmark hides on narrow phones so wrapped nav buttons don't overlap it */}
           <span className="pixel-heading hidden text-lg text-[var(--rf-ink)] sm:inline">
             RecoverTree

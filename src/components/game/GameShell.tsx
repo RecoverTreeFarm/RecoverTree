@@ -13,10 +13,13 @@ import { NotificationCenter, type FarmNotification } from "./NotificationCenter"
 import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
 import { GardenScene } from "./GardenPanel";
+import { StoreScene } from "./GeneralStore";
 import { TravelCinematic } from "./TravelCinematic";
 import { MapModalBody } from "./MapPanel";
+import { CeremonyInvitePopup } from "./CeremonyInvite";
 import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
+import type { StoreState } from "@/lib/store";
 import { HOUSE_SPRITES, seasonEmoji } from "@/lib/sprites";
 
 type PanelId =
@@ -31,11 +34,12 @@ type PanelId =
   | "profile";
 
 /** Places the player can BE (walkable scenes, reached via the map). */
-type LocationId = "farm" | "garden";
+type LocationId = "farm" | "garden" | "store";
 
 const LOCATION_LABELS: Record<LocationId, string> = {
   farm: "your farm",
   garden: "the Community Garden",
+  store: "the General Store",
 };
 
 export type GameShellProps = {
@@ -64,6 +68,9 @@ export type GameShellProps = {
   basket: BasketState | null;
   goose: GooseState | null;
   garden: GardenState | null;
+  store: StoreState | null;
+  /** a completed season whose ceremony this user hasn't seen/dismissed yet */
+  ceremonyInvite: { season_id: string; season_name: string } | null;
   checklist: ChecklistItem[];
   leaderboard: LeaderboardRow[];
   profile: ProfileInfo;
@@ -242,6 +249,16 @@ export function GameShell(props: GameShellProps) {
               </>
             }
           />
+        ) : location === "store" ? (
+          <StoreScene
+            state={props.store}
+            notificationSlot={
+              <>
+                <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
+                <WikiHelp />
+              </>
+            }
+          />
         ) : props.garden ? (
           <GardenScene
             state={props.garden}
@@ -262,6 +279,11 @@ export function GameShell(props: GameShellProps) {
           </p>
         )}
       </div>
+
+      {/* Season-end ceremony invitation (once per season, own farm only) */}
+      {props.ceremonyInvite && !traveling && (
+        <CeremonyInvitePopup invite={props.ceremonyInvite} />
+      )}
 
       {/* Travel cinematic between locations */}
       {traveling && (
@@ -285,6 +307,7 @@ export function GameShell(props: GameShellProps) {
           {open === "map" && (
             <MapModalBody
               onOpenGarden={() => travel("garden")}
+              onOpenStore={() => travel("store")}
               onGoHome={() => travel("farm")}
             />
           )}

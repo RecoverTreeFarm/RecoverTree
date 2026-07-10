@@ -1,27 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-import { SPRITES, TREE_SHEET } from "@/lib/sprites";
+import { SPRITES } from "@/lib/sprites";
 import { playSfx } from "@/lib/sfx";
 
 const TRAVEL_MS = 2300;
 
-/** One frame of the tree strip as a plain element (for the parallax rows). */
-function StripTree({ frame, scale }: { frame: number; scale: number }) {
-  const { frameWidth: w, frameHeight: h } = TREE_SHEET;
+/** A roadside tree (the clean 32x32 community-tree crop). */
+function StripTree({ scale }: { scale: number }) {
   return (
-    <span
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={SPRITES.treeCommunity}
+      alt=""
       aria-hidden
       className="pixelated inline-block shrink-0"
-      style={{
-        width: w * scale,
-        height: h * scale,
-        backgroundImage: `url(${SPRITES.treeSheet})`,
-        backgroundSize: `${TREE_SHEET.frameCount * w * scale}px ${h * scale}px`,
-        backgroundPosition: `-${frame * w * scale}px 0px`,
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-      }}
+      style={{ width: 32 * scale, height: 32 * scale, imageRendering: "pixelated" }}
     />
   );
 }
@@ -30,11 +24,11 @@ function StripTree({ frame, scale }: { frame: number; scale: number }) {
 function FarHalf() {
   return (
     <span className="flex w-1/2 shrink-0 items-end justify-around">
-      <StripTree frame={4} scale={2.2} />
-      <StripTree frame={3} scale={1.8} />
-      <StripTree frame={4} scale={2.5} />
-      <StripTree frame={2} scale={1.6} />
-      <StripTree frame={4} scale={2} />
+      <StripTree scale={2.8} />
+      <StripTree scale={2.2} />
+      <StripTree scale={3.1} />
+      <StripTree scale={2} />
+      <StripTree scale={2.5} />
     </span>
   );
 }
@@ -111,10 +105,10 @@ export function TravelCinematic({
       </div>
 
       {/* the traveler */}
-      <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "calc(62% - 28px)" }}>
+      <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "calc(62% - 22px)" }}>
         <div className="rf-walk">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={farmerSrc} alt="" className="pixelated" style={{ width: 72, height: 72 }} />
+          <img src={farmerSrc} alt="" className="pixelated" style={{ width: 58, height: 58 }} />
         </div>
       </div>
 

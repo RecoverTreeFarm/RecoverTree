@@ -57,6 +57,13 @@ export function GoosePanel({ state }: { state: GooseState }) {
   const [answer, setAnswer] = useState(
     state.has_event && state.my_answer ? state.my_answer : "",
   );
+  // the Xtra Goose Entry (bought at the General Store) unlocks a SECOND box
+  const [answer2, setAnswer2] = useState(
+    state.has_event && state.my_answer_2 ? state.my_answer_2 : "",
+  );
+  const [showSecondBox, setShowSecondBox] = useState(
+    Boolean(state.has_event && (state.my_answer_2 || state.extra_entry_status === "used")),
+  );
   const [confirmPass, setConfirmPass] = useState(false);
   const [picking, setPicking] = useState<string | null>(null);
 
@@ -264,6 +271,53 @@ export function GoosePanel({ state }: { state: GooseState }) {
             <p className="mt-1 text-[11px] font-bold text-[var(--rf-grass-dark)]">
               ✓ You’ve answered — you can edit until answers close.
             </p>
+          )}
+
+          {/* Xtra Goose Entry: a ticket below the box unlocks a 2nd answer.
+              Max 2 answers — the ticket never stacks. */}
+          {(state.extra_entry_status === "available" || state.extra_entry_status === "used") &&
+            !showSecondBox && (
+              <button
+                type="button"
+                onClick={() => setShowSecondBox(true)}
+                className="mt-2 flex items-center gap-1.5 rounded border-2 border-dashed border-[var(--rf-gold)] bg-[var(--rf-gold)]/20 px-2 py-1 text-[11px] font-bold hover:bg-[var(--rf-gold)]/40"
+                title="Xtra Goose Entry ready."
+              >
+                <span aria-hidden>🎟️🪿</span> Use your Xtra Goose Entry — add a second answer
+              </button>
+            )}
+          {showSecondBox && (
+            <div className="mt-3 rounded border-2 border-[var(--rf-gold)] bg-[var(--rf-gold)]/10 p-2">
+              <p className="text-[11px] font-bold">
+                🎟️ Xtra Goose Entry {state.extra_entry_status === "used" ? "— used ✓" : "in play"}
+              </p>
+              <textarea
+                value={answer2}
+                onChange={(e) => setAnswer2(e.target.value)}
+                maxLength={800}
+                rows={3}
+                placeholder="Your second answer…"
+                className="mt-1 w-full rounded border-[3px] border-[var(--rf-ink)] bg-white px-2 py-1.5 text-sm"
+              />
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-[10px] text-[var(--rf-ink-soft)]">
+                  Also anonymous — the Keeper can’t tell your two answers apart.
+                </span>
+                <button
+                  type="button"
+                  disabled={pending || answer2.trim().length < 1}
+                  onClick={() =>
+                    run(
+                      () => submitGooseAnswer(answer2, 2),
+                      state.my_answer_2 ? "Second answer updated." : "Second answer submitted! 🎟️",
+                    )
+                  }
+                  className="pixel-btn text-xs disabled:opacity-50"
+                >
+                  {state.my_answer_2 ? "Update 2nd answer" : "Submit 2nd answer"}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

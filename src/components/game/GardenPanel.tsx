@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SPRITES, TREE_SHEET, AVATAR_SPRITES } from "@/lib/sprites";
 import { gardenTreeStage, type GardenNeighbor, type GardenState } from "@/lib/garden";
-import { contributeToGarden, pingGardenPresence } from "@/app/dashboard/actions";
+import {
+  contributeToGarden,
+  pingGardenPresence,
+  greetGardenNeighbor,
+} from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
 
 /* ---------------------------------------------------------------------------
@@ -40,46 +44,58 @@ function useCountdown(iso: string | undefined): string {
   return label;
 }
 
-/** One frame of the green-tree growth strip, crisp-scaled. */
-function TreeFrame({
-  frame,
+/** The community tree art (the user's clean 32x32 crop), crisp-scaled. */
+function CommunityTree({
   scale,
-  cherry = false,
   className = "",
   style,
 }: {
-  frame: number;
   scale: number;
-  cherry?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const { frameWidth: w, frameHeight: h } = TREE_SHEET;
   return (
-    <div
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={SPRITES.treeCommunity}
+      alt=""
       aria-hidden
       className={`pixelated ${className}`}
-      style={{
-        width: w * scale,
-        height: h * scale,
-        backgroundImage: `url(${cherry ? SPRITES.treeBlossom : SPRITES.treeSheet})`,
-        backgroundSize: `${TREE_SHEET.frameCount * w * scale}px ${h * scale}px`,
-        backgroundPosition: `-${frame * w * scale}px 0px`,
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-        ...style,
-      }}
+      style={{ width: 32 * scale, height: 32 * scale, imageRendering: "pixelated", ...style }}
+    />
+  );
+}
+
+/** The pink cherry tree — a SINGLE 32x44 frame (not a strip). */
+function CherryTree({
+  scale,
+  className = "",
+  style,
+}: {
+  scale: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={SPRITES.treeBlossom}
+      alt=""
+      aria-hidden
+      className={`pixelated ${className}`}
+      style={{ width: 32 * scale, height: 44 * scale, imageRendering: "pixelated", ...style }}
     />
   );
 }
 
 /**
- * The giant shared tree. Visual stages by combined progress:
- *   1 bare young tree → 2 leafier → 3 fuller → 4 budding/magical (glow)
- *   → 5 fully bloomed (the pink community tree, drifting petals).
+ * The giant shared tree. It STARTS at a normal farm-tree size and grows with
+ * combined progress until it towers over anything on a player farm; at 100%
+ * it blooms into the pink community tree with drifting petals.
  */
-function GiantTree({ stage }: { stage: number }) {
-  const frame = stage === 1 ? 2 : stage === 2 ? 3 : 4;
+function GiantTree({ stage, progressPercent }: { stage: number; progressPercent: number }) {
+  // farm trees render around 32px × ~3 — the community tree grows 2.8 → 6.2
+  const scale = 2.8 + (Math.min(progressPercent, 100) / 100) * 3.4;
   const cherry = stage === 5;
   const glow = stage >= 4;
   return (
@@ -88,10 +104,14 @@ function GiantTree({ stage }: { stage: number }) {
         <div
           aria-hidden
           className="rf-ripe-glow absolute bottom-1 left-1/2 -translate-x-1/2 rounded-full"
-          style={{ width: 160, height: 64, background: "var(--rf-gold)", opacity: 0.3, filter: "blur(10px)" }}
+          style={{ width: 34 * scale, height: 13 * scale, background: "var(--rf-gold)", opacity: 0.3, filter: "blur(10px)" }}
         />
       )}
-      <TreeFrame frame={frame} cherry={cherry} scale={5} className="relative" />
+      {cherry ? (
+        <CherryTree scale={scale} className="relative" />
+      ) : (
+        <CommunityTree scale={scale} className="relative" />
+      )}
       {glow && (
         <span aria-hidden className="rf-ripe-spark absolute -top-2 right-2 text-lg">✨</span>
       )}
@@ -110,6 +130,38 @@ function GiantTree({ stage }: { stage: number }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Ground flowers ring the tree; more bloom as the garden nears completion. */
+const PROGRESS_FLOWERS: { emoji: string; left: string; bottom: string }[] = [
+  { emoji: "🌼", left: "40%", bottom: "26%" },
+  { emoji: "🌷", left: "58%", bottom: "24%" },
+  { emoji: "🌸", left: "46%", bottom: "18%" },
+  { emoji: "🌼", left: "62%", bottom: "34%" },
+  { emoji: "🌺", left: "36%", bottom: "36%" },
+  { emoji: "🌸", left: "54%", bottom: "12%" },
+  { emoji: "🌷", left: "30%", bottom: "20%" },
+  { emoji: "🌼", left: "68%", bottom: "14%" },
+  { emoji: "🌺", left: "44%", bottom: "42%" },
+  { emoji: "🌸", left: "60%", bottom: "44%" },
+];
+
+function ProgressFlowers({ progressPercent }: { progressPercent: number }) {
+  const count = Math.min(PROGRESS_FLOWERS.length, Math.floor(progressPercent / 10));
+  return (
+    <>
+      {PROGRESS_FLOWERS.slice(0, count).map((f, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className="pointer-events-none absolute text-sm leading-none"
+          style={{ left: f.left, bottom: f.bottom, zIndex: 2 }}
+        >
+          {f.emoji}
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -161,27 +213,45 @@ function DonationBox({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** Fixed idle spots for visiting neighbors (scene-percent coords, kept clear
- *  of the tree, path, and donation box). */
+/** Fixed idle spots for visiting neighbors — gathered NEAR the donation box
+ *  (which sits around 67%/22%), like folks chatting by the collection point. */
 const NEIGHBOR_SPOTS: { left: number; bottom: number }[] = [
-  { left: 8, bottom: 12 },
-  { left: 84, bottom: 14 },
-  { left: 16, bottom: 34 },
-  { left: 76, bottom: 40 },
-  { left: 32, bottom: 8 },
-  { left: 58, bottom: 6 },
-  { left: 6, bottom: 44 },
-  { left: 90, bottom: 30 },
+  { left: 76, bottom: 18 },
+  { left: 60, bottom: 12 },
+  { left: 82, bottom: 28 },
+  { left: 70, bottom: 34 },
+  { left: 55, bottom: 26 },
+  { left: 86, bottom: 12 },
+  { left: 64, bottom: 42 },
+  { left: 78, bottom: 44 },
 ];
 
 type Visitor = GardenNeighbor & { leaving: boolean };
 
-function NeighborSprite({ v, spot }: { v: Visitor; spot: { left: number; bottom: number } }) {
+function NeighborSprite({
+  v,
+  spot,
+  heart,
+  onGreet,
+}: {
+  v: Visitor;
+  spot: { left: number; bottom: number };
+  /** a greeting just happened — show the heart */
+  heart: boolean;
+  onGreet: () => void;
+}) {
   const src = (v.avatar_sprite && AVATAR_SPRITES[v.avatar_sprite]) || SPRITES.farmer;
   const anonymous = !v.avatar_sprite;
   return (
-    <div
-      className="absolute flex flex-col items-center"
+    <button
+      type="button"
+      aria-label={`Say hi to ${v.name}`}
+      title={`Say hi to ${v.name}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onGreet();
+      }}
+      className="absolute flex flex-col items-center border-0 bg-transparent p-0"
       style={{
         left: `${spot.left}%`,
         bottom: `${spot.bottom}%`,
@@ -191,19 +261,22 @@ function NeighborSprite({ v, spot }: { v: Visitor; spot: { left: number; bottom:
         opacity: v.leaving ? 0 : 1,
       }}
     >
+      {heart && (
+        <span aria-hidden className="rf-reward-pop absolute -top-5 text-lg">💗</span>
+      )}
       <div className={v.leaving ? "rf-walk" : "rf-idle"}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt=""
           className="pixelated"
-          style={{ width: 64, height: 64, ...(anonymous ? { filter: "brightness(0.35)" } : {}) }}
+          style={{ width: 51, height: 51, ...(anonymous ? { filter: "brightness(0.35)" } : {}) }}
         />
       </div>
       <span className="rounded border border-[var(--rf-ink)]/40 bg-[var(--rf-cream)]/85 px-1 text-[8px] font-bold leading-tight text-[var(--rf-ink)]">
         {v.name}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -231,9 +304,9 @@ function Decorations() {
           {d.emoji}
         </span>
       ))}
-      {/* side trees frame the green */}
-      <TreeFrame frame={4} scale={2.4} className="pointer-events-none absolute" style={{ left: "2%", bottom: "52%", zIndex: 3 }} />
-      <TreeFrame frame={3} scale={2} className="pointer-events-none absolute" style={{ right: "2%", bottom: "56%", zIndex: 3 }} />
+      {/* side trees frame the green (normal farm-tree size, for comparison) */}
+      <CommunityTree scale={3} className="pointer-events-none absolute" style={{ left: "2%", bottom: "52%", zIndex: 3 }} />
+      <CommunityTree scale={2.5} className="pointer-events-none absolute" style={{ right: "2%", bottom: "56%", zIndex: 3 }} />
       {/* welcome sign */}
       <div
         className="pointer-events-none absolute left-1/2 top-1.5 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-wood)] px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-[var(--rf-cream)]"
@@ -306,6 +379,7 @@ export function GardenScene({
   /** rendered top-right over the garden (notifications + guidebook) */
   notificationSlot?: React.ReactNode;
 }) {
+  const router = useRouter();
   const active = state.has_event && state.status === "active" && !state.completed;
   const endsAt = state.has_event ? state.ends_at : undefined;
   const timeLeft = useCountdown(active ? endsAt : undefined);
@@ -316,6 +390,37 @@ export function GardenScene({
   const [walkMs, setWalkMs] = useState(700);
   const walkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
+
+  // ---- greeting a neighbor: hearts over both + a small toast ---------------
+  const [heartFor, setHeartFor] = useState<string | null>(null);
+  const [myHeart, setMyHeart] = useState(false);
+  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [greetPending, setGreetPending] = useState(false);
+
+  function greet(v: Visitor, spot: { left: number; bottom: number }) {
+    if (v.leaving || greetPending) return;
+    setToast(null);
+    setGreetPending(true);
+    // walk up to them first, like the donation box
+    walkTo({ left: Math.max(4, spot.left - 7), bottom: spot.bottom }, async () => {
+      const r = await greetGardenNeighbor(v.key);
+      setGreetPending(false);
+      if (!r.ok) {
+        playSfx("error");
+        setToast({ ok: false, text: r.message });
+        return;
+      }
+      playSfx("seed");
+      setHeartFor(v.key);
+      setMyHeart(true);
+      setToast({ ok: true, text: `You said hi to ${v.name} — 💧 +${r.water_earned} water!` });
+      setTimeout(() => {
+        setHeartFor(null);
+        setMyHeart(false);
+      }, 2600);
+      router.refresh();
+    });
+  }
 
   const walkTo = useCallback((target: Pos, then?: () => void) => {
     setPos((from) => {
@@ -418,13 +523,17 @@ export function GardenScene({
           style={{ width: 52, height: "34%", border: "2px solid var(--rf-soil-dark)", borderBottom: "none", opacity: 0.9 }}
         />
         <Decorations />
+        <ProgressFlowers progressPercent={state.has_event ? state.progress_percent : 0} />
 
-        {/* the giant shared tree */}
+        {/* the giant shared tree — grows with the whole group's progress */}
         <div
           className="pointer-events-none absolute -translate-x-1/2"
           style={{ left: `${TREE_POS.left}%`, bottom: `${TREE_POS.bottom}%`, zIndex: Math.round(60 - TREE_POS.bottom) }}
         >
-          <GiantTree stage={stage} />
+          <GiantTree
+            stage={stage}
+            progressPercent={state.has_event ? state.progress_percent : 0}
+          />
         </div>
 
         {/* donation box (only while the garden is open for care) */}
@@ -437,10 +546,19 @@ export function GardenScene({
           </div>
         )}
 
-        {/* neighbors visiting right now */}
-        {visitors.map((v, i) => (
-          <NeighborSprite key={v.key} v={v} spot={NEIGHBOR_SPOTS[i % NEIGHBOR_SPOTS.length]} />
-        ))}
+        {/* neighbors visiting right now — tap one to say hi (💗, +10 water) */}
+        {visitors.map((v, i) => {
+          const spot = NEIGHBOR_SPOTS[i % NEIGHBOR_SPOTS.length];
+          return (
+            <NeighborSprite
+              key={v.key}
+              v={v}
+              spot={spot}
+              heart={heartFor === v.key}
+              onGreet={() => greet(v, spot)}
+            />
+          );
+        })}
 
         {/* my farmer */}
         <div
@@ -452,9 +570,14 @@ export function GardenScene({
             transition: `left ${walkMs}ms linear, bottom ${walkMs}ms linear`,
           }}
         >
-          <div className={walking ? "rf-walk" : "rf-idle"}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={avatarSrc} alt="Your farmer" className="pixelated" style={{ width: 72, height: 72 }} />
+          <div className="relative">
+            {myHeart && (
+              <span aria-hidden className="rf-reward-pop absolute -top-5 left-1/2 -translate-x-1/2 text-lg">💗</span>
+            )}
+            <div className={walking ? "rf-walk" : "rf-idle"}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={avatarSrc} alt="Your farmer" className="pixelated" style={{ width: 58, height: 58 }} />
+            </div>
           </div>
         </div>
 
@@ -469,6 +592,17 @@ export function GardenScene({
           </div>
         )}
       </div>
+
+      {toast && (
+        <p
+          role={toast.ok ? "status" : "alert"}
+          className={`mt-2 rounded border-2 border-[var(--rf-ink)] px-3 py-2 text-xs font-bold ${
+            toast.ok ? "bg-[var(--rf-grass)]" : "bg-[var(--rf-red)] text-[var(--rf-cream)]"
+          }`}
+        >
+          {toast.text}
+        </p>
+      )}
 
       {/* ---- status + shared goals ------------------------------------------ */}
       {state.has_event ? (
@@ -657,7 +791,8 @@ function DonationCloseup({
           Up to your daily limit — you can add more on another day.
         </p>
         <div className="mt-2 space-y-2">
-          <DonateRow icon="💧" label="Water" value={water} max={maxWater} have={myWater} todayLeft={state.today_water_left} onChange={setWater} />
+          {/* water always moves in fives — the app-wide water rule */}
+          <DonateRow icon="💧" label="Water" value={water} max={maxWater} have={myWater} todayLeft={state.today_water_left} onChange={setWater} step={5} />
           <DonateRow icon="🌰" label="Seeds" value={seed} max={maxSeed} have={mySeeds} todayLeft={state.today_seed_left} onChange={setSeed} />
           <DonateRow icon="✨" label="Fertilizer" value={fert} max={maxFert} have={myFertilizer} todayLeft={state.today_fertilizer_left} onChange={setFert} />
         </div>
@@ -706,6 +841,7 @@ function DonateRow({
   have,
   todayLeft,
   onChange,
+  step = 1,
 }: {
   icon: string;
   label: string;
@@ -714,7 +850,11 @@ function DonateRow({
   have: number;
   todayLeft: number;
   onChange: (n: number) => void;
+  /** stepper increment (water moves in fives) */
+  step?: number;
 }) {
+  // with a step of 5, the effective max is the largest reachable multiple
+  const effMax = max - (max % step);
   const capNote =
     todayLeft === 0 ? "daily limit reached" : have === 0 ? "none left" : `you have ${have} · ${todayLeft} more today`;
   return (
@@ -730,7 +870,7 @@ function DonateRow({
           type="button"
           aria-label={`Less ${label}`}
           disabled={value <= 0}
-          onClick={() => onChange(Math.max(0, value - 1))}
+          onClick={() => onChange(Math.max(0, value - step))}
           className="pixel-btn pixel-btn--secondary px-2 py-0.5 text-xs disabled:opacity-40"
         >
           −
@@ -739,8 +879,8 @@ function DonateRow({
         <button
           type="button"
           aria-label={`More ${label}`}
-          disabled={value >= max}
-          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value + step > effMax}
+          onClick={() => onChange(Math.min(effMax, value + step))}
           className="pixel-btn pixel-btn--secondary px-2 py-0.5 text-xs disabled:opacity-40"
         >
           +

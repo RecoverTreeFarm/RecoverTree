@@ -7,6 +7,7 @@ import type { BasketState } from "@/components/pixel/BasketPanel";
 import type { ChecklistItem, LeaderboardRow } from "@/components/game/panels";
 import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
+import type { StoreState } from "@/lib/store";
 import { avatarSprite, houseKey } from "@/lib/sprites";
 import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
@@ -151,6 +152,16 @@ export default async function DashboardPage() {
   );
   const garden = gardenErr ? null : ((gardenData ?? null) as GardenState | null);
 
+  // General Store state (hidden if the migration isn't applied yet).
+  const { data: storeData, error: storeErr } = await supabase.rpc("get_general_store_state");
+  const store = storeErr ? null : ((storeData ?? null) as StoreState | null);
+
+  // Season-end ceremony invitation (null once dismissed/attended).
+  const { data: inviteData, error: inviteErr } = await supabase.rpc("get_ceremony_invite");
+  const ceremonyInvite = inviteErr
+    ? null
+    : ((inviteData ?? null) as { season_id: string; season_name: string } | null);
+
   // Leaderboard preview (top few). Private Mode enforced in get_leaderboard.
   const { data: lbRows } = await supabase.rpc("get_leaderboard");
   const leaderboard = ((lbRows ?? []) as LeaderboardRow[]).slice(0, 8);
@@ -204,6 +215,8 @@ export default async function DashboardPage() {
         basket={basket}
         goose={goose}
         garden={garden}
+        store={store}
+        ceremonyInvite={ceremonyInvite}
         checklist={checklist}
         leaderboard={leaderboard}
         profile={{

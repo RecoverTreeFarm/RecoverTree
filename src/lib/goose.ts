@@ -44,6 +44,10 @@ export type GooseState =
       i_am_keeper: boolean;
       i_submitted: boolean;
       my_answer: string | null;
+      /** the second answer (Xtra Goose Entry), if submitted */
+      my_answer_2?: string | null;
+      /** 'available' = ticket bought, second box unlockable; 'used' = submitted */
+      extra_entry_status?: "none" | "available" | "used";
       submission_count: number;
       anonymous_answers: { id: string; answer_text: string }[];
       my_rewards: GooseReward[];

@@ -252,11 +252,19 @@ function gooseError(message: string): string {
   return "Something went sideways — please try again.";
 }
 
-export async function submitGooseAnswer(text: string) {
+export async function submitGooseAnswer(text: string, entry: 1 | 2 = 1) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("submit_golden_goose_answer", { p_text: text });
+  const { error } = await supabase.rpc("submit_golden_goose_answer", {
+    p_text: text,
+    p_entry: entry,
+  });
   revalidatePath("/dashboard");
-  if (error) return { ok: false as const, message: gooseError(error.message) };
+  if (error) {
+    if (error.message.includes("NO_EXTRA_ENTRY")) {
+      return { ok: false as const, message: "You’ll need an Xtra Goose Entry from the General Store for a second answer." };
+    }
+    return { ok: false as const, message: gooseError(error.message) };
+  }
   return { ok: true as const };
 }
 
@@ -335,6 +343,75 @@ export async function pingGardenPresence() {
   if (error) return { ok: false as const, others: [] as unknown[] };
   const row = data as { has_event: boolean; others: unknown[] };
   return { ok: true as const, others: row.others ?? [] };
+}
+
+/* ---------------------------------------------------------------------------
+ * General Store. Prices, sale math, and item granting all live server-side;
+ * the client only names the item and whether it's using today's sale.
+ * ------------------------------------------------------------------------- */
+
+export async function purchaseStoreItem(itemKey: string, sale: boolean) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("purchase_store_item", {
+    p_item: itemKey,
+    p_sale: sale,
+  });
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("NOT_ENOUGH_COINS")) return { ok: false as const, message: "Not enough Coins." };
+    if (m.includes("STORE_CLOSED")) return { ok: false as const, message: "The store is closed right now." };
+    if (m.includes("SALE_UNAVAILABLE")) return { ok: false as const, message: "That sale has ended for today." };
+    if (m.includes("ITEM_UNAVAILABLE")) return { ok: false as const, message: "That item isn’t on the shelf." };
+    if (m.includes("NO_ACTIVE_GOOSE")) return { ok: false as const, message: "The Golden Goose isn’t collecting answers right now." };
+    if (m.includes("KEEPER_CANNOT_BUY")) return { ok: false as const, message: "You’re the Keeper this time — no extra entries needed." };
+    if (m.includes("ALREADY_HAVE_ENTRY")) return { ok: false as const, message: "You already have an Xtra Goose Entry for this visit." };
+    if (m.includes("BANNED")) return { ok: false as const, message: "Your account can’t shop right now." };
+    if (m.includes("NO_FARM") || m.includes("NO_PROFILE")) return { ok: false as const, message: "Set up your farm first, then come back." };
+    return { ok: false as const, message: "Something went sideways at the register — try again." };
+  }
+  const row = data as { item_key: string; quantity: number; coins_spent: number; coins_left: number };
+  return { ok: true as const, ...row };
+}
+
+/* ---------------------------------------------------------------------------
+ * Ceremony invitations — per-user per-season view state (no popup spam).
+ * ------------------------------------------------------------------------- */
+
+export async function setCeremonyViewState(
+  seasonId: string,
+  action: "dismissed" | "attended" | "replayed",
+) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_ceremony_view_state", {
+    p_season: seasonId,
+    p_action: action,
+  });
+  revalidatePath("/dashboard");
+  if (error) return { ok: false as const, message: "Couldn’t save that — try again." };
+  return { ok: true as const };
+}
+
+/** Say hi to a neighbor in the Community Garden — hearts + a little water
+ *  for reaching out (server-limited to once per neighbor per day). */
+export async function greetGardenNeighbor(presenceId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("greet_garden_neighbor", {
+    p_presence: presenceId,
+  });
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("ALREADY_GREETED_TODAY"))
+      return { ok: false as const, message: "You’ve already said hi to them today. 💗" };
+    if (m.includes("NEIGHBOR_LEFT") || m.includes("NEIGHBOR_NOT_FOUND"))
+      return { ok: false as const, message: "Looks like they just headed home." };
+    if (m.includes("CANNOT_GREET_SELF"))
+      return { ok: false as const, message: "That’s you! 🌱" };
+    return { ok: false as const, message: "Couldn’t say hi just now — try again." };
+  }
+  const row = data as { water_earned: number };
+  return { ok: true as const, water_earned: row.water_earned };
 }
 
 export async function keepBasket() {

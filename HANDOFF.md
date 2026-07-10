@@ -55,13 +55,22 @@ run by hand.**
 | `20260709210000` | Golden Goose deferred pick (Keeper can change favorite until deadline) |
 | `20260709220000` | Community Garden (shared weekly event) + `update_game_settings` v7 |
 | `20260709230000` | Coins 🪙 (`farms.coin_count`, `coin_events` ledger, rewards everywhere) + v8 |
+| `20260709240000` | General Store 🏪, Xtra Goose Entry, ceremony invites, garden greetings, water %5 rule + v9 |
+| `20260709250000` | Fix: plpgsql `record := null` field-access bug in 3 fns from 240000/210000 |
 
 ### ⚠️ Migration ordering caveat (still important)
-`130000`, `140000`, `150000`, `170000`, `180000`, `220000` and `230000` **each
-recreate `update_game_settings`**, every version adding more allowed setting
-keys. Applying an older one on top silently drops newer keys. **The newest
-version lives in `20260709230000`** — any future migration that touches this
-function must copy ITS allowed-key arrays first.
+`130000`, `140000`, `150000`, `170000`, `180000`, `220000`, `230000` and
+`240000` **each recreate `update_game_settings`**, every version adding more
+allowed setting keys. Applying an older one on top silently drops newer keys.
+**The newest version lives in `20260709240000`** — any future migration that
+touches this function must copy ITS allowed-key arrays first.
+
+### ⚠️ plpgsql gotcha (bit us in 240000)
+`v_rec := null;` on a declared-but-never-SELECTed `record` does NOT make
+`v_rec.field` safe — the tuple structure stays indeterminate and raises 55000
+*even when the reference sits in an untaken CASE branch* (plpgsql binds every
+variable in a SQL statement). Use scalar variables for maybe-unassigned data.
+`20260709250000` fixed the three functions that had this.
 
 Verify DB state any time (paste into the Supabase SQL editor):
 
@@ -217,6 +226,45 @@ tap a tree → the action menu opens; click bare grass → the farmer walks;
 tap the goose → he walks over and the panel opens. A quick DOM probe:
 `document.elementFromPoint(x, y)` over a tree should return the tree, never a
 full-screen wrapper.
+
+## General Store / newest features (2026-07-09, second pass)
+- **General Store** — third map location (travel cinematic like the others).
+  CSS-drawn interior (wall/floor/counter/register/shelves; the shopkeeper is
+  farmer variant 8). Register AND shopkeeper both open the purchase menu
+  (3×3 shelf + SALE shelf). Items: 25💧/10🪙 · 1✨/30🪙 · 1🌰/50🪙 ·
+  Xtra Goose Entry/40🪙 · Lottery Ticket (grayed teaser, never on sale).
+  Confirm-before-buy; server-priced; atomic; `store_purchases` audit +
+  coin_events 'store_purchase'. **TODO(store-art):** swap the CSS furniture
+  for real slices from `CozySpriteBundle/interior/` once coordinates are
+  mapped.
+- **Daily sale** — one item/day, deterministic from md5(**UTC** date; no
+  community timezone setting exists), weighted 10..40% (deep discounts
+  rarer), floor 1🪙, `store_sale_min/max_percent` clamps.
+- **Xtra Goose Entry** — purchasable ONLY during an active answer-collection
+  phase (safest: bound to the event, one per user per event, keeper blocked).
+  Unlocks a second anonymous answer (submissions have `entry_number` 1|2,
+  hard-capped at 2). GoosePanel shows the 🎟️ ticket under the first box.
+- **Ceremony invites** — `ceremony_view_states` per user/season;
+  `get_ceremony_invite` powers the "Great season" popup (once; Attend →
+  /ceremony/[id] + attended; Maybe later → dismissed). Leaderboard has
+  "Replay last month's ceremony" (visual only — close_season remains the only
+  reward path).
+- **Garden greetings** — click a neighbor → walk over → 💗 over both →
+  greeter +10 water; server-limited once per neighbor per day
+  (`garden_greetings`). Neighbors now idle NEAR the donation box.
+- **WATER RULE: all water moves in multiples of 5** (0 = "none" allowed).
+  Enforced server-side in garden contributions, basket passes, debug edits,
+  checklist reward edits, store amounts, and settings v9 (`water_step_keys`);
+  UI steppers/inputs move by 5. Live values were scanned — none violated the
+  rule. Caveat: the generic `*_reward_amount` keys (meeting/hosting/seed) are
+  NOT %5-validated because their reward TYPE is admin-switchable to
+  seed/fertilizer; defaults (10) comply.
+- **Polish:** community tree uses the user's clean `TreeCropped.png`
+  (public/sprites/plants/tree_community.png) and GROWS with progress
+  (2.8→6.2×) with ground flowers appearing every 10%; bloomed stage uses the
+  single-frame `tree_cherry.png` (the old strip math was a latent bug);
+  in-scene characters are 20% smaller; nav logo = the pink cherry tree;
+  the farm bar's 🍒/🪙/🌳 chips have tap/hover info popups.
 
 ## Coins TODOs / notes
 - **`ensure_my_farm` does NOT return `coin_count`** — the dashboard reads the
