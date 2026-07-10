@@ -82,6 +82,39 @@ export default async function ProfilePage({
     }
   }
 
+  // Own-only Weekly Orchard Lottery stats (privacy-safe by construction:
+  // built from the viewer's OWN tickets + prize ledger rows, both RLS-scoped
+  // to the owner — nothing here can describe another farmer).
+  let lotteryStats: {
+    roundsEntered: number;
+    tickets: number;
+    wins: number;
+    biggestPrize: number;
+  } | null = null;
+  if (isOwn) {
+    const [{ data: ticketRows }, { data: prizeRows }] = await Promise.all([
+      supabase
+        .from("weekly_lottery_tickets")
+        .select("round_id, status")
+        .eq("user_id", profile.user_id),
+      supabase
+        .from("coin_events")
+        .select("amount")
+        .eq("user_id", profile.user_id)
+        .eq("reason", "lottery_prize"),
+    ]);
+    const tickets = (ticketRows ?? []).filter((t) => t.status !== "invalidated");
+    const prizes = (prizeRows ?? []).map((p) => p.amount as number);
+    if (tickets.length > 0 || prizes.length > 0) {
+      lotteryStats = {
+        roundsEntered: new Set(tickets.map((t) => t.round_id as string)).size,
+        tickets: tickets.length,
+        wins: prizes.length,
+        biggestPrize: prizes.length ? Math.max(...prizes) : 0,
+      };
+    }
+  }
+
   const joined = new Date(profile.created_at).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -170,6 +203,21 @@ export default async function ProfilePage({
                 <FertilizerBag size={18} /> {farm.fertilizer_count} fertilizer
               </p>
               <p>🌳 {treeCount} {treeCount === 1 ? "tree" : "trees"}</p>
+              {lotteryStats && (
+                <div className="pt-1 text-xs text-[var(--rf-ink-soft)]">
+                  <p className="font-bold">🎟️ Weekly Orchard Lottery</p>
+                  <p>
+                    {lotteryStats.roundsEntered} {lotteryStats.roundsEntered === 1 ? "drawing" : "drawings"} entered
+                    · {lotteryStats.tickets} {lotteryStats.tickets === 1 ? "ticket" : "tickets"}
+                  </p>
+                  {lotteryStats.wins > 0 && (
+                    <p>
+                      {lotteryStats.wins} {lotteryStats.wins === 1 ? "win" : "wins"} · biggest prize 🪙{" "}
+                      {lotteryStats.biggestPrize}
+                    </p>
+                  )}
+                </div>
+              )}
               <p className="text-[11px] text-[var(--rf-ink-soft)]">
                 (These stats are visible only to you for now.)
               </p>

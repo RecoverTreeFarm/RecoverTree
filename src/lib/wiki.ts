@@ -56,6 +56,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
         bullets: [
           "Give a Seed to support a fellow farmer.",
           "Watch for community events: the Traveling Basket and the Golden Goose.",
+          "After the tutorial, explore the Map — the Community Garden, the General Store, and the Weekly Orchard Lottery are all out there to discover.",
           "At season's end, the ceremony reveals medals and badges.",
         ],
       },
@@ -136,8 +137,15 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
           "The leaderboard ranks farmers by harvested Fruits.",
           "It resets each season, so every season is a fresh start.",
           "Rewards (Water, Seeds, Fertilizer) help your trees grow, but only the harvest counts.",
-          "Rare pink blossom trees pay double Fruits when harvested.",
         ],
+      },
+      {
+        heading: "Rare Cherry Blossom trees",
+        body: [
+          "Every now and then, a tree turns into a Cherry Blossom while it grows — you'll see it bloom pink. Cherry Blossoms are rare, so it's a treat when one appears.",
+          "A Cherry Blossom produces Cherries, and Cherries are still Fruits. They give x2 Cherries — double the usual harvest. Like every Fruit, they count only when you harvest the tree; nothing hands you Cherries as a reward.",
+        ],
+        sprites: [{ src: "/sprites/plants/tree_cherry.png", label: "cherry blossom", height: 52 }],
       },
       {
         body: [
@@ -213,7 +221,43 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
           "Goals reward Water and Fertilizer when completed.",
           "A notification lets you know when you've reached one.",
           "Progress lives in the Goals window on the bottom menu.",
+          "Some seasons include optional Weekly Orchard Lottery goals — like buying a first ticket. Winning is never a goal; entering is enough.",
           "Checklist rewards never include Fruits — those still come from your harvest.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "weekly-lottery",
+    title: "Weekly Orchard Lottery",
+    icon: "🎟️",
+    sections: [
+      {
+        body: [
+          "Once a week, the valley holds a small community drawing. It's a light, cozy thing — no real money is ever involved, and no Fruits either. Tickets and prizes are Coins only; Fruits still come only from harvesting your trees.",
+        ],
+      },
+      {
+        heading: "How a week works",
+        bullets: [
+          "A new drawing opens each week. Find it at the General Store or on the Map.",
+          "Buy up to 3 tickets with 🪙 Coins. Each ticket is one entry.",
+          "Every ticket adds its Coin price to the community-funded pot.",
+          "On Sunday, the Orchard adds a bonus — 25% of the community pot.",
+          "If at least two different farmers entered, one ticket is drawn, and the winner receives the community pot plus the Orchard bonus.",
+        ],
+      },
+      {
+        heading: "Quiet weeks",
+        bullets: [
+          "If only one farmer entered, they get a full Coin refund — no Orchard bonus, no drawing. No harm done.",
+          "If nobody enters, the round simply closes without a winner.",
+          "The result is announced in the app, and privacy settings decide how the winner appears.",
+        ],
+      },
+      {
+        body: [
+          "Admins can adjust the ticket price, ticket limit, schedule, and Orchard bonus. Enter when it sounds fun — there's no streak, no pressure, and skipping a week costs nothing.",
         ],
       },
     ],
@@ -315,7 +359,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
     sections: [
       {
         body: [
-          "Coins are the spending money of the valley. They buy supplies at the General Store, and one day they'll buy cosmetics and furniture too.",
+          "Coins are the spending money of the valley. They buy supplies at the General Store and tickets for the Weekly Orchard Lottery, and one day they'll buy cosmetics and furniture too.",
           "Coins are not score. The leaderboard only ever counts Fruits you harvested. Spend them freely.",
         ],
       },
@@ -422,6 +466,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
         bullets: [
           "The top harvesters receive gold, silver, and bronze medals.",
           "A few badges celebrate different kinds of showing up — not just the biggest harvest.",
+          "Badges cover the whole valley: harvesting, kindness, the garden, the basket, the goose — and lottery moments like Lucky Farmer or Ticket Tiller.",
           "Ceremony rewards are Fertilizer for the new season.",
           "And yes — Fruits still only ever come from harvested trees.",
         ],

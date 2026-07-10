@@ -15,12 +15,13 @@ import { GameSettings } from "./GameSettings";
 import { DebugTools, type DebugInventoryRow, type DebugEventStates } from "./DebugTools";
 import { BulletinAdmin } from "./BulletinAdmin";
 import { GardenAdmin, type AdminGardenEvent } from "./GardenAdmin";
+import { LotteryAdmin, type AdminLotteryRound } from "./LotteryAdmin";
 import type { AdminBulletinPost } from "@/lib/bulletin";
 
 // The standalone Golden Goose tab was removed by request — Golden Goose
 // SETTINGS remain editable under Game settings. (The admin cancel RPC still
 // exists server-side if a management UI is ever wanted again.)
-type Tab = "users" | "sessions" | "bulletin" | "garden" | "logs" | "settings" | "debug";
+type Tab = "users" | "sessions" | "bulletin" | "garden" | "lottery" | "logs" | "settings" | "debug";
 
 export function AdminConsole({
   currentUserId,
@@ -32,6 +33,7 @@ export function AdminConsole({
   debug,
   bulletin,
   garden,
+  lottery,
 }: {
   currentUserId: string;
   users: AdminUser[];
@@ -43,6 +45,7 @@ export function AdminConsole({
   debug: { players: DebugInventoryRow[]; events: DebugEventStates | null } | null;
   bulletin: AdminBulletinPost[];
   garden: AdminGardenEvent[];
+  lottery: AdminLotteryRound[];
 }) {
   const [tab, setTab] = useState<Tab>("users");
 
@@ -51,6 +54,7 @@ export function AdminConsole({
     { id: "sessions", label: "Meetings" },
     { id: "bulletin", label: "Bulletin" },
     { id: "garden", label: "Garden" },
+    { id: "lottery", label: "Lottery 🎟️" },
     { id: "settings", label: "Game settings" },
     ...(debug ? [{ id: "debug" as Tab, label: "Debug 🧪" }] : []),
     { id: "logs", label: "Audit log" },
@@ -83,6 +87,7 @@ export function AdminConsole({
       {tab === "sessions" && <MeetingSessions sessions={sessions} />}
       {tab === "bulletin" && <BulletinAdmin posts={bulletin} />}
       {tab === "garden" && <GardenAdmin events={garden} />}
+      {tab === "lottery" && <LotteryAdmin rounds={lottery} />}
       {tab === "settings" && (
         <GameSettings overrides={overrides} goals={goals} />
       )}

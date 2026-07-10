@@ -1,41 +1,69 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WIKI_CHAPTERS, BUG_REPORT_EMAIL, type WikiChapter } from "@/lib/wiki";
+import { openWiki, closeWiki, subscribeWiki } from "@/lib/wikiController";
+import { requestTutorialReplay } from "@/lib/tutorialController";
 
 /**
- * The in-game guidebook. `WikiHelp` is the little "?" button that lives in the
- * farm's bottom-left sidebar (under the "!" notification button); tapping it
- * opens the guide as a game window — chapter tabs down the side on desktop,
- * a scrollable tab row on mobile. Content lives in src/lib/wiki.ts.
+ * The in-game guidebook. `WikiHelp` is the little "?" button in the farm HUD;
+ * tapping it opens the guide. A feature-guide popup can also open it straight
+ * to a specific chapter. Only ONE panel is mounted (`WikiRoot`, in GameShell);
+ * every "?" button and every deep link routes through wikiController. Content
+ * lives in src/lib/wiki.ts.
  */
 export function WikiHelp() {
-  const [open, setOpen] = useState(false);
-
   return (
-    <>
-      <button
-        type="button"
-        aria-label="Open the guidebook"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold"
-        style={{
-          borderColor: "var(--rf-ink)",
-          background: open ? "var(--rf-gold)" : "var(--rf-cream)",
-          color: open ? "var(--rf-ink)" : "var(--rf-ink-soft)",
-          opacity: open ? 1 : 0.6,
-        }}
-      >
-        ?
-      </button>
-      {open && <WikiPanel onClose={() => setOpen(false)} />}
-    </>
+    <button
+      type="button"
+      aria-label="Open the guidebook"
+      onClick={() => openWiki()}
+      className="flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold"
+      style={{
+        borderColor: "var(--rf-ink)",
+        background: "var(--rf-cream)",
+        color: "var(--rf-ink-soft)",
+        opacity: 0.6,
+      }}
+    >
+      ?
+    </button>
   );
 }
 
-function WikiPanel({ onClose }: { onClose: () => void }) {
-  const [chapterId, setChapterId] = useState(WIKI_CHAPTERS[0].id);
+/**
+ * The single Guidebook panel. Mounted once; listens for open/deep-link/close
+ * requests. `canReplayTutorial` shows a "Replay Tutorial" button (only offered
+ * once the required tutorial is done).
+ */
+export function WikiRoot({ canReplayTutorial }: { canReplayTutorial: boolean }) {
+  const [chapterId, setChapterId] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeWiki((id) => setChapterId(id));
+  }, []);
+
+  if (chapterId === null) return null;
+  return (
+    <WikiPanel
+      initialChapterId={chapterId}
+      canReplayTutorial={canReplayTutorial}
+      onClose={() => closeWiki()}
+    />
+  );
+}
+
+function WikiPanel({
+  initialChapterId,
+  canReplayTutorial,
+  onClose,
+}: {
+  initialChapterId: string;
+  canReplayTutorial: boolean;
+  onClose: () => void;
+}) {
+  const known = WIKI_CHAPTERS.some((c) => c.id === initialChapterId);
+  const [chapterId, setChapterId] = useState(known ? initialChapterId : WIKI_CHAPTERS[0].id);
   const chapter = WIKI_CHAPTERS.find((c) => c.id === chapterId) ?? WIKI_CHAPTERS[0];
 
   function Tab({ c, compact = false }: { c: WikiChapter; compact?: boolean }) {
@@ -157,6 +185,23 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
                 )}
               </div>
             ))}
+            {chapter.id === "quick-start" && canReplayTutorial && (
+              <div className="mt-4 border-t-2 border-dashed border-[var(--rf-ink)]/30 pt-3">
+                <p className="mb-2 text-xs text-[var(--rf-ink-soft)]">
+                  Want a refresher? Replay the hands-on beginner tutorial anytime — it won’t grant supplies again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeWiki();
+                    requestTutorialReplay();
+                  }}
+                  className="pixel-btn pixel-btn--secondary text-xs"
+                >
+                  ↻ Replay Tutorial
+                </button>
+              </div>
+            )}
             {chapter.id === "report-bug" && <BugReportForm />}
           </div>
         </div>

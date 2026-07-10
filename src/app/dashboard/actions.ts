@@ -422,6 +422,87 @@ export async function greetNeighbor(presenceId: string) {
   return { ok: true as const, water_earned: row.water_earned };
 }
 
+/* ---------------------------------------------------------------------------
+ * First-time tutorial + feature-guide intros. All state lives on the profile
+ * and is written server-side (SECURITY DEFINER). Supplies can only be granted
+ * once per user, so a replay can never farm Water/Seeds/Fertilizer, and no
+ * function here ever grants Fruits.
+ * ------------------------------------------------------------------------- */
+
+/** Idempotently top up the supplies needed to complete the tutorial. */
+export async function grantTutorialSupplies() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("grant_tutorial_supplies");
+  revalidatePath("/dashboard");
+  if (error) return { ok: false as const, message: "Couldn’t start the tutorial — try again." };
+  const row = (data as { out_water: number; out_seed: number; out_fertilizer: number }[])[0];
+  return { ok: true as const, ...row };
+}
+
+/** Mark the required tutorial finished (idempotent). */
+export async function completeTutorial() {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("complete_tutorial");
+  revalidatePath("/dashboard");
+  if (error) return { ok: false as const, message: "Couldn’t save that — try again." };
+  return { ok: true as const };
+}
+
+/** Record that a first-time feature-guide popup was shown (never nags again). */
+export async function markFeatureIntroSeen(key: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_feature_intro_seen", { p_key: key });
+  revalidatePath("/dashboard");
+  if (error) return { ok: false as const };
+  return { ok: true as const };
+}
+
+/* ---------------------------------------------------------------------------
+ * Weekly Orchard Lottery. Coins only — tickets, prizes, and refunds never
+ * touch Water/Seeds/Fertilizer/Fruits. Price, pot, bonus, and the draw are
+ * all server-side; the client only says how many tickets it wants.
+ * ------------------------------------------------------------------------- */
+
+export async function buyLotteryTickets(quantity: number, idempotencyKey?: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("buy_lottery_tickets", {
+    p_quantity: quantity,
+    p_idempotency_key: idempotencyKey ?? null,
+  });
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("NOT_ENOUGH_COINS"))
+      return { ok: false as const, message: "You need more Coins for another ticket." };
+    if (m.includes("MAX_TICKETS"))
+      return { ok: false as const, message: "You already have all your tickets in Sunday’s drawing." };
+    if (m.includes("SALES_CLOSED"))
+      return { ok: false as const, message: "Ticket sales are closed. Sunday’s result will be announced soon." };
+    if (m.includes("LOTTERY_DISABLED"))
+      return { ok: false as const, message: "The Weekly Orchard Lottery is taking a break right now." };
+    if (m.includes("BANNED"))
+      return { ok: false as const, message: "Your account can’t take part right now." };
+    if (m.includes("NO_FARM") || m.includes("NO_PROFILE"))
+      return { ok: false as const, message: "Set up your farm first, then come back." };
+    return { ok: false as const, message: "Couldn’t buy that ticket just now — try again." };
+  }
+  const row = data as {
+    already_processed?: boolean;
+    tickets_bought?: number;
+    coins_spent?: number;
+    my_tickets?: number;
+    coins_left?: number;
+  };
+  return {
+    ok: true as const,
+    already_processed: row.already_processed,
+    tickets_bought: row.tickets_bought,
+    coins_spent: row.coins_spent,
+    my_tickets: row.my_tickets,
+    coins_left: row.coins_left,
+  };
+}
+
 export async function keepBasket() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("keep_traveling_basket");

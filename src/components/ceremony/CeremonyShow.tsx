@@ -30,6 +30,20 @@ export type ShowMe = {
   medal: MedalTier | null;
   badges: { name: string; icon: string }[];
 };
+/** Effective coin amounts paid at season close (admin-tunable). */
+export type CoinRewards = {
+  medal: Record<MedalTier, number>;
+  /** coins that ride along with each badge's fertilizer */
+  badge: number;
+};
+/** Community-level lottery aggregates for the season (no identities). */
+export type LotterySeasonSummary = {
+  rounds_drawn: number;
+  total_tickets: number;
+  total_orchard_bonus: number;
+  largest_prize: number;
+  largest_pot: number;
+};
 
 const MEDAL_FERT: Record<MedalTier, number> = { gold: 3, silver: 2, bronze: 1 };
 const RISE_MS = 3200; // podium rise + counter duration
@@ -118,12 +132,18 @@ export function CeremonyShow({
   farmers,
   badges,
   me,
+  coinRewards,
+  lotterySummary,
   seasonName,
   certificate,
 }: {
   farmers: ShowFarmer[];
   badges: ShowBadge[];
   me: ShowMe;
+  /** effective coin payouts for medals/badges, shown in the personal recap */
+  coinRewards: CoinRewards;
+  /** season lottery aggregates (null / all-zero → card hidden) */
+  lotterySummary: LotterySeasonSummary | null;
   seasonName: string;
   /** everything the downloadable certificate needs (null if not on the board) */
   certificate: CertificateData | null;
@@ -370,7 +390,7 @@ export function CeremonyShow({
                   <div className="text-left text-sm">
                     <p className="font-extrabold uppercase">{me.medal} medal</p>
                     <p className="text-xs text-[var(--rf-ink-soft)]">
-                      +{MEDAL_FERT[me.medal]} fertilizer for next month 🧴
+                      +{MEDAL_FERT[me.medal]} fertilizer 🧴 and +{coinRewards.medal[me.medal]} coins 🪙 for next month
                     </p>
                   </div>
                 </div>
@@ -378,7 +398,9 @@ export function CeremonyShow({
               {me.badges.map((b, i) => (
                 <div key={i} className="flex items-center justify-center gap-3">
                   <Badge icon={b.icon} label={b.name} earned />
-                  <span className="text-xs text-[var(--rf-ink-soft)]">+1 fertilizer 🧴</span>
+                  <span className="text-xs text-[var(--rf-ink-soft)]">
+                    +1 fertilizer 🧴{coinRewards.badge > 0 ? ` and +${coinRewards.badge} coins 🪙` : ""}
+                  </span>
                 </div>
               ))}
               <p className="text-xs text-[var(--rf-ink-soft)]">
@@ -396,6 +418,26 @@ export function CeremonyShow({
                 <li>🧺 Water daily and harvest often — Fruits win medals</li>
               </ul>
               <p className="text-xs font-bold">Showing up is the real win. See you out there. 💛</p>
+            </div>
+          )}
+
+          {/* Community lottery recap — aggregates only, nobody named or shamed */}
+          {lotterySummary && lotterySummary.total_tickets > 0 && (
+            <div className="mx-auto mt-5 max-w-md rounded border-2 border-dashed border-[var(--rf-ink)]/40 bg-white/50 p-3 text-center">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+                🎟️ This season at the Weekly Orchard Lottery
+              </p>
+              <p className="mt-1 text-xs leading-relaxed">
+                {lotterySummary.total_tickets} tickets entered
+                {lotterySummary.rounds_drawn > 0 && (
+                  <>
+                    {" "}· {lotterySummary.rounds_drawn}{" "}
+                    {lotterySummary.rounds_drawn === 1 ? "Sunday drawing" : "Sunday drawings"} ·
+                    biggest prize 🪙 {lotterySummary.largest_prize} · the Orchard chipped in 🪙{" "}
+                    {lotterySummary.total_orchard_bonus}
+                  </>
+                )}
+              </p>
             </div>
           )}
 

@@ -356,6 +356,92 @@ export const SETTING_DEFS: SettingDef[] = [
     help: "Any reward that grants Fertilizer (Goose Egg, Keeper completion, checklist goals, badges) also grants this many Coins. Medals use their own coin amounts instead.",
   },
 
+  // --- Weekly Orchard Lottery (🎟️ Coins only — never Water/Seeds/Fert/Fruits)
+  {
+    key: "lottery_enabled",
+    label: "Weekly Orchard Lottery enabled",
+    kind: "boolean",
+    default: true,
+    help: "Master switch. When off, no new rounds open and tickets can't be bought.",
+  },
+  {
+    key: "lottery_ticket_price_coins",
+    label: "Ticket price (coins)",
+    kind: "number",
+    default: 20,
+    min: 1,
+    help: "Snapshotted onto each round when it opens — changes apply to future rounds.",
+  },
+  {
+    key: "lottery_max_tickets_per_user",
+    label: "Max tickets per farmer",
+    kind: "number",
+    default: 3,
+    min: 1,
+    max: 10,
+    help: "Per weekly round. Hard cap 10.",
+  },
+  {
+    key: "lottery_draw_weekday",
+    label: "Drawing weekday (0=Sun … 6=Sat)",
+    kind: "number",
+    default: 0,
+    max: 6,
+    help: "Default Sunday. Values outside 0–6 are clamped when the round is created.",
+  },
+  {
+    key: "lottery_draw_time",
+    label: "Drawing time (HH:MM, 24h)",
+    kind: "text",
+    default: "18:00",
+    help: "Local to the lottery timezone. Unparseable values fall back to 18:00.",
+  },
+  {
+    key: "lottery_timezone",
+    label: "Lottery timezone",
+    kind: "text",
+    default: "America/Los_Angeles",
+    help: "IANA name (e.g. America/New_York). Unknown zones fall back to America/Los_Angeles.",
+  },
+  {
+    key: "lottery_sales_cutoff_minutes",
+    label: "Sales cutoff before drawing (minutes)",
+    kind: "number",
+    default: 15,
+  },
+  {
+    key: "lottery_orchard_bonus_percent",
+    label: "Orchard bonus (%)",
+    kind: "number",
+    default: 25,
+    max: 100,
+    help: "Added to the player-funded pot at the draw: bonus = floor(pot × % / 100). Snapshotted per round.",
+  },
+  {
+    key: "lottery_auto_draw_enabled",
+    label: "Automatic Sunday resolution",
+    kind: "boolean",
+    default: true,
+    help: "The 10-minute game tick resolves due rounds. When off, use Force resolve in the Lottery tab.",
+  },
+  { key: "lottery_show_ticket_count", label: "Show total ticket count", kind: "boolean", default: true },
+  { key: "lottery_show_participant_count", label: "Show farmers-entered count", kind: "boolean", default: true },
+  { key: "lottery_show_pot", label: "Show pot & prize preview", kind: "boolean", default: true },
+  {
+    key: "lottery_show_winner_publicly",
+    label: "Show the winner publicly",
+    kind: "boolean",
+    default: true,
+    help: "When off, only the winner is told they won. Private-mode farmers always appear as “A farmer”.",
+  },
+  {
+    key: "lottery_big_win_threshold",
+    label: "“Big Orchard Win” badge threshold (coins)",
+    kind: "number",
+    default: 200,
+    help: "A win at or above this prize counts toward the Big Orchard Win ceremony badge.",
+  },
+
   // --- Debug (admin testing tools; off by default) -------------------------
   {
     key: "debug_settings_enabled",
@@ -455,6 +541,18 @@ export const SETTING_SECTIONS: SettingSection[] = [
     groups: [
       { title: "Ceremony medals", keys: ["medal_coin_gold", "medal_coin_silver", "medal_coin_bronze"] },
       { title: "Automatic bonuses", keys: ["reward_coin_bonus", "coin_bonus_seed", "coin_bonus_fertilizer"] },
+    ],
+  },
+  {
+    id: "lottery",
+    title: "Weekly Orchard Lottery",
+    blurb:
+      "🎟️ A weekly community drawing. Tickets and prizes are Coins ONLY — never Water, Seeds, Fertilizer, or Fruits, and no real money. Price, max tickets, bonus %, and schedule are snapshotted onto each round when it opens.",
+    groups: [
+      { title: "Round", keys: ["lottery_enabled", "lottery_ticket_price_coins", "lottery_max_tickets_per_user", "lottery_orchard_bonus_percent"] },
+      { title: "Schedule", keys: ["lottery_draw_weekday", "lottery_draw_time", "lottery_timezone", "lottery_sales_cutoff_minutes", "lottery_auto_draw_enabled"] },
+      { title: "Display & privacy", keys: ["lottery_show_ticket_count", "lottery_show_participant_count", "lottery_show_pot", "lottery_show_winner_publicly"] },
+      { title: "Awards", keys: ["lottery_big_win_threshold"] },
     ],
   },
   {

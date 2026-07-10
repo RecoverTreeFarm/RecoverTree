@@ -27,7 +27,15 @@
       "Bash(npm run *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(sips -g pixelWidth -g pixelHeight CozySpriteBundle/nature/Butterfly.png)"
+      "Bash(sips -g pixelWidth -g pixelHeight CozySpriteBundle/nature/Butterfly.png)",
+      "Bash(git status *)",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(npx next *)",
+      "Bash(npx eslint *)",
+      "Bash(grep -vE \"no-img-element|LCP|higher bandwidth|https://|Effects are|^\\\\* |^Calling|^$|body of an effect|Subscribe for|Update external|not recommended|synchronously within\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(m['line'],m['ruleId'],m['message'][:80]\\) for f in d for m in f['messages']]\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(m['line'],m['ruleId']\\) for f in d for m in f['messages'] if m['ruleId']!='@next/next/no-img-element']\")",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

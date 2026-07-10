@@ -10,7 +10,9 @@ import { ProfilePanel, type ProfileInfo } from "./ProfilePanel";
 import { ChecklistPanel, LeaderboardPanel, InventoryPanel } from "./panels";
 import type { ChecklistItem, LeaderboardRow } from "./panels";
 import { NotificationCenter, type FarmNotification } from "./NotificationCenter";
-import { WikiHelp } from "./WikiPanel";
+import { WikiHelp, WikiRoot } from "./WikiPanel";
+import { useTutorial } from "./TutorialOverlay";
+import { FeatureGuidePopup, type FeatureKey } from "./FeatureGuide";
 import { GoosePanel } from "./GoosePanel";
 import { GardenScene } from "./GardenPanel";
 import { StoreScene } from "./GeneralStore";
@@ -21,6 +23,8 @@ import { RewardBannerHost } from "./RewardBanner";
 import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
 import type { StoreState } from "@/lib/store";
+import type { LotteryState } from "@/lib/lottery";
+import { LotteryPanel } from "./LotteryPanel";
 import { HOUSE_SPRITES, seasonEmoji } from "@/lib/sprites";
 
 type PanelId =
@@ -30,6 +34,7 @@ type PanelId =
   | "map"
   | "basket"
   | "goose"
+  | "lottery"
   | "checklist"
   | "leaderboard"
   | "profile";
@@ -72,11 +77,17 @@ export type GameShellProps = {
   goose: GooseState | null;
   garden: GardenState | null;
   store: StoreState | null;
+  lottery: LotteryState | null;
   /** a completed season whose ceremony this user hasn't seen/dismissed yet */
   ceremonyInvite: { season_id: string; season_name: string } | null;
   checklist: ChecklistItem[];
   leaderboard: LeaderboardRow[];
   profile: ProfileInfo;
+  /** first-time tutorial + feature-guide state (from the profile) */
+  tutorial: {
+    completed: boolean;
+    featureIntroSeen: Record<string, boolean>;
+  };
 };
 
 /**
@@ -199,6 +210,7 @@ export function GameShell(props: GameShellProps) {
     map: "🗺️ World map",
     basket: "Traveling Basket",
     goose: "Golden Goose",
+    lottery: "🎟️ Weekly Orchard Lottery",
     checklist: "Monthly checklist",
     leaderboard: "Leaderboard",
     profile: "Your farmer",
@@ -235,6 +247,38 @@ export function GameShell(props: GameShellProps) {
 
   const basketOnFarm =
     !!props.basket?.has_chain && props.basket.status === "active" && !!props.basket.i_hold_it;
+
+  /* ---- first-time tutorial ---------------------------------------------- */
+  const tutorial = useTutorial({
+    required: !props.tutorial.completed,
+    trees: props.trees,
+    fruitTotal: props.farm.fruitTotal,
+  });
+
+  /* ---- first-time feature guides ---------------------------------------- */
+  // Shown once each, only after the required tutorial is finished so the two
+  // never collide. "Seen" persists on the profile; seenLocal hides one the
+  // instant it's dismissed (before the server refresh lands).
+  const [seenLocal, setSeenLocal] = useState<Set<FeatureKey>>(new Set());
+  const [featureToShow, setFeatureToShow] = useState<FeatureKey | null>(null);
+  const canShowGuides = props.tutorial.completed && !tutorial.active && !traveling;
+  const isFeatureSeen = (k: FeatureKey) =>
+    seenLocal.has(k) || Boolean(props.tutorial.featureIntroSeen[k]);
+
+  useEffect(() => {
+    if (!canShowGuides || featureToShow) return;
+    let key: FeatureKey | null = null;
+    if (open === "code") key = "meeting_code";
+    else if (open === "lottery") key = "lottery";
+    else if (location === "store") key = "store";
+    else if (location === "garden") key = "community_garden";
+    else if (basketOnFarm || open === "basket") key = "traveling_basket";
+    else if (gooseEvent || open === "goose") key = "golden_goose";
+    // deriving the popup to show from where the player navigated is the point
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (key && !isFeatureSeen(key)) setFeatureToShow(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, location, basketOnFarm, gooseEvent, canShowGuides, featureToShow]);
 
   return (
     <div className="pb-24">
@@ -273,6 +317,8 @@ export function GameShell(props: GameShellProps) {
             onOpenBasket={() => setOpen("basket")}
             basketOnFarm={basketOnFarm}
             submissionBoxRole={submissionBox}
+            tutorialActive={tutorial.active}
+            tutorialTreeId={tutorial.tutorialTreeId}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
@@ -284,6 +330,7 @@ export function GameShell(props: GameShellProps) {
           <StoreScene
             state={props.store}
             avatarSrc={props.avatarSrc}
+            onOpenLottery={() => setOpen("lottery")}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
@@ -312,8 +359,9 @@ export function GameShell(props: GameShellProps) {
         )}
       </div>
 
-      {/* Season-end ceremony invitation (once per season, own farm only) */}
-      {props.ceremonyInvite && !traveling && (
+      {/* Season-end ceremony invitation (once per season, own farm only) —
+          held back while the mandatory tutorial is running. */}
+      {props.ceremonyInvite && !traveling && !tutorial.active && (
         <CeremonyInvitePopup invite={props.ceremonyInvite} />
       )}
 
@@ -341,8 +389,17 @@ export function GameShell(props: GameShellProps) {
               onOpenGarden={() => travel("garden")}
               onOpenStore={() => travel("store")}
               onGoHome={() => travel("farm")}
+              onOpenLottery={() => setOpen("lottery")}
             />
           )}
+          {open === "lottery" &&
+            (props.lottery ? (
+              <LotteryPanel state={props.lottery} myCoins={props.farm.coins} />
+            ) : (
+              <p className="text-sm text-[var(--rf-ink-soft)]">
+                The Weekly Orchard Lottery isn’t set up yet.
+              </p>
+            ))}
           {open === "seed" && (
             <SeedPanel
               members={props.members}
@@ -399,6 +456,7 @@ export function GameShell(props: GameShellProps) {
               <button
                 key={m.id}
                 type="button"
+                data-tutorial={m.id === "leaderboard" ? "menu-leaderboard" : undefined}
                 aria-label={m.label}
                 aria-pressed={active}
                 onClick={() => {
@@ -434,6 +492,23 @@ export function GameShell(props: GameShellProps) {
 
       {/* "You received …" banners, styled like the travel plate */}
       <RewardBannerHost />
+
+      {/* The single Guidebook panel (every "?" button + deep links route here) */}
+      <WikiRoot canReplayTutorial={props.tutorial.completed} />
+
+      {/* First-time feature guide popup (after the tutorial is done) */}
+      {featureToShow && (
+        <FeatureGuidePopup
+          feature={featureToShow}
+          onSeen={() => {
+            setSeenLocal((s) => new Set(s).add(featureToShow));
+            setFeatureToShow(null);
+          }}
+        />
+      )}
+
+      {/* The mandatory first-time tutorial (coach marks over the farm) */}
+      {tutorial.overlay}
     </div>
   );
 }
@@ -603,6 +678,53 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
       out.push({
         id: `garden-reward-${cg.last_event.event_id}`,
         text: "Your Garden Share Bundle arrived — check your items. 🧺",
+      });
+    }
+  }
+
+  // Weekly Orchard Lottery
+  const lot = props.lottery;
+  if (lot?.enabled && lot.round) {
+    const r = lot.round;
+    if (r.sales_open && r.my_tickets === 0) {
+      out.push({
+        id: `lottery-open-${r.round_id}`,
+        text: "A new Weekly Orchard Lottery is open. 🎟️",
+      });
+    }
+    if (!r.sales_open && ["open", "sales_closed"].includes(r.status) && r.my_tickets > 0) {
+      out.push({
+        id: `lottery-soon-${r.round_id}`,
+        text: `Sunday’s drawing is coming up. You have ${r.my_tickets} ${r.my_tickets === 1 ? "ticket" : "tickets"} entered.`,
+      });
+    }
+  }
+  const lr = lot?.last_result;
+  if (lr) {
+    if (lr.status === "drawn" && lr.i_won) {
+      out.push({
+        id: `lottery-won-${lr.round_id}`,
+        text: `Your ticket was drawn! You received 🪙 ${lr.final_prize_coins}. 🎉`,
+      });
+    } else if (lr.status === "drawn" && lr.i_entered) {
+      out.push({
+        id: `lottery-result-${lr.round_id}`,
+        text: `Sunday’s drawing is complete. This week’s prize was 🪙 ${lr.final_prize_coins}.`,
+      });
+    } else if (lr.status === "refunded_single_participant" && lr.i_was_refunded) {
+      out.push({
+        id: `lottery-refund-${lr.round_id}`,
+        text: `You were the only farmer entered, so your 🪙 ${lr.my_coins_back} were returned.`,
+      });
+    } else if (lr.status === "cancelled" && lr.i_was_refunded) {
+      out.push({
+        id: `lottery-cancel-${lr.round_id}`,
+        text: `The lottery round was cancelled — your 🪙 ${lr.my_coins_back} were returned.`,
+      });
+    } else if (lr.status === "no_entries" && lot?.round?.round_id === lr.round_id) {
+      out.push({
+        id: `lottery-none-${lr.round_id}`,
+        text: "No tickets were entered this week. A new drawing opens soon.",
       });
     }
   }

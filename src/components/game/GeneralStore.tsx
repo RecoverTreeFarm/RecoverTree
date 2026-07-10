@@ -109,10 +109,13 @@ export function StoreScene({
   state,
   avatarSrc,
   notificationSlot,
+  onOpenLottery,
 }: {
   state: StoreState | null;
   avatarSrc: string;
   notificationSlot?: React.ReactNode;
+  /** the shelf's Lottery tile opens the Weekly Orchard Lottery window */
+  onOpenLottery?: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -286,7 +289,18 @@ export function StoreScene({
       </p>
 
       {menuOpen && state.enabled && (
-        <StoreMenu state={state} onClose={() => setMenuOpen(false)} />
+        <StoreMenu
+          state={state}
+          onClose={() => setMenuOpen(false)}
+          onOpenLottery={
+            onOpenLottery
+              ? () => {
+                  setMenuOpen(false);
+                  onOpenLottery();
+                }
+              : undefined
+          }
+        />
       )}
     </div>
   );
@@ -318,7 +332,15 @@ function shelfCellCls(disabled: boolean) {
   }`;
 }
 
-function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void }) {
+function StoreMenu({
+  state,
+  onClose,
+  onOpenLottery,
+}: {
+  state: StoreState;
+  onClose: () => void;
+  onOpenLottery?: () => void;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<{ key: StoreItemKey; sale: boolean } | null>(null);
@@ -422,14 +444,32 @@ function StoreMenu({ state, onClose }: { state: StoreState; onClose: () => void 
                 );
               }
               if (cell.kind === "lottery") {
+                // No lottery handler (or lottery off) → the old boarded tile.
+                if (!onOpenLottery) {
+                  return (
+                    <div key={i} className={shelfCellCls(true)} title="Coming soon.">
+                      <span aria-hidden className="text-xl grayscale">🎫</span>
+                      <span className="text-[9px] font-extrabold uppercase leading-tight">Lottery</span>
+                      <span className="rounded bg-[var(--rf-ink)] px-1 text-[8px] font-extrabold uppercase text-[var(--rf-cream)]">
+                        Out of stock
+                      </span>
+                    </div>
+                  );
+                }
                 return (
-                  <div key={i} className={shelfCellCls(true)} title="Coming soon.">
-                    <span aria-hidden className="text-xl grayscale">🎫</span>
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={onOpenLottery}
+                    className={shelfCellCls(false)}
+                    title="Weekly Orchard Lottery — buy tickets with Coins."
+                  >
+                    <span aria-hidden className="text-xl">🎟️</span>
                     <span className="text-[9px] font-extrabold uppercase leading-tight">Lottery</span>
-                    <span className="rounded bg-[var(--rf-ink)] px-1 text-[8px] font-extrabold uppercase text-[var(--rf-cream)]">
-                      Out of stock
+                    <span className="rounded bg-[var(--rf-gold)] px-1 text-[8px] font-extrabold uppercase text-[var(--rf-ink)]">
+                      Sunday draw
                     </span>
-                  </div>
+                  </button>
                 );
               }
               const item = STORE_ITEMS[cell.key];

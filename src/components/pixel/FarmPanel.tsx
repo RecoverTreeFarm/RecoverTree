@@ -66,6 +66,8 @@ export function FarmPanel({
   onOpenBasket,
   basketOnFarm = false,
   submissionBoxRole = null,
+  tutorialActive = false,
+  tutorialTreeId = null,
 }: {
   trees: TreeView[];
   water: number;
@@ -91,6 +93,11 @@ export function FarmPanel({
   basketOnFarm?: boolean;
   /** the Golden Goose box on this farm, and what tapping it does */
   submissionBoxRole?: "submit" | "review" | null;
+  /** the first-time tutorial is running — item taps act on ONE tutorial tree
+   *  (no "…all?" confirm) so cause/effect is crisp and predictable */
+  tutorialActive?: boolean;
+  /** the specific tree the tutorial's Water/Fertilizer taps should target */
+  tutorialTreeId?: string | null;
 }) {
   const router = useRouter();
   const [farmerAnim, setFarmerAnim] = useState<FarmerAnim>("idle");
@@ -215,6 +222,43 @@ export function FarmPanel({
     if (running === "plant" && kind === "seed") return triggerSkip();
     if (running === "fert" && kind === "fert") return triggerSkip();
     if (busy) return;
+
+    // TUTORIAL: act on the single tutorial tree at once (no "…all?" confirm),
+    // so each tap has one clear effect on the plant the coach mark points at.
+    if (tutorialActive) {
+      setMessage(null);
+      if (kind === "seed") {
+        if (seeds < 1 || trees.length >= MAX_TREES) return;
+        void handlePlantOne();
+        return;
+      }
+      const idx = tutorialTreeId ? trees.findIndex((t) => t.id === tutorialTreeId) : -1;
+      const tree = idx >= 0 ? trees[idx] : null;
+      if (tree?.id) {
+        if (kind === "water") {
+          if (water < WATER_PER_PLANT) {
+            setMessage("Not enough water yet — attend a meeting to earn more. 💧");
+          } else if (tree.stage >= 4) {
+            setMessage("This plant is done growing — it doesn’t need more water.");
+          } else {
+            void handleWaterOne(idx, tree.id);
+          }
+          return;
+        }
+        if (kind === "fert") {
+          const waiting = tree.stage === 4 && tree.readyAt && new Date(tree.readyAt).getTime() > now;
+          if (fertilizer < 1) {
+            setMessage("No fertilizer right now.");
+          } else if (!waiting) {
+            setMessage("Fertilizer works on a fully-watered tree that’s waiting to fruit.");
+          } else {
+            handleFertilizeOne(idx, tree.id);
+          }
+          return;
+        }
+      }
+      // no valid tutorial tree yet — fall through to the normal flow
+    }
 
     if (confirmItem === kind) {
       setConfirmItem(null);
@@ -765,19 +809,19 @@ export function FarmPanel({
     <div className="relative">
       {/* Inventory — tap once to see "… all?", tap again to do it all */}
       <div ref={itemBarRef} className="mb-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => onItemClick("water")}
+        <button type="button" data-tutorial="item-water" onClick={() => onItemClick("water")}
           disabled={itemDisabled("water", water < WATER_PER_PLANT)}
           className={itemBtn} style={itemStyle("water")}
           title="Water your thirsty plants (oldest first)">
           {itemLabel("water")}
         </button>
-        <button type="button" onClick={() => onItemClick("fert")}
+        <button type="button" data-tutorial="item-fert" onClick={() => onItemClick("fert")}
           disabled={itemDisabled("fert", fertilizer < 1)}
           className={itemBtn} style={itemStyle("fert")}
           title="Ripen waiting trees (pink blossoms first)">
           {itemLabel("fert")}
         </button>
-        <button type="button" onClick={() => onItemClick("seed")}
+        <button type="button" data-tutorial="item-seed" onClick={() => onItemClick("seed")}
           disabled={itemDisabled("seed", seeds < 1)}
           className={itemBtn} style={itemStyle("seed")}
           title="Plant seeds in the open plots">
@@ -803,7 +847,7 @@ export function FarmPanel({
         />
       </div>
 
-      <div className="relative">
+      <div className="relative" data-tutorial="farm-scene">
         <FarmScene
           trees={viewTrees}
           fruitTotal={fruitTotal}

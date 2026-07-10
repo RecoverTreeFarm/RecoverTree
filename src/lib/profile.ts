@@ -11,6 +11,12 @@ export type Profile = {
   leaderboard_visibility: "public" | "anonymous" | "hidden";
   is_banned: boolean;
   created_at: string;
+  /** first-time tutorial state (see 20260710040000 migration) */
+  tutorial_completed: boolean;
+  tutorial_completed_at: string | null;
+  tutorial_supplies_granted: boolean;
+  /** which first-time feature-guide popups the user has already seen */
+  feature_intro_seen: Record<string, boolean> | null;
 };
 
 export const USERNAME_REGEX = /^[A-Za-z0-9_]{3,20}$/;

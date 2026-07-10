@@ -330,3 +330,33 @@ export async function distributeGardenRewards(eventId: string): Promise<Result> 
   if (rpcError) return { ok: false, message: gardenFriendly(rpcError.message) };
   return { ok: true };
 }
+
+/* ---------------------------------------------------------------------------
+ * Weekly Orchard Lottery admin — both operations are idempotent + audit-
+ * logged server-side (repeated calls return the already-resolved result).
+ * ------------------------------------------------------------------------- */
+
+export async function forceResolveLotteryRound(roundId: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("admin_force_resolve_lottery_round", {
+    p_round: roundId,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function cancelLotteryRound(roundId: string, reason: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("admin_cancel_lottery_round", {
+    p_round: roundId,
+    p_reason: reason.trim() || "cancelled by admin",
+  });
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}

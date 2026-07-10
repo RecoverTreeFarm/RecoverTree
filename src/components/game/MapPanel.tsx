@@ -18,6 +18,7 @@ export function MapModalBody({
   onOpenGarden,
   onOpenStore,
   onGoHome,
+  onOpenLottery,
 }: {
   /** open the Community Garden scene */
   onOpenGarden: () => void;
@@ -25,6 +26,8 @@ export function MapModalBody({
   onOpenStore: () => void;
   /** close the map and return to the player's own farm */
   onGoHome: () => void;
+  /** open the Weekly Orchard Lottery window (run from the General Store) */
+  onOpenLottery: () => void;
 }) {
   const [construction, setConstruction] = useState<string | null>(null);
 
@@ -48,6 +51,10 @@ export function MapModalBody({
         <button type="button" onClick={onOpenStore} className={btnCls}>
           <span aria-hidden className="text-lg leading-none">🏪</span>
           General Store
+        </button>
+        <button type="button" onClick={onOpenLottery} className={btnCls}>
+          <span aria-hidden className="text-lg leading-none">🎟️</span>
+          Weekly Orchard Lottery
         </button>
         {/* boarded-up teasers — not travelable yet */}
         <button

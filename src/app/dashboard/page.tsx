@@ -8,6 +8,7 @@ import type { ChecklistItem, LeaderboardRow } from "@/components/game/panels";
 import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
 import type { StoreState } from "@/lib/store";
+import type { LotteryState } from "@/lib/lottery";
 import { avatarSprite, houseKey } from "@/lib/sprites";
 import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
@@ -156,6 +157,10 @@ export default async function DashboardPage() {
   const { data: storeData, error: storeErr } = await supabase.rpc("get_general_store_state");
   const store = storeErr ? null : ((storeData ?? null) as StoreState | null);
 
+  // Weekly Orchard Lottery state (hidden if the migration isn't applied yet).
+  const { data: lotteryData, error: lotteryErr } = await supabase.rpc("get_weekly_lottery_state");
+  const lottery = lotteryErr ? null : ((lotteryData ?? null) as LotteryState | null);
+
   // Season-end ceremony invitation (null once dismissed/attended).
   const { data: inviteData, error: inviteErr } = await supabase.rpc("get_ceremony_invite");
   const ceremonyInvite = inviteErr
@@ -223,6 +228,7 @@ export default async function DashboardPage() {
         goose={goose}
         garden={garden}
         store={store}
+        lottery={lottery}
         ceremonyInvite={ceremonyInvite}
         checklist={checklist}
         leaderboard={leaderboard}
@@ -232,6 +238,10 @@ export default async function DashboardPage() {
           avatarSrc: avatarSprite(profile.avatar_config),
           visibilityLabel: visibility?.label ?? "Public",
           visibilityDescription: visibility?.description ?? "",
+        }}
+        tutorial={{
+          completed: profile.tutorial_completed ?? false,
+          featureIntroSeen: (profile.feature_intro_seen ?? {}) as Record<string, boolean>,
         }}
       />
     </Container>

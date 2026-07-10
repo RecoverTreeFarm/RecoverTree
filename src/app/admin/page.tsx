@@ -13,6 +13,7 @@ import { debugSettingsEnabled, type SettingOverrideRow } from "@/lib/gameSetting
 import type { DebugInventoryRow, DebugEventStates } from "@/components/admin/DebugTools";
 import type { AdminBulletinPost } from "@/lib/bulletin";
 import type { AdminGardenEvent } from "@/components/admin/GardenAdmin";
+import type { AdminLotteryRound } from "@/components/admin/LotteryAdmin";
 
 /**
  * Admin console. Access is enforced SERVER-SIDE here (non-admins get an
@@ -50,7 +51,7 @@ export default async function AdminPage() {
   // Pull everything the console needs via the admin RPCs (each re-checks
   // is_admin() in the DB). If the migration hasn't been applied yet the RPCs
   // won't exist — surface that clearly instead of crashing.
-  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes, bulletinRes, gardenRes] =
+  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes, bulletinRes, gardenRes, lotteryRes] =
     await Promise.all([
       supabase.rpc("list_admin_users"),
       supabase.rpc("list_admin_meeting_sessions"),
@@ -59,6 +60,7 @@ export default async function AdminPage() {
       supabase.rpc("get_game_settings"),
       supabase.rpc("list_admin_bulletin_posts"),
       supabase.rpc("list_admin_community_garden"),
+      supabase.rpc("get_admin_lottery_rounds"),
     ]);
 
   const missingFn =
@@ -117,6 +119,7 @@ export default async function AdminPage() {
         debug={debug}
         bulletin={(bulletinRes.data ?? []) as AdminBulletinPost[]}
         garden={(gardenRes.data ?? []) as AdminGardenEvent[]}
+        lottery={lotteryRes.error ? [] : ((lotteryRes.data ?? []) as AdminLotteryRound[])}
       />
     </Container>
   );

@@ -2,7 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { Container, Panel, PageHeader, PixelLink } from "@/components/pixel/ui";
 import { CeremonyShow, type ShowFarmer, type ShowBadge } from "@/components/ceremony/CeremonyShow";
 import { avatarSprite, houseKey, HOUSE_SPRITES, SPRITES } from "@/lib/sprites";
-import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
+import {
+  houseDisplayNames,
+  DEFAULT_GAME_SETTINGS,
+  type SettingOverrideRow,
+} from "@/lib/gameSettings";
 import type { CertificateData } from "@/components/ceremony/Certificate";
 import type { MedalTier } from "@/components/pixel/placeholders";
 
@@ -164,6 +168,49 @@ export default async function CeremonyPage({
   const houseNames = houseDisplayNames(
     (houseNameRows ?? []) as Pick<SettingOverrideRow, "key" | "value_json">[],
   );
+
+  // Effective coin amounts paid at season close, so the recap shows the real
+  // numbers (admin overrides win; otherwise the code defaults). Medals pay a
+  // specific coin amount; badges pay the fertilizer coin bonus.
+  const coinKeys = [
+    "medal_coin_gold",
+    "medal_coin_silver",
+    "medal_coin_bronze",
+    "coin_bonus_fertilizer",
+  ] as const;
+  const { data: coinRows } = await supabase
+    .from("game_settings")
+    .select("key, value_json")
+    .in("key", coinKeys as unknown as string[]);
+  const coinInt = (key: (typeof coinKeys)[number]): number => {
+    const row = (coinRows ?? []).find((r) => r.key === key);
+    const raw = row ? row.value_json : DEFAULT_GAME_SETTINGS[key];
+    return typeof raw === "number" ? raw : Number(raw) || 0;
+  };
+  const coinRewards = {
+    medal: {
+      gold: coinInt("medal_coin_gold"),
+      silver: coinInt("medal_coin_silver"),
+      bronze: coinInt("medal_coin_bronze"),
+    },
+    badge: coinInt("coin_bonus_fertilizer"),
+  };
+
+  // Community-level Weekly Orchard Lottery stats for the season (aggregates
+  // only — no identities, so nothing can leak a private farmer).
+  const { data: lotteryData, error: lotteryErr } = await supabase.rpc(
+    "get_season_lottery_summary",
+    { p_season: seasonId },
+  );
+  const lotterySummary = lotteryErr
+    ? null
+    : ((lotteryData ?? null) as {
+        rounds_drawn: number;
+        total_tickets: number;
+        total_orchard_bonus: number;
+        largest_prize: number;
+        largest_pot: number;
+      } | null);
   const myHouseKey = houseKey(myProfile?.avatar_config);
   const myRank = farmers.find((f) => f.isSelf)?.rank ?? null;
 
@@ -204,6 +251,8 @@ export default async function CeremonyPage({
           farmers={farmers}
           badges={badges}
           me={{ medal: myMedal, badges: myBadges }}
+          coinRewards={coinRewards}
+          lotterySummary={lotterySummary}
           seasonName={season.name}
           certificate={certificate}
         />
