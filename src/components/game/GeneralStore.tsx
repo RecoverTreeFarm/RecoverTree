@@ -38,9 +38,14 @@ import {
    its rectangle is a walk blocker. */
 const COUNTER = { left: 22, right: 78, bottom: 26, top: 42 };
 const COUNTER_BLOCKER: Blocker[] = [COUNTER];
-/** The register sits on the counter; the shopkeeper stands right behind it. */
+/** The register sits on the counter's top edge; the shopkeeper stands right
+ *  behind it, low enough that the counter (drawn later, higher z) hides his
+ *  legs — otherwise he looks like he's floating above it. */
 const REGISTER_POS = { left: 50, bottom: 42 };
-const KEEPER_POS = { left: 50, bottom: 47 };
+/** Right behind the register, a shoulder to its left so both his head and his
+ *  "!" stay readable — the register (higher z) still overlaps his lower body,
+ *  so he reads as standing behind the counter rather than floating over it. */
+const KEEPER_POS = { left: 44, bottom: 44 };
 /** Where the farmer stands to be served — leaning on the counter. */
 const FARMER_AT_COUNTER = { left: 50, bottom: 24.5 };
 const FARMER_HOME = { left: 30, bottom: 12 };
@@ -203,7 +208,7 @@ export function StoreScene({
           <Bang />
           <span className="rf-idle block">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={SPRITES.farmerVariants[7]} alt="" className="pixelated" style={{ width: 58, height: 58 }} />
+            <img src={SPRITES.farmerVariants[4]} alt="" className="pixelated" style={{ width: 64, height: 64 }} />
           </span>
         </button>
 
