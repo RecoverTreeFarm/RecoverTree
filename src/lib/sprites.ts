@@ -34,9 +34,11 @@ export const SPRITES = {
   grass: "/sprites/ground/grass_cozy.png",
   dirt: "/sprites/ground/dirt_cozy.png",
 
-  // Trees (cozy nature). Green growth strip + a pink blossom bearing variant.
+  // Trees (cozy nature). Green growth strip + the cherry-blossom bearing
+  // variant (CozySpriteBundle/nature/CherryTree.png, bottom-aligned onto the
+  // 32x44 growth frame). The old mis-cropped tree_pink.png is unused.
   treeSheet: "/sprites/plants/tree_green.png",
-  treeBlossom: "/sprites/plants/tree_pink.png",
+  treeBlossom: "/sprites/plants/tree_cherry.png",
 
   // Misc
   barn: "/sprites/misc/barn_cozy.png", // 60x86 cozy red barn (legacy default)
@@ -152,13 +154,28 @@ export const FRUIT_SPRITE_COUNT = FRUIT_POOL.length;
 /** Default fruit shown for the Fruit currency (cherries). */
 export const DEFAULT_FRUIT_INDEX = 2;
 
-/** Pink blossom trees ALWAYS grow cherries (pool index 2). */
+/** Cherry-blossom trees ALWAYS grow cherries (pool index 2 → fruit_13). */
 export const CHERRY_FRUIT_INDEX = 2;
+
+/**
+ * CHERRIES ARE EXCLUSIVE TO THE CHERRY-BLOSSOM TREE. An ordinary tree picks
+ * its fruit from this pool, which is FRUIT_POOL with the cherry removed —
+ * previously a plain tree in slot 2 (and every 15th slot after) rendered
+ * cherries, which made the rare blossom tree look ordinary.
+ */
+const ORCHARD_FRUIT_POOL = FRUIT_POOL.filter((_, i) => i !== CHERRY_FRUIT_INDEX);
 
 /** Map a pool index (any integer, wraps) to a curated fruit sprite path. */
 export function fruitSprite(index: number): string {
   const i = ((index % FRUIT_SPRITE_COUNT) + FRUIT_SPRITE_COUNT) % FRUIT_SPRITE_COUNT;
   return `/sprites/fruit/fruit_${FRUIT_POOL[i]}.png`;
+}
+
+/** Fruit sprite for an ORDINARY tree — never a cherry. */
+export function orchardFruitSprite(index: number): string {
+  const n = ORCHARD_FRUIT_POOL.length;
+  const i = ((index % n) + n) % n;
+  return `/sprites/fruit/fruit_${ORCHARD_FRUIT_POOL[i]}.png`;
 }
 
 /**

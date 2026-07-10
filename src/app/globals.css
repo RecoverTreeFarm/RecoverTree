@@ -308,3 +308,77 @@ body {
 /* pop.png = 8 frames (fruit appears); harvest.png = 13 frames (harvest bloom) */
 .rf-fx-pop     { animation: rf-fx-play 0.55s steps(8) forwards; }
 .rf-fx-harvest { animation: rf-fx-play 0.85s steps(13) forwards; }
+
+/* ===========================================================================
+ * Pixel UI skin (CozySpriteBundle/ui-template) — 9-slice border images.
+ * Only the FRAME is drawn from the sprite; interiors keep their cream/ink
+ * colors so text contrast (and disabled/focus states) stay intact.
+ * ======================================================================== */
+
+/* Wooden gold-cornered frame for windows/modals. Keeps the panel's own
+   background, so body text stays dark-on-cream and readable. */
+.ui-frame {
+  border-style: solid;
+  border-width: 12px;
+  border-image-source: url("/ui/frame.png");
+  /* NO `fill` — the sprite's brown interior would paint over the panel and
+     swallow our dark-on-cream text. We take the wooden ring only. */
+  border-image-slice: 10;
+  border-image-width: 12px;
+  border-image-repeat: repeat;
+  image-rendering: pixelated;
+  border-radius: 0;
+  box-shadow: 4px 4px 0 rgba(58, 42, 26, 0.3);
+}
+
+/* Wooden button plate (bottom bar, item bar, map button). Brown fill, so the
+   label is cream; hover brightens, active presses down, disabled dims. */
+.ui-btn-plate {
+  border-style: solid;
+  border-width: 6px 8px;
+  border-image-source: url("/ui/button.png");
+  border-image-slice: 5 6 6 6 fill;
+  border-image-width: 6px 8px;
+  border-image-repeat: repeat;
+  image-rendering: pixelated;
+  color: var(--rf-cream);
+  background: transparent;
+  border-radius: 0;
+}
+.ui-btn-plate:hover:not(:disabled) { filter: brightness(1.12); }
+.ui-btn-plate:active:not(:disabled) { transform: translateY(1px); }
+.ui-btn-plate:disabled { filter: grayscale(0.5) brightness(0.85); opacity: 0.55; }
+.ui-btn-plate:focus-visible { outline: 3px solid var(--rf-gold); outline-offset: 2px; }
+/* the "selected" tab/menu state */
+.ui-btn-plate[aria-pressed="true"],
+.ui-btn-plate[data-active="true"] { filter: brightness(1.28) saturate(1.15); }
+
+/* --- Cherry blossom: drifting petals around a cherry tree ---------------- */
+@keyframes rf-petal-fall {
+  0%   { transform: translate(0, -6px) rotate(0deg);    opacity: 0; }
+  15%  { opacity: 0.95; }
+  100% { transform: translate(var(--drift, 8px), 34px) rotate(220deg); opacity: 0; }
+}
+.rf-petal {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 60% 0 60% 0;
+  background: #f7a8c4;
+  box-shadow: 0 0 0 1px rgba(58, 42, 26, 0.35);
+  animation: rf-petal-fall 2.8s ease-in infinite;
+  pointer-events: none;
+}
+
+/* One-shot sparkle ring when a cherry tree first blossoms */
+@keyframes rf-cherry-pop {
+  0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+}
+.rf-cherry-pop {
+  position: absolute;
+  border-radius: 9999px;
+  border: 3px solid #f7a8c4;
+  animation: rf-cherry-pop 0.75s ease-out forwards;
+  pointer-events: none;
+}

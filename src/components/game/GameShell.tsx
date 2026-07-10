@@ -27,9 +27,6 @@ type PanelId =
   | "profile";
 
 export type GameShellProps = {
-  greetName: string;
-  /** random affirmation picked server-side (from the provided list) */
-  affirmation: string;
   /** house key → display name (admin-renamable) */
   houseNames: Record<string, string>;
   avatarSrc: string;
@@ -147,15 +144,9 @@ export function GameShell(props: GameShellProps) {
 
   return (
     <div className="pb-24">
-      {/* Tiny greeting: a quiet affirmation from the provided list */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Sprite src={props.avatarSrc} size={[32, 32]} scale={2.5} alt="" />
-          <span className="truncate text-sm font-bold text-[var(--rf-ink-soft)]">
-            {props.affirmation}
-          </span>
-        </div>
-        {/* Season chip: emoji + days-left countdown, top-right */}
+      {/* Season chip only — the avatar + affirmation greeting row was removed
+          to give the farm more vertical room. */}
+      <div className="mb-2 flex items-center justify-end">
         <span className="flex shrink-0 items-center gap-1.5">
           {seasonEmoji(props.seasonCyclePosition) && (
             <span aria-hidden className="text-lg leading-none">
@@ -261,14 +252,10 @@ export function GameShell(props: GameShellProps) {
                 aria-label={m.label}
                 aria-pressed={active}
                 onClick={() => setOpen(m.id === "home" ? null : active ? null : (m.id as PanelId))}
-                className={`flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 rounded border-2 px-0.5 py-1 ${
-                  active
-                    ? "border-[var(--rf-ink)] bg-[var(--rf-gold)]"
-                    : "border-transparent hover:border-[var(--rf-ink)] hover:bg-[var(--rf-cream)]"
-                }`}
+                className="ui-btn-plate flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 px-0.5 py-1"
               >
                 <span className="flex h-8 items-end justify-center">{m.icon}</span>
-                <span className="text-[9px] font-extrabold uppercase tracking-wide text-[var(--rf-ink)]">
+                <span className="text-[9px] font-extrabold uppercase tracking-wide">
                   {m.label}
                 </span>
               </button>
@@ -392,7 +379,7 @@ function GameWindow({
         className="absolute inset-0 bg-black/40"
       />
       <div
-        className="pixel-panel absolute inset-x-0 bottom-16 mx-auto flex max-h-[72vh] w-full flex-col rounded-t-xl border-b-0 p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:w-[min(92vw,30rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border-b-[3px]"
+        className="ui-frame absolute inset-x-0 bottom-16 mx-auto flex max-h-[72vh] w-full flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:w-[min(92vw,30rem)] sm:-translate-x-1/2 sm:-translate-y-1/2"
       >
         <div
           className="flex items-center justify-between px-4 py-2"

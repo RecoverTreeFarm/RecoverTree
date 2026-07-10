@@ -7,7 +7,6 @@ import type { BasketState } from "@/components/pixel/BasketPanel";
 import type { ChecklistItem, LeaderboardRow } from "@/components/game/panels";
 import type { GooseState } from "@/lib/goose";
 import { avatarSprite, houseKey } from "@/lib/sprites";
-import { randomAffirmation } from "@/lib/affirmations";
 import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
 type FarmSummary = {
@@ -48,14 +47,14 @@ export default async function DashboardPage() {
   if (farm) {
     const withBlossom = await supabase
       .from("trees")
-      .select("growth_stage, fruits_ready_at, status, is_blossom")
+      .select("id, growth_stage, fruits_ready_at, status, is_blossom")
       .eq("farm_id", farm.farm_id)
       .neq("status", "vanished")
       .order("created_at");
     if (withBlossom.error) {
       const base = await supabase
         .from("trees")
-        .select("growth_stage, fruits_ready_at, status")
+        .select("id, growth_stage, fruits_ready_at, status")
         .eq("farm_id", farm.farm_id)
         .neq("status", "vanished")
         .order("created_at");
@@ -65,6 +64,8 @@ export default async function DashboardPage() {
     }
   }
   const trees = (treeRows ?? []).map((t) => ({
+    // the id lets the player act on ONE tree (water/fertilize/harvest it)
+    id: t.id as string,
     stage: t.growth_stage as number,
     readyAt: t.fruits_ready_at as string | null,
     isBlossom: (t.is_blossom as boolean | undefined) ?? false,
@@ -136,13 +137,9 @@ export default async function DashboardPage() {
   const { data: checklistRows } = await supabase.rpc("get_my_checklist");
   const checklist = (checklistRows ?? []) as ChecklistItem[];
 
-  const greetName = profile.display_name || profile.username;
   const visibility = VISIBILITY_OPTIONS.find(
     (v) => v.value === profile.leaderboard_visibility,
   );
-
-  // A fresh affirmation each visit (picked server-side so hydration matches).
-  const affirmation = randomAffirmation();
 
   // Admin-renamable house display names (overrides in game_settings).
   const { data: houseNameRows } = await supabase
@@ -164,8 +161,6 @@ export default async function DashboardPage() {
       )}
 
       <GameShell
-        greetName={greetName}
-        affirmation={affirmation}
         houseNames={houseNames}
         avatarSrc={avatarSprite(profile.avatar_config)}
         houseKey={houseKey(profile.avatar_config)}

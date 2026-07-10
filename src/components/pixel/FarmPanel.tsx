@@ -16,13 +16,16 @@ import { HarvestCinematic } from "./HarvestCinematic";
 // linter doesn't mistake calls in loops for hook calls.
 import {
   waterTrees,
-  harvestTrees,
   plantSeed,
   useFertilizer as applyFertilizer,
+  waterOneTree,
+  fertilizeOneTree,
+  harvestOneTree,
 } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
 import { Fruit } from "./Sprite";
 import { GooseSprite } from "./GooseSprite";
+import { MapHud } from "@/components/game/MapPanel";
 import { SPRITES } from "@/lib/sprites";
 
 const WATER_PER_PLANT = 10; // each plant drinks its own 10 water per stage
@@ -78,8 +81,15 @@ export function FarmPanel({
   const [fertBurst, setFertBurst] = useState<{ id: number; index: number } | null>(null);
   const [popId, setPopId] = useState(0);
   const [running, setRunning] = useState<"water" | "plant" | "fert" | null>(null);
+  /** "bulk" = an inventory item is applying to everything; "single" = one plant */
+  const [runScope, setRunScope] = useState<"bulk" | "single">("bulk");
   const [skipStage, setSkipStage] = useState(0); // 0 none, 1 fast (10x), 2 full
-  const [cinematic, setCinematic] = useState(false);
+  // the harvest close-up targets exactly one tree
+  const [cinematicIndex, setCinematicIndex] = useState<number | null>(null);
+  const [cinematicTree, setCinematicTree] = useState<string | null>(null);
+  const cinematic = cinematicIndex !== null;
+  /** slot index that just blossomed — drives the one-shot cherry sparkle */
+  const [cherryPop, setCherryPop] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [confirmItem, setConfirmItem] = useState<FarmItemKind | null>(null);
@@ -102,6 +112,29 @@ export function FarmPanel({
     // fresh server data arrived — drop the optimistic override
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOverride(null);
+  }, [trees]);
+
+  /** The cherry tree's moment: a sparkle ring + its own chime. */
+  function celebrateCherry(index: number) {
+    playSfx("cherry");
+    setCherryPop(index);
+    setTimeout(() => setCherryPop(null), 800);
+  }
+
+  // A blossom can also appear via the BULK water path (which can't say which
+  // tree rolled it). Notice new blossoms in the refreshed data and celebrate.
+  const prevBlossoms = useRef<number | null>(null);
+  useEffect(() => {
+    const blossoms = trees.filter((t) => t.isBlossom).length;
+    const prev = prevBlossoms.current;
+    prevBlossoms.current = blossoms;
+    if (prev !== null && blossoms > prev) {
+      const idx = trees.findIndex((t) => t.isBlossom);
+      playSfx("cherry");
+      setCherryPop(idx >= 0 ? idx : null);
+      const t = setTimeout(() => setCherryPop(null), 800);
+      return () => clearTimeout(t);
+    }
   }, [trees]);
 
   function iSleep(ms: number) {
@@ -148,7 +181,6 @@ export function FarmPanel({
   const bearingCount = trees.filter((t) => t.stage === 5).length;
   const fertCount = Math.min(fertilizer, waitingTargets.length);
   const plantable = Math.min(seeds, MAX_TREES - trees.length);
-  const canWater = wateringTargets.length > 0 && !busy;
   const canPlant = seeds > 0 && trees.length < MAX_TREES && !busy;
 
   /* -------------------------------------------------------------------------
@@ -248,6 +280,7 @@ export function FarmPanel({
     setMessage(null);
     setReadyBurst(null);
     resetSkip();
+    setRunScope("bulk");
     setRunning("water");
     playSfx("click");
 
@@ -312,6 +345,7 @@ export function FarmPanel({
   async function handlePlantAll(count: number) {
     setMessage(null);
     resetSkip();
+    setRunScope("bulk");
     setRunning("plant");
     playSfx("click");
 
@@ -353,6 +387,7 @@ export function FarmPanel({
   async function handleFertilizeAll(count: number) {
     setMessage(null);
     resetSkip();
+    setRunScope("bulk");
     setRunning("fert");
 
     const targets = waitingTargets.slice(0, count);
@@ -387,43 +422,148 @@ export function FarmPanel({
     startTransition(() => router.refresh());
   }
 
-  function handleHarvest() {
-    setMessage(null);
-    cinematicDone.current = false;
-    setCinematic(true);
-    setTimeout(() => playSfx("harvest"), 550);
-  }
-
+  /** Runs when the harvest close-up ends: harvests the ONE tree it showed. */
   function finishCinematic() {
     if (cinematicDone.current) return;
     cinematicDone.current = true;
-    setCinematic(false);
-    // optimistic: harvested trees reset to sprouts right away — no flash of
-    // still-fruity trees while the refresh lands
+    const index = cinematicIndex;
+    const treeId = cinematicTree;
+    setCinematicIndex(null);
+    setCinematicTree(null);
+    setSelectedSlot(null);
+    if (index === null || !treeId) return;
+
+    // optimistic: that tree resets to a sprout right away — no flash of a
+    // still-fruity tree while the refresh lands
     setOverride(
-      trees.map((t) =>
-        t.stage === 5 ? { stage: 1, readyAt: null, isBlossom: false } : t,
-      ),
+      trees.map((t, i) => (i === index ? { ...t, stage: 1, readyAt: null, isBlossom: false } : t)),
     );
     startTransition(async () => {
-      const result = await harvestTrees();
+      const result = await harvestOneTree(treeId);
       if (!result.ok) {
         playSfx("error");
         setOverride(null); // roll the optimistic reset back
-        setMessage("Couldn’t harvest just now — try again.");
-      } else if (result.trees_harvested > 0) {
+        setMessage(result.message);
+      } else {
         setMessage(
-          `Harvested ${result.trees_harvested} ${result.trees_harvested === 1 ? "tree" : "trees"} for ${result.fruits_earned} Fruits! 🎉`,
+          result.was_blossom
+            ? `🌸 Harvested the cherry blossom for ${result.fruits_earned} Fruits — double! 🎉`
+            : `Harvested for ${result.fruits_earned} Fruits! 🎉`,
         );
       }
       router.refresh();
     });
   }
 
+  /* -------------------------------------------------------------------------
+   * SINGLE-PLANT actions. Tapping a plant acts on THAT plant only — never on
+   * the rest of the plot. While the action animates, the little action button
+   * becomes a ⏭ Skip that just fast-forwards this one plant's animation.
+   * ---------------------------------------------------------------------- */
+
+  async function handleWaterOne(index: number, treeId: string) {
+    setMessage(null);
+    setReadyBurst(null);
+    resetSkip();
+    setRunScope("single");
+    setRunning("water");
+    playSfx("click");
+
+    await walkTo(farmerPosForTree(index));
+    if (!full.current) {
+      setFarmerAnim("tilt");
+      setActiveTree(index);
+      playSfx("water");
+    }
+    await iSleep(600);
+    setActiveTree(null);
+    void walkTo(null);
+
+    startTransition(async () => {
+      const result = await waterOneTree(treeId);
+      setFarmerAnim("idle");
+      setRunning(null);
+      setSelectedSlot(null);
+      resetSkip();
+      if (!result.ok) {
+        playSfx("error");
+        setMessage(result.message);
+      } else {
+        setOverride(
+          trees.map((t, i) =>
+            i === index
+              ? {
+                  ...t,
+                  stage: result.new_stage,
+                  readyAt:
+                    result.new_stage === 4
+                      ? new Date(Date.now() + 4 * 3_600_000).toISOString()
+                      : t.readyAt,
+                  isBlossom: result.became_blossom || t.isBlossom,
+                }
+              : t,
+          ),
+        );
+        if (result.new_stage === 4) setReadyBurst({ id: Date.now(), indexes: [index] });
+        if (result.became_blossom) celebrateCherry(index);
+        setMessage(
+          result.became_blossom
+            ? `🌸 A cherry blossom! It pays double when you harvest it. 💧 ${result.water_left} water left.`
+            : result.new_stage === 4
+              ? `Fully watered — fruit in 4 hours. 💧 ${result.water_left} water left.`
+              : `Watered! 💧 ${result.water_left} water left.`,
+        );
+      }
+      router.refresh();
+    });
+  }
+
+  function handleFertilizeOne(index: number, treeId: string) {
+    setMessage(null);
+    setRunScope("single");
+    setRunning("fert");
+    startTransition(async () => {
+      const result = await fertilizeOneTree(treeId);
+      setRunning(null);
+      setSelectedSlot(null);
+      if (!result.ok) {
+        playSfx("error");
+        setMessage(result.message);
+      } else {
+        playSfx("reveal");
+        setFertBurst({ id: Date.now(), index });
+        setOverride(trees.map((t, i) => (i === index ? { ...t, stage: 5, readyAt: null } : t)));
+        setMessage(
+          `✨ Fertilized! Harvest it when you’re ready. ${result.fertilizer_left} fertilizer left.`,
+        );
+      }
+      router.refresh();
+    });
+  }
+
+  function handleHarvestOne(index: number, treeId: string) {
+    setMessage(null);
+    cinematicDone.current = false;
+    setCinematicIndex(index);
+    setCinematicTree(treeId);
+    setTimeout(() => playSfx("harvest"), 550);
+  }
+
   /** Actions for the currently selected slot — only what's applicable now.
-   *  (These are targeted taps, so they run directly — no "all?" confirm.) */
+   *  Each acts on THIS plant alone. */
   function actionsForSlot(index: number): SlotAction[] {
+    // mid-action: the button turns into a Skip for this plant's animation
+    if (running === "water" && selectedSlot === index) {
+      return [
+        {
+          icon: <span aria-hidden>{skipStage === 0 ? "⏭" : "⏭⏭"}</span>,
+          label: "Skip this animation",
+          onClick: triggerSkip,
+        },
+      ];
+    }
     if (busy) return [];
+
     const acts: SlotAction[] = [];
     const tree = index < trees.length ? trees[index] : null;
 
@@ -432,44 +572,34 @@ export function FarmPanel({
         acts.push({
           icon: <span aria-hidden>🌱</span>,
           label: "Plant a seed here",
-          onClick: () => {
-            setSelectedSlot(null);
-            void handlePlantAll(1);
-          },
+          onClick: () => void handlePlantAll(1),
         });
       }
       return acts;
     }
+    if (!tree.id) return acts; // pre-migration data: no single-tree actions
 
-    if (tree.stage < 4 && canWater) {
+    if (tree.stage < 4 && water >= WATER_PER_PLANT) {
       acts.push({
         icon: <span aria-hidden>💧</span>,
-        label: "Water your plants",
-        onClick: () => {
-          setSelectedSlot(null);
-          void handleWater();
-        },
+        label: "Water this plant",
+        onClick: () => void handleWaterOne(index, tree.id!),
       });
     }
+    // Fertilizer only ripens a WAITING tree — never a harvest-ready one.
     const waiting = tree.stage === 4 && tree.readyAt && new Date(tree.readyAt).getTime() > now;
     if (waiting && fertilizer > 0) {
       acts.push({
         icon: <span aria-hidden>✨</span>,
-        label: "Use fertilizer (ripens the oldest waiting tree)",
-        onClick: () => {
-          setSelectedSlot(null);
-          void handleFertilizeAll(1);
-        },
+        label: "Fertilize this plant (ripens it now)",
+        onClick: () => handleFertilizeOne(index, tree.id!),
       });
     }
     if (tree.stage === 5) {
       acts.push({
         icon: <span aria-hidden>🧺</span>,
-        label: "Harvest ripe fruit",
-        onClick: () => {
-          setSelectedSlot(null);
-          handleHarvest();
-        },
+        label: "Harvest this tree",
+        onClick: () => handleHarvestOne(index, tree.id!),
       });
     }
     return acts;
@@ -477,14 +607,19 @@ export function FarmPanel({
 
   /* ---- item button rendering -------------------------------------------- */
 
+  // Wooden plate from the UI sprite sheet; the confirm/skip states override
+  // its tint via inline styles so the label stays legible in every state.
   const itemBtn =
-    "flex items-center gap-1.5 rounded border-2 border-[var(--rf-ink)] px-2 py-1 text-sm font-extrabold active:translate-y-px disabled:cursor-not-allowed disabled:opacity-45";
+    "ui-btn-plate flex items-center gap-1.5 px-2 py-1 text-sm font-extrabold disabled:cursor-not-allowed";
 
   function itemState(kind: FarmItemKind): "skip" | "confirm" | "idle" {
+    // Only a BULK run turns the inventory button into its own skip control;
+    // a single-plant action's skip lives on that plant's action button.
     if (
-      (running === "water" && kind === "water") ||
-      (running === "plant" && kind === "seed") ||
-      (running === "fert" && kind === "fert")
+      runScope === "bulk" &&
+      ((running === "water" && kind === "water") ||
+        (running === "plant" && kind === "seed") ||
+        (running === "fert" && kind === "fert"))
     ) {
       return "skip";
     }
@@ -514,13 +649,15 @@ export function FarmPanel({
     );
   }
 
+  /** Tint the wooden plate per state — never swap its background, or the
+   *  9-slice frame would be painted over. Text stays cream on all three. */
   function itemStyle(kind: FarmItemKind): React.CSSProperties {
     const state = itemState(kind);
-    return {
-      background:
-        state === "confirm" ? "var(--rf-gold)" : state === "skip" ? "var(--rf-ink)" : "var(--rf-cream)",
-      color: state === "skip" ? "var(--rf-cream)" : "var(--rf-ink)",
-    };
+    if (state === "confirm") {
+      return { filter: "brightness(1.3) saturate(1.4)", outline: "2px solid var(--rf-gold)" };
+    }
+    if (state === "skip") return { filter: "brightness(0.62)" };
+    return {};
   }
 
   const seedState = itemState("seed");
@@ -580,22 +717,16 @@ export function FarmPanel({
           // eslint-disable-next-line react-hooks/refs
           slotActions={selectedSlot !== null ? actionsForSlot(selectedSlot) : []}
           canSelectEmpty={canPlant}
+          cherryPop={cherryPop}
         />
-        {cinematic &&
-          (() => {
-            // close-up shows the FIRST bearing tree's fruit (harvest processes
-            // trees oldest-first, so this is the one being shaken)
-            const firstBearing = trees.findIndex((t) => t.stage === 5);
-            const target = firstBearing >= 0 ? trees[firstBearing] : null;
-            return (
-              <HarvestCinematic
-                onDone={finishCinematic}
-                fruitIndex={firstBearing >= 0 ? firstBearing : 0}
-                isBlossom={target?.isBlossom ?? false}
-                farmerSrc={avatarSrc}
-              />
-            );
-          })()}
+        {cinematicIndex !== null && (
+          <HarvestCinematic
+            onDone={finishCinematic}
+            fruitIndex={cinematicIndex}
+            isBlossom={trees[cinematicIndex]?.isBlossom ?? false}
+            farmerSrc={avatarSrc}
+          />
+        )}
 
         {/* The harvest close-up covers the whole farm, so its skip lives on
             the cinematic itself (the menu button that started it is gone). */}
@@ -630,7 +761,15 @@ export function FarmPanel({
           {notificationSlot}
         </div>
 
-        {/* Plant Seed callout — bottom-right, only when Seeds are available.
+        {/* Bottom-right HUD: the map button (always) with the Plant Seed
+            callout stacked above it when Seeds are available.
+            z-50 (above the z-40 notification HUD) because the map MODAL is
+            rendered inside this wrapper's stacking context. */}
+        <div className="absolute bottom-2 right-2 z-50 flex flex-col items-end gap-1.5">
+          <MapHud />
+        </div>
+
+        {/* Plant Seed callout — above the map button.
             Mirrors the seed item button: confirm first, skip while running. */}
         {seeds > 0 && !cinematic && (
           <button
@@ -638,7 +777,7 @@ export function FarmPanel({
             ref={calloutRef}
             onClick={() => onItemClick("seed")}
             disabled={itemDisabled("seed", seeds < 1)}
-            className="absolute bottom-2 right-2 z-30 flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-wide shadow-[2px_2px_0_rgba(58,42,26,0.25)] active:translate-y-px disabled:opacity-50"
+            className="absolute bottom-12 right-2 z-30 flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-wide shadow-[2px_2px_0_rgba(58,42,26,0.25)] active:translate-y-px disabled:opacity-50"
             style={{
               background:
                 seedState === "confirm"

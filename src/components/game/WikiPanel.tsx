@@ -71,7 +71,7 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
       {/* Phone: a CONTAINED sheet (inset on every side — never pinned to the
           viewport top, nothing can clip off the right edge). Desktop: the
           same centered game window as before. */}
-      <div className="pixel-panel absolute inset-x-2 bottom-20 top-16 flex flex-col rounded-lg p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[82vh] sm:w-[min(94vw,46rem)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+      <div className="ui-frame absolute inset-x-2 bottom-20 top-16 flex flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[82vh] sm:w-[min(94vw,46rem)] sm:-translate-x-1/2 sm:-translate-y-1/2">
         <div
           className="flex items-center justify-between px-4 py-2"
           style={{ borderBottom: "2px solid var(--rf-ink)" }}

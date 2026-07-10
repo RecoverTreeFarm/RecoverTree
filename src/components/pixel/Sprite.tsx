@@ -5,8 +5,8 @@ import {
   TREE_STAGE_SIZE,
   treeFrameForStage,
   fruitSprite,
+  orchardFruitSprite,
   DEFAULT_FRUIT_INDEX,
-  CHERRY_FRUIT_INDEX,
 } from "@/lib/sprites";
 
 /**
@@ -83,14 +83,17 @@ export function Tree({
   const effScale = scale * (TREE_STAGE_SIZE[clamped] ?? 1);
   const fruitPx = 6 * effScale; // fruit render size
   const pink = bearing && isBlossom;
-  // Pink blossom trees ALWAYS grow cherries; normal trees keep their
-  // per-slot fruit.
-  const effectiveFruit = isBlossom ? CHERRY_FRUIT_INDEX : fruitIndex;
 
   return (
     <div
       role="img"
-      aria-label={pink ? "blossom tree bearing fruit" : bearing ? "tree bearing fruit" : "tree"}
+      aria-label={
+        pink
+          ? "cherry blossom tree bearing cherries"
+          : bearing
+            ? "tree bearing fruit"
+            : "tree"
+      }
       className={`relative pixelated ${className}`}
       style={{
         width: frameWidth * effScale,
@@ -104,12 +107,16 @@ export function Tree({
         imageRendering: "pixelated",
       }}
     >
+      {/* An ordinary bearing tree gets fruit dots from the cherry-FREE pool.
+          The cherry-blossom sprite already has its cherries painted on, so it
+          gets no overlay — cherries can only ever come from that tree. */}
       {bearing &&
+        !isBlossom &&
         FRUIT_SPOTS.map(([x, y], i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={i}
-            src={fruitSprite(effectiveFruit)}
+            src={orchardFruitSprite(fruitIndex)}
             alt=""
             className="pixelated absolute"
             style={{ left: x * effScale, top: y * effScale, width: fruitPx, height: fruitPx }}
@@ -129,17 +136,20 @@ export function Fruit({
   index = DEFAULT_FRUIT_INDEX,
   title,
   className = "",
+  orchard = false,
 }: {
   scale?: number;
   index?: number;
   title?: string;
   className?: string;
+  /** pick from the cherry-free pool (fruit growing on an ordinary tree) */
+  orchard?: boolean;
 }) {
   const size = Math.round(9 * scale);
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={fruitSprite(index)}
+      src={orchard ? orchardFruitSprite(index) : fruitSprite(index)}
       alt={title ?? "fruit"}
       title={title}
       width={size}
@@ -148,4 +158,9 @@ export function Fruit({
       style={{ width: size, height: size }}
     />
   );
+}
+
+/** The cherry — reserved for the cherry-blossom tree (and the Fruit currency). */
+export function CherryFruit({ scale = 2, className = "" }: { scale?: number; className?: string }) {
+  return <Fruit scale={scale} index={DEFAULT_FRUIT_INDEX} className={className} />;
 }

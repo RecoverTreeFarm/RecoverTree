@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SPRITES, CHERRY_FRUIT_INDEX } from "@/lib/sprites";
-import { Sprite, Tree, Fruit } from "./Sprite";
+import { SPRITES } from "@/lib/sprites";
+import { Sprite, Tree, Fruit, CherryFruit } from "./Sprite";
 
 /**
  * A short "cinematic" close-up: the farmer stands beside one bearing tree,
@@ -73,13 +73,15 @@ export function HarvestCinematic({
           <div className="rf-shake">
             <Tree stage={treeStage} scale={4.5} fruitIndex={fruitIndex} isBlossom={isBlossom} />
           </div>
+          {/* Falling fruit matches the tree: cherries only from the cherry
+              blossom tree, otherwise this tree's own (cherry-free) fruit. */}
           {drops.map((d, i) => (
             <span
               key={i}
               className="rf-fruit-fall absolute"
               style={{ left: d.left, top: 24, animationDelay: `${d.delay}s` }}
             >
-              <Fruit scale={2} index={isBlossom ? CHERRY_FRUIT_INDEX : fruitIndex} />
+              {isBlossom ? <CherryFruit scale={2} /> : <Fruit scale={2} index={fruitIndex} orchard />}
             </span>
           ))}
         </div>

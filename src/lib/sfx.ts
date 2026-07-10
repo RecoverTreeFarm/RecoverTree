@@ -4,6 +4,13 @@
  * Client-only — every function no-ops during SSR.
  */
 
+/**
+ * TODO(cherry-sfx): the cherry blossom deserves its own chime. Drop an
+ * `/public/sfx/cherry.ogg` in and change this one constant — nothing else
+ * needs to move. Until then it borrows the sparkly "reveal" cue.
+ */
+const CHERRY_SFX = "/sfx/reveal.ogg";
+
 const SOUNDS = {
   water: "/sfx/water.ogg",
   harvest: "/sfx/harvest.ogg",
@@ -14,6 +21,7 @@ const SOUNDS = {
   charge: "/sfx/charge.ogg", // podium rise / counter count-up
   boom: "/sfx/boom.ogg", // fireworks
   reveal: "/sfx/reveal.ogg", // MVP silhouette reveal
+  cherry: CHERRY_SFX, // a cherry blossom tree appeared
 } as const;
 
 export type SfxName = keyof typeof SOUNDS;

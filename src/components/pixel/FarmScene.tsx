@@ -6,11 +6,13 @@ import { ParticleBurst } from "./ParticleBurst";
 import { TreeTimer } from "./TreeTimer";
 
 export type TreeView = {
+  /** database id — lets the player act on this ONE tree */
+  id?: string;
   /** 1..4 growth; 5 = bearing fruit */
   stage: number;
   /** set while fully watered and waiting on the 4-hour fruit timer */
   readyAt?: string | null;
-  /** a bearing tree that rolled the rare pink blossom (2x fruit on harvest) */
+  /** a bearing tree that rolled the rare cherry blossom (2x fruit on harvest) */
   isBlossom?: boolean;
 };
 
@@ -45,6 +47,37 @@ export function farmerPosForTree(i: number): FarmerPos {
   const x = PLOT_LEFT + PLOT_WIDTH * ((col + 0.5) / GRID_COLS) - 6;
   const bottom = PLOT_BOTTOM + PLOT_HEIGHT * (rowFromBottom / GRID_ROWS) + 2;
   return { left: Math.min(86, Math.max(6, x)), bottom: Math.min(58, bottom) };
+}
+
+/**
+ * Drifting cherry-blossom petals — the cherry tree's signature effect. Pure
+ * CSS (see .rf-petal in globals.css); no dependency, no sprite sheet.
+ */
+function CherryPetals({ compact = false }: { compact?: boolean }) {
+  const petals = [
+    { left: "18%", delay: "0s", drift: "10px" },
+    { left: "38%", delay: "0.7s", drift: "-8px" },
+    { left: "58%", delay: "1.4s", drift: "12px" },
+    { left: "72%", delay: "0.35s", drift: "-6px" },
+    { left: "48%", delay: "2.1s", drift: "6px" },
+  ];
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: compact ? 2 : 6 }}>
+      {petals.map((p, i) => (
+        <span
+          key={i}
+          className="rf-petal"
+          style={
+            {
+              left: p.left,
+              animationDelay: p.delay,
+              "--drift": p.drift,
+            } as React.CSSProperties & Record<string, string>
+          }
+        />
+      ))}
+    </span>
+  );
 }
 
 /** A crate of harvested fruit beside the house (1 per 40 Fruits). Each crate
@@ -95,6 +128,7 @@ export function FarmScene({
   slotActions = [],
   canSelectEmpty = false,
   farmerSrc = SPRITES.farmer,
+  cherryPop = null,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -118,6 +152,8 @@ export function FarmScene({
   canSelectEmpty?: boolean;
   /** the player's chosen farmer sprite (defaults to the stock farmer) */
   farmerSrc?: string;
+  /** slot index that just blossomed — plays the one-shot cherry sparkle */
+  cherryPop?: number | null;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
@@ -268,7 +304,13 @@ export function FarmScene({
                 <button
                   type="button"
                   aria-label={
-                    tree.stage === 5 ? "tree ready to harvest" : waiting ? "tree ripening" : "growing tree"
+                    tree.stage === 5 && tree.isBlossom
+                      ? "cherry blossom tree ready to harvest"
+                      : tree.stage === 5
+                        ? "tree ready to harvest"
+                        : waiting
+                          ? "tree ripening"
+                          : "growing tree"
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -285,7 +327,18 @@ export function FarmScene({
                     fruitIndex={bottomIndex}
                     isBlossom={tree.isBlossom}
                   />
+                  {/* the cherry tree's signature drifting petals */}
+                  {tree.stage === 5 && tree.isBlossom && <CherryPetals compact={compact} />}
                 </button>
+
+                {/* one-shot sparkle ring the moment a cherry tree blossoms */}
+                {cherryPop === bottomIndex && (
+                  <span
+                    aria-hidden
+                    className="rf-cherry-pop"
+                    style={{ left: "50%", top: "45%", width: compact ? 40 : 56, height: compact ? 40 : 56 }}
+                  />
+                )}
 
                 {isSelected && slotActions.length > 0 && (
                   <ActionMenu actions={slotActions} below={menuBelow} />

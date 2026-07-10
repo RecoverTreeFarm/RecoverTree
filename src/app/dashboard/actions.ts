@@ -28,6 +28,65 @@ export async function harvestTrees() {
   return { ok: true as const, ...row };
 }
 
+/* ---------------------------------------------------------------------------
+ * SINGLE-TREE actions — used when the player taps one plant. Each RPC verifies
+ * the tree belongs to the caller's active-season farm. The bulk versions above
+ * stay the "apply to everything" path (top inventory bar + backpack).
+ * ------------------------------------------------------------------------- */
+
+export async function waterOneTree(treeId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("water_one_tree", { p_tree: treeId });
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("NOT_ENOUGH_WATER")) {
+      return { ok: false as const, message: "Not enough water — attend a meeting to earn more. 💧" };
+    }
+    if (m.includes("TREE_NOT_THIRSTY")) {
+      return { ok: false as const, message: "That plant doesn’t need water right now." };
+    }
+    return { ok: false as const, message: "Couldn’t water that plant — try again." };
+  }
+  const row = (data as { water_left: number; new_stage: number; became_blossom: boolean }[])[0];
+  return { ok: true as const, ...row };
+}
+
+export async function fertilizeOneTree(treeId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("fertilize_one_tree", { p_tree: treeId });
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("NO_FERTILIZER")) {
+      return { ok: false as const, message: "No fertilizer left — win medals and badges to earn more!" };
+    }
+    if (m.includes("NO_WAITING_TREE")) {
+      return {
+        ok: false as const,
+        message: "Fertilizer only works on a fully-watered tree that’s waiting to fruit.",
+      };
+    }
+    return { ok: false as const, message: "Couldn’t use fertilizer just now — try again." };
+  }
+  const row = (data as { fertilizer_left: number }[])[0];
+  return { ok: true as const, ...row };
+}
+
+export async function harvestOneTree(treeId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("harvest_one_tree", { p_tree: treeId });
+  revalidatePath("/dashboard");
+  if (error) {
+    if (error.message.includes("TREE_NOT_READY")) {
+      return { ok: false as const, message: "That tree isn’t ready to harvest yet." };
+    }
+    return { ok: false as const, message: "Couldn’t harvest just now — try again." };
+  }
+  const row = (data as { trees_harvested: number; fruits_earned: number; was_blossom: boolean }[])[0];
+  return { ok: true as const, ...row };
+}
+
 export async function sendSeed(receiverUserId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("give_seed", {
