@@ -137,6 +137,24 @@ function WikiPanel({ onClose }: { onClose: () => void }) {
                     ))}
                   </ul>
                 )}
+                {s.sprites && (
+                  <div className="mt-2 flex flex-wrap items-end gap-3 rounded border-2 border-dashed border-[var(--rf-ink)]/25 bg-[var(--rf-cream)] p-2">
+                    {s.sprites.map((sp, j) => (
+                      <figure key={j} className="flex flex-col items-center gap-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={sp.src}
+                          alt={sp.label}
+                          className="pixelated"
+                          style={{ height: sp.height ?? 40, width: "auto" }}
+                        />
+                        <figcaption className="text-[9px] font-bold uppercase tracking-tight text-[var(--rf-ink-soft)]">
+                          {sp.label}
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {chapter.id === "report-bug" && <BugReportForm />}

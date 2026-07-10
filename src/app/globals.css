@@ -451,3 +451,28 @@ body {
   animation: rf-drop-in 0.7s ease-in forwards;
   pointer-events: none;
 }
+
+/* ---- Reward banner (matches the travel cinematic's destination plate) ---- */
+@keyframes rf-reward-banner-in {
+  0%   { transform: translateY(14px); opacity: 0; }
+  12%  { transform: translateY(0);    opacity: 1; }
+  85%  { transform: translateY(0);    opacity: 1; }
+  100% { transform: translateY(-8px); opacity: 0; }
+}
+.rf-reward-banner { animation: rf-reward-banner-in 3.4s ease-out forwards; }
+
+/* ---- Butterflies: drift across the SCENE while bobbing (--flutter) ------- */
+/* `left` is a % of the containing scene, so they never escape the frame. */
+@keyframes rf-butterfly-drift {
+  0%   { left: -8%;  transform: translateY(0); }
+  25%  { left: 28%;  transform: translateY(var(--flutter, 20px)); }
+  50%  { left: 55%;  transform: translateY(0); }
+  75%  { left: 82%;  transform: translateY(var(--flutter, 20px)); }
+  100% { left: 108%; transform: translateY(0); }
+}
+.rf-butterfly {
+  animation-name: rf-butterfly-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  z-index: 4;
+}

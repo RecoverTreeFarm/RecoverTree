@@ -308,10 +308,12 @@ export const SETTING_DEFS: SettingDef[] = [
     min: 5,
     help: "How much Water one purchase grants. Must be a multiple of 5 (the app-wide water rule).",
   },
-  { key: "store_water_price", label: "Water bundle price (coins)", kind: "number", default: 10, min: 1 },
-  { key: "store_fertilizer_price", label: "Fertilizer price (coins)", kind: "number", default: 30, min: 1 },
-  { key: "store_seed_price", label: "Seed price (coins)", kind: "number", default: 50, min: 1 },
-  { key: "store_goose_entry_price", label: "Xtra Goose Entry price (coins)", kind: "number", default: 40, min: 1 },
+  // Prices are 50% above the original launch numbers (10/30/50/40) so Coins
+  // stay meaningful now that several mechanics pay them out.
+  { key: "store_water_price", label: "Water bundle price (coins)", kind: "number", default: 15, min: 1 },
+  { key: "store_fertilizer_price", label: "Fertilizer price (coins)", kind: "number", default: 45, min: 1 },
+  { key: "store_seed_price", label: "Seed price (coins)", kind: "number", default: 75, min: 1 },
+  { key: "store_goose_entry_price", label: "Xtra Goose Entry price (coins)", kind: "number", default: 60, min: 1 },
   {
     key: "store_sale_enabled",
     label: "Daily sale enabled",
@@ -338,6 +340,13 @@ export const SETTING_DEFS: SettingDef[] = [
     kind: "number",
     default: 5,
     help: "Any reward that grants Seeds (Goose Egg, receiving the daily Seed) also grants this many Coins.",
+  },
+  {
+    key: "reward_coin_bonus",
+    label: "Coins paid with EVERY reward",
+    kind: "number",
+    default: 5,
+    help: "A flat coin bonus added to every reward (meetings, KudoSeeds, basket, goose egg…). Rewards with their own coin amount — ceremony medals, garden bundles, checklist goals — use theirs instead and never stack this.",
   },
   {
     key: "coin_bonus_fertilizer",
@@ -445,7 +454,7 @@ export const SETTING_SECTIONS: SettingSection[] = [
       "🪙 Coins are a spendable currency for future shop goodies. They can be awarded directly (unlike Fruits) but never count toward the leaderboard — that still ranks harvested Fruits only.",
     groups: [
       { title: "Ceremony medals", keys: ["medal_coin_gold", "medal_coin_silver", "medal_coin_bronze"] },
-      { title: "Automatic bonuses", keys: ["coin_bonus_seed", "coin_bonus_fertilizer"] },
+      { title: "Automatic bonuses", keys: ["reward_coin_bonus", "coin_bonus_seed", "coin_bonus_fertilizer"] },
     ],
   },
   {

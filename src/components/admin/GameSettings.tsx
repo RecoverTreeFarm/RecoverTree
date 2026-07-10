@@ -195,13 +195,15 @@ function ChecklistGoalRow({ g }: { g: AdminChecklistGoal }) {
   const [pending, startTransition] = useTransition();
   const [water, setWater] = useState(g.water_reward);
   const [fert, setFert] = useState(g.fertilizer_reward);
+  const [coins, setCoins] = useState(g.coin_reward);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const dirty = water !== g.water_reward || fert !== g.fertilizer_reward;
+  const dirty =
+    water !== g.water_reward || fert !== g.fertilizer_reward || coins !== g.coin_reward;
 
   function save() {
     setMsg(null);
     startTransition(async () => {
-      const r = await updateChecklistReward(g.id, water, fert);
+      const r = await updateChecklistReward(g.id, water, fert, coins);
       if (!r.ok) setMsg({ ok: false, text: r.message });
       else {
         setMsg({ ok: true, text: "Saved." });
@@ -223,12 +225,19 @@ function ChecklistGoalRow({ g }: { g: AdminChecklistGoal }) {
       </div>
       <div className="flex items-center gap-1.5">
         <label className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">💧</label>
-        <input type="number" min={0} value={String(water)} disabled={pending}
-          onChange={(e) => setWater(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        <input type="number" min={0} step={5} value={String(water)} disabled={pending}
+          onChange={(e) => {
+            const n = Math.max(0, Math.floor(Number(e.target.value) || 0));
+            setWater(n - (n % 5));
+          }}
           className={`${inputClass} w-16`} />
-        <label className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">🌰</label>
+        <label className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">🧴</label>
         <input type="number" min={0} value={String(fert)} disabled={pending}
           onChange={(e) => setFert(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+          className={`${inputClass} w-16`} />
+        <label className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">🪙</label>
+        <input type="number" min={0} value={String(coins)} disabled={pending}
+          onChange={(e) => setCoins(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
           className={`${inputClass} w-16`} />
         <button type="button" disabled={!dirty || pending} onClick={save}
           className="pixel-btn pixel-btn--blue text-[11px] disabled:opacity-50">
@@ -381,8 +390,9 @@ export function GameSettings({
       <Panel>
         <h2 className="pixel-heading text-lg">Checklist goal rewards</h2>
         <p className="mb-2 text-[11px] text-[var(--rf-ink-soft)]">
-          Each monthly goal grants 💧 water and 🌰 fertilizer when completed.
-          Edits apply the next time a goal is completed.
+          Each monthly goal grants 💧 water, 🧴 fertilizer, and 🪙 coins when
+          completed. Water must be a multiple of 5. Edits apply the next time a
+          goal is completed.
         </p>
         <div>
           {goals.map((g) => (

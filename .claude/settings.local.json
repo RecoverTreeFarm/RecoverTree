@@ -16,7 +16,18 @@
       "Bash(cp \"farming sprites/Characters/\"*.png public/sprites/characters/)",
       "Bash(cp \"farming sprites/Ground/\"*.png public/sprites/ground/)",
       "Bash(cp \"farming sprites/Plants/\"*.png public/sprites/plants/)",
-      "Bash(cp \"farming sprites/Misc/\"*.png public/sprites/misc/)"
+      "Bash(cp \"farming sprites/Misc/\"*.png public/sprites/misc/)",
+      "Bash(sips -g pixelWidth -g pixelHeight public/sprites/plants/tree_cherry.png public/sprites/plants/tree_green.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight \"CozySpriteBundle/nature/TreeCropped.png\")",
+      "mcp__0de15b74-90e6-4483-9820-1dd33e14768e__execute_sql",
+      "mcp__0de15b74-90e6-4483-9820-1dd33e14768e__apply_migration",
+      "Bash(sips -g pixelWidth -g pixelHeight public/sprites/plants/tree_community.png)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(sips -g pixelWidth -g pixelHeight CozySpriteBundle/nature/Butterfly.png)"
     ]
   }
 }

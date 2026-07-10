@@ -166,6 +166,12 @@ export default async function DashboardPage() {
   const { data: lbRows } = await supabase.rpc("get_leaderboard");
   const leaderboard = ((lbRows ?? []) as LeaderboardRow[]).slice(0, 8);
 
+  // KudoSeeds sent to me recently, with their notes.
+  const { data: kudoData, error: kudoErr } = await supabase.rpc("get_my_kudoseeds");
+  const kudoseeds = kudoErr
+    ? []
+    : ((kudoData ?? []) as { from: string; message: string | null; given_on_date: string }[]);
+
   // Monthly checklist (recompute/award happens in ensure_my_farm above).
   const { data: checklistRows } = await supabase.rpc("get_my_checklist");
   const checklist = (checklistRows ?? []) as ChecklistItem[];
@@ -212,6 +218,7 @@ export default async function DashboardPage() {
         members={members}
         sentToday={Boolean(todaySeed)}
         sentToName={sentToName}
+        kudoseeds={kudoseeds}
         basket={basket}
         goose={goose}
         garden={garden}

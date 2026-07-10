@@ -17,6 +17,7 @@ import { StoreScene } from "./GeneralStore";
 import { TravelCinematic } from "./TravelCinematic";
 import { MapModalBody } from "./MapPanel";
 import { CeremonyInvitePopup } from "./CeremonyInvite";
+import { RewardBannerHost } from "./RewardBanner";
 import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
 import type { StoreState } from "@/lib/store";
@@ -65,6 +66,8 @@ export type GameShellProps = {
   members: SeedMember[];
   sentToday: boolean;
   sentToName: string | null;
+  /** KudoSeeds sent TO me lately, with their encouraging notes */
+  kudoseeds: { from: string; message: string | null; given_on_date: string }[];
   basket: BasketState | null;
   goose: GooseState | null;
   garden: GardenState | null;
@@ -119,6 +122,34 @@ export function GameShell(props: GameShellProps) {
     setSeedNotifId(`seeds-${new Date().toISOString().slice(0, 10)}-c${cycle}`);
   }, [props.farm.seeds]);
 
+  // A "!" sits on the Goals button whenever a goal has been completed that
+  // the player hasn't looked at yet. Opening the Goals window marks the
+  // current set of completed goals as seen (persisted per browser).
+  const completedGoalKeys = props.checklist
+    .filter((g) => g.completed)
+    .map((g) => g.key)
+    .sort()
+    .join(",");
+  const [seenGoalKeys, setSeenGoalKeys] = useState<string>("");
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSeenGoalKeys(window.localStorage.getItem("rf-goals-seen") ?? "");
+    } catch {
+      /* private mode — the badge just shows until the window is opened */
+    }
+  }, []);
+  const hasNewGoal = completedGoalKeys.length > 0 && completedGoalKeys !== seenGoalKeys;
+
+  function markGoalsSeen() {
+    setSeenGoalKeys(completedGoalKeys);
+    try {
+      window.localStorage.setItem("rf-goals-seen", completedGoalKeys);
+    } catch {
+      /* no-op */
+    }
+  }
+
   // Backpack item click → close the window and run the confirmed action on
   // the farm (which then shows its in-place skip control).
   function useItemFromBackpack(kind: FarmItemKind) {
@@ -142,7 +173,7 @@ export function GameShell(props: GameShellProps) {
     { id: "code", label: "Code", icon: <span aria-hidden className="text-xl">🔢</span> },
     {
       id: "seed",
-      label: "Seed",
+      label: "Kudos",
       icon: <img src="/sprites/icons/seed_packet.png" alt="" className="pixelated h-7 w-7" />,
     },
     // Basket and Goose left the menu — they now appear ON the farm during
@@ -164,7 +195,7 @@ export function GameShell(props: GameShellProps) {
   const windowTitle: Record<PanelId, string> = {
     inventory: "Your items",
     code: "Enter meeting code",
-    seed: "Today’s Seed",
+    seed: "Today’s KudoSeed",
     map: "🗺️ World map",
     basket: "Traveling Basket",
     goose: "Golden Goose",
@@ -252,6 +283,7 @@ export function GameShell(props: GameShellProps) {
         ) : location === "store" ? (
           <StoreScene
             state={props.store}
+            avatarSrc={props.avatarSrc}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
@@ -377,10 +409,19 @@ export function GameShell(props: GameShellProps) {
                     else setOpen(null);
                     return;
                   }
+                  if (m.id === "checklist") markGoalsSeen();
                   setOpen(active ? null : (m.id as PanelId));
                 }}
-                className="ui-btn-plate flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 px-0.5 py-1"
+                className="ui-btn-plate relative flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5 px-0.5 py-1"
               >
+                {m.id === "checklist" && hasNewGoal && (
+                  <span
+                    aria-label="A goal was completed"
+                    className="rf-throb absolute right-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-[var(--rf-ink)] bg-[var(--rf-gold)] text-[9px] font-black leading-none text-[var(--rf-ink)]"
+                  >
+                    !
+                  </span>
+                )}
                 <span className="flex h-8 items-end justify-center">{m.icon}</span>
                 <span className="text-[9px] font-extrabold uppercase tracking-wide">
                   {m.label}
@@ -390,6 +431,9 @@ export function GameShell(props: GameShellProps) {
           })}
         </div>
       </nav>
+
+      {/* "You received …" banners, styled like the travel plate */}
+      <RewardBannerHost />
     </div>
   );
 }
@@ -409,8 +453,17 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
       id: seedNotifId,
       text:
         props.farm.seeds === 1
-          ? "You received a Seed — it’s ready to plant. 🌰"
-          : `You have ${props.farm.seeds} Seeds ready to plant. 🌰`,
+          ? "You received a KudoSeed — it’s ready to plant. 🌰"
+          : `You have ${props.farm.seeds} KudoSeeds ready to plant. 🌰`,
+    });
+  }
+
+  // A KudoSeed with a note is worth surfacing on its own.
+  for (const k of props.kudoseeds) {
+    if (!k.message) continue;
+    out.push({
+      id: `kudo-${k.given_on_date}-${k.from}`,
+      text: `${k.from} sent you a KudoSeed: “${k.message}”`,
     });
   }
 

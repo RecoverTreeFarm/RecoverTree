@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { SPRITES } from "@/lib/sprites";
 import { playSfx } from "@/lib/sfx";
+import { playMusic, stopMusic } from "@/lib/music";
+import { Butterflies } from "@/components/pixel/Butterflies";
 
 const TRAVEL_MS = 2300;
 
@@ -62,8 +64,13 @@ export function TravelCinematic({
 }) {
   useEffect(() => {
     playSfx("charge");
+    // walking music for exactly as long as the walk lasts
+    playMusic("walking");
     const t = setTimeout(onDone, TRAVEL_MS);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      stopMusic();
+    };
     // onDone is stable for the lifetime of one trip — re-running would cut it short
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,6 +110,9 @@ export function TravelCinematic({
           <NearHalf />
         </div>
       </div>
+
+      {/* butterflies keep the walker company */}
+      <Butterflies count={3} />
 
       {/* the traveler */}
       <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "calc(62% - 22px)" }}>

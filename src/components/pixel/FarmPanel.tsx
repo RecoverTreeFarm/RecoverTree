@@ -30,6 +30,7 @@ import { playSfx } from "@/lib/sfx";
 import { Fruit } from "./Sprite";
 import { GooseSprite } from "./GooseSprite";
 import { SPRITES } from "@/lib/sprites";
+import { ICON } from "@/lib/icons";
 
 const WATER_PER_PLANT = 10; // each plant drinks its own 10 water per stage
 
@@ -502,7 +503,7 @@ export function FarmPanel({
     resetSkip();
     if (used > 0) {
       setMessage(
-        `✨ Fertilized ${used} ${used === 1 ? "tree" : "trees"} — harvest when you’re ready. ${left} fertilizer left.`,
+        `🧴 Fertilized ${used} ${used === 1 ? "tree" : "trees"} — harvest when you’re ready. ${left} fertilizer left.`,
       );
     }
     startTransition(() => router.refresh());
@@ -633,7 +634,7 @@ export function FarmPanel({
         setFertBurst({ id: burstSeq.current, index });
         setOverride(trees.map((t, i) => (i === index ? { ...t, stage: 5, readyAt: null } : t)));
         setMessage(
-          `✨ Fertilized! Harvest it when you’re ready. ${result.fertilizer_left} fertilizer left.`,
+          `🧴 Fertilized! Harvest it when you’re ready. ${result.fertilizer_left} fertilizer left.`,
         );
       }
       router.refresh();
@@ -690,7 +691,7 @@ export function FarmPanel({
     const waiting = tree.stage === 4 && tree.readyAt && new Date(tree.readyAt).getTime() > now;
     if (waiting && fertilizer > 0) {
       acts.push({
-        icon: <span aria-hidden>✨</span>,
+        icon: <span aria-hidden>{ICON.fertilizer}</span>,
         label: "Fertilize this plant (ripens it now)",
         onClick: () => handleFertilizeOne(index, tree.id!),
       });
@@ -740,7 +741,7 @@ export function FarmPanel({
       return <>Plant all? ({plantable})</>;
     }
     if (kind === "water") return <><span aria-hidden>💧</span> {water}</>;
-    if (kind === "fert") return <><span aria-hidden>✨</span> {fertilizer}</>;
+    if (kind === "fert") return <><span aria-hidden>{ICON.fertilizer}</span> {fertilizer}</>;
     return (
       <>
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -905,7 +906,8 @@ export function FarmPanel({
                 <span className="rf-bang text-xl font-black" style={{ top: -22, color: "var(--rf-gold)", WebkitTextStroke: "1px var(--rf-ink)" }}>
                   !
                 </span>
-                <GooseSprite flying={busy} scale={1.3} />
+                {/* the only ANIMATED goose — the one living on the farm */}
+                <GooseSprite animated flying={busy} scale={1.3} />
               </button>
             </div>
           </div>

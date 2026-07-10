@@ -57,13 +57,19 @@ run by hand.**
 | `20260709230000` | Coins 🪙 (`farms.coin_count`, `coin_events` ledger, rewards everywhere) + v8 |
 | `20260709240000` | General Store 🏪, Xtra Goose Entry, ceremony invites, garden greetings, water %5 rule + v9 |
 | `20260709250000` | Fix: plpgsql `record := null` field-access bug in 3 fns from 240000/210000 |
+| `20260710000000` | Generic `location_presence`/`neighbor_greetings`, checklist `coin_reward`, `profiles.music_enabled` |
+| `20260710010000` | Store prices +50% (15/45/75/60) |
+| `20260710020000` | KudoSeed messages, flat `reward_coin_bonus` on every reward, 7 new monthly goals |
+| `20260710030000` | `update_game_settings` **v10** (+ `reward_coin_bonus`) |
 
 ### ⚠️ Migration ordering caveat (still important)
 `130000`, `140000`, `150000`, `170000`, `180000`, `220000`, `230000` and
 `240000` **each recreate `update_game_settings`**, every version adding more
 allowed setting keys. Applying an older one on top silently drops newer keys.
-**The newest version lives in `20260709240000`** — any future migration that
-touches this function must copy ITS allowed-key arrays first.
+**The newest version lives in `20260710030000`** (v10) — it rebuilds the
+function from `pg_get_functiondef` and injects one key, so it inherits every
+older key automatically. A future migration that RESTATES the function must
+copy the live v10 arrays first.
 
 ### ⚠️ plpgsql gotcha (bit us in 240000)
 `v_rec := null;` on a declared-but-never-SELECTed `record` does NOT make
@@ -265,6 +271,50 @@ full-screen wrapper.
   single-frame `tree_cherry.png` (the old strip math was a latent bug);
   in-scene characters are 20% smaller; nav logo = the pink cherry tree;
   the farm bar's 🍒/🪙/🌳 chips have tap/hover info popups.
+
+## Locations, music, KudoSeeds (2026-07-10)
+- **Presence is generic now.** `location_presence(user_id, location_key)` +
+  `ping_location_presence('garden'|'store')` + `greet_neighbor(presence_id)`
+  replace the garden-only tables (dropped). `Neighbors.tsx` holds the shared
+  hooks — `usePresence`, `useGreeting`, `useWalk`, `useWandering` — so **every
+  new location gets neighbors, greeting, walking, and collision for free.**
+  Neighbors stroll to a spot, loiter 7–15s, wander on. Greeting walks you
+  right up to them, hearts both, pays 💧10 (once per person per location/day).
+- **The General Store is walkable** with a solid counter (`COUNTER` rect is a
+  `Blocker`); the shopkeeper stands directly behind the register.
+- **Approach distances were tightened everywhere** (farm objects/trees, garden
+  box, store counter, greetings) — the farmer now ends up almost touching what
+  he's interacting with.
+- **Music**: `src/lib/music.ts`, one track at a time, started in a scene's
+  `useEffect` and **stopped on unmount** (walking / garden / store). The nav's
+  🎵 button toggles it and persists to `profiles.music_enabled` (mirrored to
+  localStorage for instant response). Sound effects keep their own 🔊 control.
+- **Reward banners**: `announceReward("…")` from anywhere fires a window event;
+  `RewardBannerHost` in GameShell renders it in the travel-plate style.
+- **Butterflies** (`Butterflies.tsx`, from the user's 32×16 two-frame sheet)
+  drift across the garden and the travel cinematic.
+- **KudoSeeds**: the daily Seed is renamed and now carries an optional note
+  (≤300 chars, `seed_events.message`, starter phrases in the panel). Received
+  notes surface in the notification centre via `get_my_kudoseeds()`.
+- **Coins on everything**: `reward_coin_bonus` (default 5, admin-editable)
+  rides along with meetings, hosting, KudoSeeds (both sides), the goose egg,
+  and basket payouts. Rewards with their OWN coin amount (medals, garden
+  bundle, checklist `coin_reward`) use theirs and never stack the flat bonus.
+- **Checklist goals pay coins** (`checklist_definitions.coin_reward`, backfilled
+  to what the old implicit bonus granted) and **7 new goals** cover the garden,
+  store, greetings, goose answers, and KudoSeed notes.
+- **Goals "!" badge**: a gold "!" sits on the Goals menu button when a goal has
+  completed that you haven't looked at; opening the window clears it
+  (localStorage `rf-goals-seen`).
+- **Fertilizer is 🧴, not ✨.** All item glyphs now live in `src/lib/icons.ts`
+  (`ICON.water/seed/fertilizer/coin`) — change them in one place.
+  TODO(item-art): real pixel sprites for water/seed/fertilizer.
+- **The goose only flaps on the farm.** `GooseSprite` takes `animated`
+  (default false), so geese inside panels/menus are perfectly still.
+- **Ceremony certificate**: `Certificate.tsx` draws your farmer in front of
+  your house with the season's stats onto a canvas and downloads a PNG.
+- **Wiki** gained World Map / Community Garden / General Store / Coins chapters
+  and renders real sprite strips (`WikiSection.sprites`).
 
 ## Coins TODOs / notes
 - **`ensure_my_farm` does NOT return `coin_count`** — the dashboard reads the

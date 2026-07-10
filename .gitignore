@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Unused 355MB source music pack (only the three chosen tracks are copied to public/music)
+8BitMusic/Retro-Fit Adventure (Free 8-Bit Video Game Music)/

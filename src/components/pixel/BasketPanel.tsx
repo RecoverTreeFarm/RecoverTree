@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Panel } from "@/components/pixel/ui";
 import { passBasket, keepBasket } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
+import { ICON } from "@/lib/icons";
 
 export type BasketRecipient = {
   user_id: string;
@@ -51,7 +52,7 @@ function ContentsLine({
   const parts: string[] = [];
   if (contents.water > 0) parts.push(`💧 ${contents.water * mult} water`);
   if (contents.seed > 0) parts.push(`🌱 ${contents.seed * mult} seed${contents.seed * mult === 1 ? "" : "s"}`);
-  if (contents.fertilizer > 0) parts.push(`✨ ${contents.fertilizer * mult} fertilizer`);
+  if (contents.fertilizer > 0) parts.push(`${ICON.fertilizer} ${contents.fertilizer * mult} fertilizer`);
   if (coin > 0) parts.push(`🪙 ${coin * mult} coin${coin * mult === 1 ? "" : "s"}`);
   return <span className="font-bold">{parts.length ? parts.join(" + ") : "nothing yet"}</span>;
 }
@@ -152,7 +153,7 @@ export function BasketPanel({
       } else {
         playSfx("harvest");
         setNotice(
-          `You kept the basket and received 💧 ${r.water} water, 🌱 ${r.seed} seed${r.seed === 1 ? "" : "s"}, ✨ ${r.fertilizer} fertilizer${(r.coin ?? 0) > 0 ? `, 🪙 ${r.coin} coins` : ""}.`,
+          `You kept the basket and received 💧 ${r.water} water, 🌱 ${r.seed} seed${r.seed === 1 ? "" : "s"}, ${ICON.fertilizer} ${r.fertilizer} fertilizer${(r.coin ?? 0) > 0 ? `, 🪙 ${r.coin} coins` : ""}.`,
         );
       }
       setConfirmKeep(false);
@@ -279,7 +280,7 @@ export function BasketPanel({
                   className={`${inputClass} mt-0.5 block`} />
               </label>
               <label className="text-[10px] font-bold uppercase">
-                ✨ Fert.
+                🧴 Fert.
                 <input type="number" min={0} max={Math.min(limits?.fertilizer_per_pass ?? 2, myFertilizer)}
                   value={String(fert)} disabled={pending}
                   onChange={(e) => setFert(Math.max(0, Math.min(limits?.fertilizer_per_pass ?? 2, myFertilizer, Math.floor(Number(e.target.value) || 0))))}
@@ -294,7 +295,7 @@ export function BasketPanel({
               </label>
             </div>
             <p className="mt-1 text-[10px] text-[var(--rf-ink-soft)]">
-              Most you can add: 💧{limits?.water_per_pass ?? 25} · 🌱{limits?.seed_per_pass ?? 1} · ✨{limits?.fertilizer_per_pass ?? 2} · 🪙{limits?.coin_per_pass ?? 25}. You have 💧{myWater} · 🌱{mySeeds} · ✨{myFertilizer} · 🪙{myCoins}.
+              Most you can add: 💧{limits?.water_per_pass ?? 25} · 🌱{limits?.seed_per_pass ?? 1} · 🧴{limits?.fertilizer_per_pass ?? 2} · 🪙{limits?.coin_per_pass ?? 25}. You have 💧{myWater} · 🌱{mySeeds} · 🧴{myFertilizer} · 🪙{myCoins}.
             </p>
             <p className="mt-0.5 text-[10px] text-[var(--rf-ink-soft)]">
               Farmers need at least 💧{state.min_receive_water ?? 5} water to

@@ -189,7 +189,7 @@ export function GardenAdmin({ events }: { events: AdminGardenEvent[] }) {
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">✨ Fertilizer</p>
+                <p className="text-[10px] font-bold uppercase text-[var(--rf-ink-soft)]">🧴 Fertilizer</p>
                 <p className="font-extrabold">
                   {e.current_fertilizer} / {e.required_fertilizer}
                 </p>

@@ -1,15 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SPRITES, TREE_SHEET, AVATAR_SPRITES } from "@/lib/sprites";
-import { gardenTreeStage, type GardenNeighbor, type GardenState } from "@/lib/garden";
-import {
-  contributeToGarden,
-  pingGardenPresence,
-  greetGardenNeighbor,
-} from "@/app/dashboard/actions";
+import { SPRITES, TREE_SHEET } from "@/lib/sprites";
+import { gardenTreeStage, type GardenState } from "@/lib/garden";
+import { contributeToGarden } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
+import { playMusic, stopMusic } from "@/lib/music";
+import { Butterflies } from "@/components/pixel/Butterflies";
+import { announceReward } from "./RewardBanner";
+import { ICON } from "@/lib/icons";
+import {
+  usePresence,
+  useGreeting,
+  useWalk,
+  useWandering,
+  NeighborSprite,
+  PlayerFarmer,
+  type Neighbor,
+} from "./Neighbors";
 
 /* ---------------------------------------------------------------------------
  * The Community Garden — a WALKABLE shared location (reached from the map via
@@ -226,60 +235,6 @@ const NEIGHBOR_SPOTS: { left: number; bottom: number }[] = [
   { left: 78, bottom: 44 },
 ];
 
-type Visitor = GardenNeighbor & { leaving: boolean };
-
-function NeighborSprite({
-  v,
-  spot,
-  heart,
-  onGreet,
-}: {
-  v: Visitor;
-  spot: { left: number; bottom: number };
-  /** a greeting just happened — show the heart */
-  heart: boolean;
-  onGreet: () => void;
-}) {
-  const src = (v.avatar_sprite && AVATAR_SPRITES[v.avatar_sprite]) || SPRITES.farmer;
-  const anonymous = !v.avatar_sprite;
-  return (
-    <button
-      type="button"
-      aria-label={`Say hi to ${v.name}`}
-      title={`Say hi to ${v.name}`}
-      onClick={(e) => {
-        e.stopPropagation();
-        onGreet();
-      }}
-      className="absolute flex flex-col items-center border-0 bg-transparent p-0"
-      style={{
-        left: `${spot.left}%`,
-        bottom: `${spot.bottom}%`,
-        zIndex: Math.round(60 - spot.bottom),
-        transition: "transform 1.6s ease-in, opacity 1.6s ease-in",
-        transform: v.leaving ? "translateX(240px)" : "none",
-        opacity: v.leaving ? 0 : 1,
-      }}
-    >
-      {heart && (
-        <span aria-hidden className="rf-reward-pop absolute -top-5 text-lg">💗</span>
-      )}
-      <div className={v.leaving ? "rf-walk" : "rf-idle"}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt=""
-          className="pixelated"
-          style={{ width: 51, height: 51, ...(anonymous ? { filter: "brightness(0.35)" } : {}) }}
-        />
-      </div>
-      <span className="rounded border border-[var(--rf-ink)]/40 bg-[var(--rf-cream)]/85 px-1 text-[8px] font-bold leading-tight text-[var(--rf-ink)]">
-        {v.name}
-      </span>
-    </button>
-  );
-}
-
 /** Non-interactive dressing scattered around the green. */
 function Decorations() {
   const items: { emoji: string; left: string; bottom: string; size: string }[] = [
@@ -344,7 +299,7 @@ function milestoneLine(pct: number, completed: boolean): string {
 const REWARD_ICON: Record<string, string> = {
   water: "💧",
   seed: "🌰",
-  fertilizer: "✨",
+  fertilizer: ICON.fertilizer,
   coin: "🪙",
 };
 
@@ -353,8 +308,8 @@ const REWARD_ICON: Record<string, string> = {
  * ------------------------------------------------------------------------- */
 const TREE_POS = { left: 50, bottom: 30 };
 const BOX_POS = { left: 67, bottom: 22 };
-/** Where the farmer stands to use the donation box (just left of it). */
-const FARMER_POS_FOR_BOX = { left: 59, bottom: 20 };
+/** Where the farmer stands to use the donation box — shoulder to shoulder. */
+const FARMER_POS_FOR_BOX = { left: 63, bottom: 21 };
 const FARMER_HOME = { left: 30, bottom: 12 };
 /** Farmers can wander the green but not onto the sky band. */
 const WALK_BOUNDS = { minLeft: 3, maxLeft: 91, minBottom: 3, maxBottom: 56 };
@@ -379,125 +334,29 @@ export function GardenScene({
   /** rendered top-right over the garden (notifications + guidebook) */
   notificationSlot?: React.ReactNode;
 }) {
-  const router = useRouter();
   const active = state.has_event && state.status === "active" && !state.completed;
   const endsAt = state.has_event ? state.ends_at : undefined;
   const timeLeft = useCountdown(active ? endsAt : undefined);
-
-  // ---- my farmer: click-to-walk -------------------------------------------
-  const [pos, setPos] = useState<Pos>(FARMER_HOME);
-  const [walking, setWalking] = useState(false);
-  const [walkMs, setWalkMs] = useState(700);
-  const walkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [donateOpen, setDonateOpen] = useState(false);
 
-  // ---- greeting a neighbor: hearts over both + a small toast ---------------
-  const [heartFor, setHeartFor] = useState<string | null>(null);
-  const [myHeart, setMyHeart] = useState(false);
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
-  const [greetPending, setGreetPending] = useState(false);
-
-  function greet(v: Visitor, spot: { left: number; bottom: number }) {
-    if (v.leaving || greetPending) return;
-    setToast(null);
-    setGreetPending(true);
-    // walk up to them first, like the donation box
-    walkTo({ left: Math.max(4, spot.left - 7), bottom: spot.bottom }, async () => {
-      const r = await greetGardenNeighbor(v.key);
-      setGreetPending(false);
-      if (!r.ok) {
-        playSfx("error");
-        setToast({ ok: false, text: r.message });
-        return;
-      }
-      playSfx("seed");
-      setHeartFor(v.key);
-      setMyHeart(true);
-      setToast({ ok: true, text: `You said hi to ${v.name} — 💧 +${r.water_earned} water!` });
-      setTimeout(() => {
-        setHeartFor(null);
-        setMyHeart(false);
-      }, 2600);
-      router.refresh();
-    });
-  }
-
-  const walkTo = useCallback((target: Pos, then?: () => void) => {
-    setPos((from) => {
-      const dist = Math.hypot(target.left - from.left, (target.bottom - from.bottom) * 1.6);
-      const dur = Math.min(1400, Math.max(350, Math.round(dist * 16)));
-      setWalkMs(dur);
-      setWalking(true);
-      if (walkTimer.current) clearTimeout(walkTimer.current);
-      walkTimer.current = setTimeout(() => {
-        setWalking(false);
-        then?.();
-      }, dur + 60);
-      return target;
-    });
-  }, []);
-  useEffect(() => () => {
-    if (walkTimer.current) clearTimeout(walkTimer.current);
+  // Garden music plays while the scene is mounted, stops on leave.
+  useEffect(() => {
+    playMusic("garden");
+    return () => stopMusic();
   }, []);
 
-  function onGroundClick(e: React.MouseEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const left = ((e.clientX - rect.left) / rect.width) * 100;
-    const bottom = ((rect.bottom - e.clientY) / rect.height) * 100;
-    walkTo({
-      left: Math.min(WALK_BOUNDS.maxLeft, Math.max(WALK_BOUNDS.minLeft, left - 4)),
-      bottom: Math.min(WALK_BOUNDS.maxBottom, Math.max(WALK_BOUNDS.minBottom, bottom)),
-    });
-  }
+  // Shared location plumbing: neighbors, greetings, click-to-walk.
+  const initialOthers: Neighbor[] = state.has_event ? state.others : [];
+  const visitors = usePresence("garden", initialOthers);
+  const wanderTargets = useWandering(visitors.length, NEIGHBOR_SPOTS);
+  
+  const { pos, walking, walkMs, walkTo, walkToClick } = useWalk(FARMER_HOME, WALK_BOUNDS);
+  const { greet, heartFor, myHeart } = useGreeting(walkTo);
 
   function onBoxClick() {
     // walk up to the box first, then the closeup opens — like farm objects
     walkTo(FARMER_POS_FOR_BOX, () => setDonateOpen(true));
   }
-
-  // ---- presence: heartbeat while at the garden, walk-off on leave ----------
-  const [visitors, setVisitors] = useState<Visitor[]>(
-    state.has_event ? state.others.map((o) => ({ ...o, leaving: false })) : [],
-  );
-  const visitorsRef = useRef(visitors);
-  useEffect(() => {
-    visitorsRef.current = visitors;
-  }, [visitors]);
-
-  useEffect(() => {
-    if (!state.has_event) return;
-    let alive = true;
-    const sync = async () => {
-      const r = await pingGardenPresence();
-      if (!alive || !r.ok) return;
-      const next = r.others as GardenNeighbor[];
-      const nextKeys = new Set(next.map((n) => n.key));
-      const current = visitorsRef.current;
-      // anyone who vanished walks off screen, then is removed
-      const leaving = current.filter((v) => !nextKeys.has(v.key) && !v.leaving);
-      const merged: Visitor[] = [
-        ...current
-          .filter((v) => nextKeys.has(v.key) || v.leaving || leaving.includes(v))
-          .map((v) => (leaving.includes(v) ? { ...v, leaving: true } : v)),
-        ...next
-          .filter((n) => !current.some((v) => v.key === n.key))
-          .map((n) => ({ ...n, leaving: false })),
-      ];
-      setVisitors(merged);
-      if (leaving.length > 0) {
-        setTimeout(() => {
-          if (!alive) return;
-          setVisitors((vs) => vs.filter((v) => !v.leaving));
-        }, 1800);
-      }
-    };
-    sync();
-    const iv = setInterval(sync, 60_000);
-    return () => {
-      alive = false;
-      clearInterval(iv);
-    };
-  }, [state.has_event]);
 
   const stage = state.has_event ? gardenTreeStage(state.progress_percent, state.completed) : 1;
   const last = state.has_event ? null : state.last_event;
@@ -508,7 +367,7 @@ export function GardenScene({
       <div
         className="relative overflow-hidden rounded border-[3px] border-[var(--rf-ink)]"
         style={{ height: "clamp(340px, 52vh, 560px)" }}
-        onClick={onGroundClick}
+        onClick={walkToClick}
       >
         {/* sky */}
         <div className="pointer-events-none absolute inset-x-0 top-0" style={{ height: "17%", background: "var(--rf-sky)" }} />
@@ -524,6 +383,7 @@ export function GardenScene({
         />
         <Decorations />
         <ProgressFlowers progressPercent={state.has_event ? state.progress_percent : 0} />
+        <Butterflies count={4} />
 
         {/* the giant shared tree — grows with the whole group's progress */}
         <div
@@ -547,39 +407,18 @@ export function GardenScene({
         )}
 
         {/* neighbors visiting right now — tap one to say hi (💗, +10 water) */}
-        {visitors.map((v, i) => {
-          const spot = NEIGHBOR_SPOTS[i % NEIGHBOR_SPOTS.length];
-          return (
-            <NeighborSprite
-              key={v.key}
-              v={v}
-              spot={spot}
-              heart={heartFor === v.key}
-              onGreet={() => greet(v, spot)}
-            />
-          );
-        })}
+        {visitors.map((v, i) => (
+          <NeighborSprite
+            key={v.key}
+            v={v}
+            spot={NEIGHBOR_SPOTS[wanderTargets[i] ?? i % NEIGHBOR_SPOTS.length]}
+            heart={heartFor === v.key}
+            onGreet={() => void greet(v, NEIGHBOR_SPOTS[wanderTargets[i] ?? i % NEIGHBOR_SPOTS.length])}
+          />
+        ))}
 
         {/* my farmer */}
-        <div
-          className="pointer-events-none absolute -translate-x-1/2"
-          style={{
-            left: `${pos.left}%`,
-            bottom: `${pos.bottom}%`,
-            zIndex: Math.round(60 - pos.bottom),
-            transition: `left ${walkMs}ms linear, bottom ${walkMs}ms linear`,
-          }}
-        >
-          <div className="relative">
-            {myHeart && (
-              <span aria-hidden className="rf-reward-pop absolute -top-5 left-1/2 -translate-x-1/2 text-lg">💗</span>
-            )}
-            <div className={walking ? "rf-walk" : "rf-idle"}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={avatarSrc} alt="Your farmer" className="pixelated" style={{ width: 58, height: 58 }} />
-            </div>
-          </div>
-        </div>
+        <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={myHeart} />
 
         {/* HUD overlay (notifications + guidebook) */}
         {notificationSlot && (
@@ -592,17 +431,6 @@ export function GardenScene({
           </div>
         )}
       </div>
-
-      {toast && (
-        <p
-          role={toast.ok ? "status" : "alert"}
-          className={`mt-2 rounded border-2 border-[var(--rf-ink)] px-3 py-2 text-xs font-bold ${
-            toast.ok ? "bg-[var(--rf-grass)]" : "bg-[var(--rf-red)] text-[var(--rf-cream)]"
-          }`}
-        >
-          {toast.text}
-        </p>
-      )}
 
       {/* ---- status + shared goals ------------------------------------------ */}
       {state.has_event ? (
@@ -618,13 +446,13 @@ export function GardenScene({
           <div className="mt-2 space-y-1.5">
             <GoalBar icon="💧" cur={state.current_water} req={state.required_water} />
             <GoalBar icon="🌰" cur={state.current_seeds} req={state.required_seeds} />
-            <GoalBar icon="✨" cur={state.current_fertilizer} req={state.required_fertilizer} />
+            <GoalBar icon={ICON.fertilizer} cur={state.current_fertilizer} req={state.required_fertilizer} />
           </div>
           {state.i_contributed && (
             <p className="mt-2 text-[11px] text-[var(--rf-ink-soft)]">
               You’ve added {state.my_water > 0 && `💧${state.my_water} `}
               {state.my_seed > 0 && `🌰${state.my_seed} `}
-              {state.my_fertilizer > 0 && `✨${state.my_fertilizer} `}so far. Thank you. 🌱
+              {state.my_fertilizer > 0 && `${ICON.fertilizer}${state.my_fertilizer} `}so far. Thank you. 🌱
             </p>
           )}
           {state.my_rewards.length > 0 && (
@@ -724,7 +552,7 @@ function DonationCloseup({
       };
       push("💧", water);
       push("🌰", seed);
-      push("✨", fert);
+      push(ICON.fertilizer, fert);
       setDrops(icons);
       setSparkle(true);
       playSfx(seed > 0 ? "seed" : water > 0 ? "water" : "reveal");
@@ -733,13 +561,16 @@ function DonationCloseup({
         setSparkle(false);
       }, 1000);
 
+      announceReward(
+        `${water > 0 ? `${ICON.water} ${water}  ` : ""}${seed > 0 ? `${ICON.seed} ${seed}  ` : ""}${fert > 0 ? `${ICON.fertilizer} ${fert}  ` : ""}— added to the Community Garden`,
+      );
       const text = r.completed
         ? "You helped the garden bloom. 🌸"
         : seed > 0
           ? "You planted a Seed in the Community Garden."
           : water > 0
             ? "You watered the Community Garden."
-            : "Every bit of care helps. ✨";
+            : `Every bit of care helps. ${ICON.fertilizer}`;
       setMsg({ ok: true, text });
       setWater(0);
       setSeed(0);
@@ -794,7 +625,7 @@ function DonationCloseup({
           {/* water always moves in fives — the app-wide water rule */}
           <DonateRow icon="💧" label="Water" value={water} max={maxWater} have={myWater} todayLeft={state.today_water_left} onChange={setWater} step={5} />
           <DonateRow icon="🌰" label="Seeds" value={seed} max={maxSeed} have={mySeeds} todayLeft={state.today_seed_left} onChange={setSeed} />
-          <DonateRow icon="✨" label="Fertilizer" value={fert} max={maxFert} have={myFertilizer} todayLeft={state.today_fertilizer_left} onChange={setFert} />
+          <DonateRow icon={ICON.fertilizer} label="Fertilizer" value={fert} max={maxFert} have={myFertilizer} todayLeft={state.today_fertilizer_left} onChange={setFert} />
         </div>
 
         {msg && (

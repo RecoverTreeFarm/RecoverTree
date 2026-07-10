@@ -141,7 +141,7 @@ function PlayerRow({ p }: { p: DebugInventoryRow }) {
             onChange={(e) => setSeeds(e.target.value)} className={`${numCls} mt-0.5 block`} />
         </label>
         <label className="text-[11px] font-bold">
-          ✨ Fertilizer
+          🧴 Fertilizer
           <input type="number" min={0} max={1000000} value={fert} disabled={pending}
             onChange={(e) => setFert(e.target.value)} className={`${numCls} mt-0.5 block`} />
         </label>
@@ -161,7 +161,7 @@ function PlayerRow({ p }: { p: DebugInventoryRow }) {
         </button>
         <button type="button" disabled={pending} className={btnCls}
           title="+25 water, +2 seeds, +2 fertilizer, +25 coins (server-side preset)"
-          onClick={() => run(() => debugGiveBundle(p.user_id), "Bundle granted (+25💧 +2🌰 +2✨ +25🪙).")}>
+          onClick={() => run(() => debugGiveBundle(p.user_id), "Bundle granted (+25💧 +2🌰 +2🧴 +25🪙).")}>
           Give bundle
         </button>
         <button type="button" disabled={pending} className={btnCls}

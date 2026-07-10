@@ -44,6 +44,7 @@ function friendly(message: string): string {
   if (m.includes("NOT_ACTIVE")) return "That code isn’t active anymore.";
   if (m.includes("GOAL_NOT_FOUND")) return "That checklist goal no longer exists.";
   if (m.includes("NEGATIVE_NOT_ALLOWED")) return "Amounts can’t be negative.";
+  if (m.includes("WATER_MULTIPLE_OF_5")) return "Water must be a multiple of 5 (5, 10, 15…).";
   if (m.includes("INVALID_REWARD_TYPE")) return "Rewards can only be water, seed, or fertilizer.";
   if (m.includes("INVALID_SCHEDULE_MODE")) return "Schedule mode must be Random or Specific.";
   if (m.includes("DAYS_PER_WEEK_OUT_OF_RANGE")) return "Days per week must be between 0 and 7.";
@@ -101,16 +102,18 @@ export async function invalidateMeetingCode(sessionId: string): Promise<Result> 
 }
 
 export async function updateChecklistReward(
-  definitionId: string,
+  goalId: string,
   water: number,
   fertilizer: number,
+  coins: number,
 ): Promise<Result> {
   const { supabase, error } = await requireAdmin();
   if (error) return { ok: false, message: error };
   const { error: rpcError } = await supabase.rpc("update_checklist_reward", {
-    p_definition_id: definitionId,
-    p_water: water,
-    p_fertilizer: fertilizer,
+    p_definition_id: goalId,
+    p_water: Math.floor(water),
+    p_fertilizer: Math.floor(fertilizer),
+    p_coins: Math.floor(coins),
   });
   revalidatePath("/admin");
   if (rpcError) return { ok: false, message: friendly(rpcError.message) };

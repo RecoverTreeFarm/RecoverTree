@@ -91,6 +91,7 @@ export function GoosePanel({ state }: { state: GooseState }) {
     return (
       <div className="text-center">
         <div className="mb-2 flex justify-center opacity-70">
+          {/* still: this goose sits inside a panel, not on the farm */}
           <GooseSprite flying scale={1.2} />
         </div>
         <p className="text-sm font-bold">The Golden Goose is away today.</p>
@@ -365,7 +366,7 @@ function EggReveal({ rewards }: { rewards: { reward_type: string; amount: number
       <div className="mt-1 flex justify-center gap-3 text-sm font-extrabold">
         {water > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.05s" }}>💧 {water}</span>}
         {seed > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.2s" }}>🌰 {seed}</span>}
-        {fert > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.35s" }}>✨ {fert}</span>}
+        {fert > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.35s" }}>🧴 {fert}</span>}
         {coin > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.5s" }}>🪙 {coin}</span>}
       </div>
     </div>

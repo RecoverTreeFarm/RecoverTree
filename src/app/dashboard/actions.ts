@@ -87,10 +87,12 @@ export async function harvestOneTree(treeId: string) {
   return { ok: true as const, ...row };
 }
 
-export async function sendSeed(receiverUserId: string) {
+/** Send today's KudoSeed, optionally with an encouraging note (≤300 chars). */
+export async function sendSeed(receiverUserId: string, message?: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("give_seed", {
     p_receiver_user_id: receiverUserId,
+    p_message: message?.trim() ? message.trim() : null,
   });
   revalidatePath("/dashboard");
   if (error) {
@@ -98,17 +100,20 @@ export async function sendSeed(receiverUserId: string) {
     if (m.includes("ALREADY_SENT_TODAY")) {
       return {
         ok: false as const,
-        message: "You’ve already sent today’s Seed. Come back tomorrow! 🌱",
+        message: "You’ve already sent today’s KudoSeed. Come back tomorrow! 🌱",
       };
     }
+    if (m.includes("MESSAGE_TOO_LONG")) {
+      return { ok: false as const, message: "That note is a bit long — please shorten it." };
+    }
     if (m.includes("SELF_SEED")) {
-      return { ok: false as const, message: "You can’t send a Seed to yourself." };
+      return { ok: false as const, message: "You can’t send a KudoSeed to yourself." };
     }
     if (m.includes("RECEIVER_NOT_FOUND")) {
       return { ok: false as const, message: "Couldn’t find that farmer — try someone else." };
     }
     if (m.includes("BANNED")) {
-      return { ok: false as const, message: "Your account can’t send Seeds right now." };
+      return { ok: false as const, message: "Your account can’t send KudoSeeds right now." };
     }
     return { ok: false as const, message: "Something went sideways — please try again." };
   }
@@ -332,19 +337,6 @@ export async function contributeToGarden(water: number, seed: number, fertilizer
   return { ok: true as const, ...row };
 }
 
-/**
- * Presence heartbeat while the garden window is open. Returns the (privacy-
- * filtered) list of other visitors so the scene can refresh who's around
- * without re-rendering the whole dashboard.
- */
-export async function pingGardenPresence() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ping_community_garden_presence");
-  if (error) return { ok: false as const, others: [] as unknown[] };
-  const row = data as { has_event: boolean; others: unknown[] };
-  return { ok: true as const, others: row.others ?? [] };
-}
-
 /* ---------------------------------------------------------------------------
  * General Store. Prices, sale math, and item granting all live server-side;
  * the client only names the item and whether it's using today's sale.
@@ -392,11 +384,27 @@ export async function setCeremonyViewState(
   return { ok: true as const };
 }
 
-/** Say hi to a neighbor in the Community Garden — hearts + a little water
- *  for reaching out (server-limited to once per neighbor per day). */
-export async function greetGardenNeighbor(presenceId: string) {
+/* ---------------------------------------------------------------------------
+ * Location presence + greetings. Works for EVERY walkable location (garden,
+ * store, and whatever comes next) — the location key is just a string.
+ * ------------------------------------------------------------------------- */
+
+/** Heartbeat while a location scene is open; returns who else is there. */
+export async function pingLocationPresence(location: "garden" | "store") {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("greet_garden_neighbor", {
+  const { data, error } = await supabase.rpc("ping_location_presence", {
+    p_location: location,
+  });
+  if (error) return { ok: false as const, others: [] as unknown[] };
+  const row = data as { others: unknown[] };
+  return { ok: true as const, others: row.others ?? [] };
+}
+
+/** Say hi to a neighbor — hearts + a little water for reaching out
+ *  (server-limited to once per neighbor per location per day). */
+export async function greetNeighbor(presenceId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("greet_neighbor", {
     p_presence: presenceId,
   });
   revalidatePath("/dashboard");

@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { Container, Panel, PageHeader, PixelLink } from "@/components/pixel/ui";
 import { CeremonyShow, type ShowFarmer, type ShowBadge } from "@/components/ceremony/CeremonyShow";
-import { avatarSprite, SPRITES } from "@/lib/sprites";
+import { avatarSprite, houseKey, HOUSE_SPRITES, SPRITES } from "@/lib/sprites";
+import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
+import type { CertificateData } from "@/components/ceremony/Certificate";
 import type { MedalTier } from "@/components/pixel/placeholders";
 
 type LbRow = {
@@ -135,6 +137,53 @@ export default async function CeremonyPage({
       return { name: def?.name ?? "Badge", icon: def?.icon ?? "🏅" };
     });
 
+  // ---- certificate data: your farmer in front of your house + stats -------
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("username, display_name, avatar_config")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  const { data: myFarm } = await supabase
+    .from("farms")
+    .select("id, fruit_total")
+    .eq("user_id", user.id)
+    .eq("season_id", seasonId)
+    .maybeSingle();
+  let myTrees = 0;
+  if (myFarm?.id) {
+    const { count } = await supabase
+      .from("trees")
+      .select("id", { count: "exact", head: true })
+      .eq("farm_id", myFarm.id as string);
+    myTrees = count ?? 0;
+  }
+  const { data: houseNameRows } = await supabase
+    .from("game_settings")
+    .select("key, value_json")
+    .like("key", "house_name_%");
+  const houseNames = houseDisplayNames(
+    (houseNameRows ?? []) as Pick<SettingOverrideRow, "key" | "value_json">[],
+  );
+  const myHouseKey = houseKey(myProfile?.avatar_config);
+  const myRank = farmers.find((f) => f.isSelf)?.rank ?? null;
+
+  const certificate: CertificateData | null = myProfile
+    ? {
+        seasonName: season.name as string,
+        farmerName:
+          (myProfile.display_name as string | null) ||
+          `@${myProfile.username as string}`,
+        avatarSrc: avatarSprite(myProfile.avatar_config),
+        houseSrc: (HOUSE_SPRITES[myHouseKey] ?? HOUSE_SPRITES.house_1).src,
+        houseName: houseNames[myHouseKey] ?? "Cozy Cottage",
+        rank: myRank,
+        fruits: (myFarm?.fruit_total as number | undefined) ?? 0,
+        trees: myTrees,
+        medal: myMedal,
+        badges: myBadges.map((b) => b.name),
+      }
+    : null;
+
   return (
     <Container>
       <PageHeader
@@ -156,6 +205,7 @@ export default async function CeremonyPage({
           badges={badges}
           me={{ medal: myMedal, badges: myBadges }}
           seasonName={season.name}
+          certificate={certificate}
         />
       )}
     </Container>

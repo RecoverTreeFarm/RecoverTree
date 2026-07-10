@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Fruit } from "@/components/pixel/Sprite";
 import { SPRITES } from "@/lib/sprites";
 import type { FarmItemKind } from "@/components/pixel/FarmPanel";
+import { ICON } from "@/lib/icons";
 
 /* ---------------------------------------------------------------------------
  * Small presentational windows opened from the bottom game menu. These were
@@ -20,6 +21,8 @@ export type ChecklistItem = {
   completed: boolean;
   water_reward: number;
   fertilizer_reward: number;
+  /** 🪙 coins granted when the goal completes */
+  coin_reward: number;
 };
 
 export type LeaderboardRow = {
@@ -64,11 +67,11 @@ export function InventoryPanel({
     kind?: FarmItemKind;
     confirmLabel?: string;
   }[] = [
-    { icon: <span aria-hidden>💧</span>, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage.", kind: "water", confirmLabel: "Water all?" },
+    { icon: <span aria-hidden>{ICON.water}</span>, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage.", kind: "water", confirmLabel: "Water all?" },
     { icon: <Fruit scale={1.7} />, label: "Fruits", value: farm.fruitTotal, hint: "Your Season score — only harvesting trees makes Fruits." },
-    { icon: <span aria-hidden>✨</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
+    { icon: <span aria-hidden>{ICON.fertilizer}</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
     { icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />, label: "Seeds to plant", value: farm.seeds, hint: "Received from other farmers — plant one to grow an extra tree.", kind: "seed", confirmLabel: "Plant all?" },
-    { icon: <span aria-hidden>🪙</span>, label: "Coins", value: farm.coins, hint: "Earned alongside Seed and Fertilizer rewards. For future shop goodies — Coins never affect the leaderboard." },
+    { icon: <span aria-hidden>{ICON.coin}</span>, label: "Coins", value: farm.coins, hint: "Earned alongside Seed and Fertilizer rewards. For future shop goodies — Coins never affect the leaderboard." },
     { icon: <span aria-hidden>🌳</span>, label: "Trees", value: farm.treeCount, hint: "More trees = a bigger harvest (max 20)." },
   ];
 
@@ -136,7 +139,8 @@ export function ChecklistPanel({ checklist }: { checklist: ChecklistItem[] }) {
     <div>
       <p className="mb-3 text-[11px] font-bold text-[var(--rf-ink-soft)]">
         {done}/{checklist.length} done — goals reshuffle each month. Completing
-        one automatically earns 💧 water + ✨ fertilizer.
+        one automatically earns {ICON.water} water, {ICON.fertilizer} fertilizer,
+        and {ICON.coin} coins.
       </p>
       <ul className="space-y-2.5">
         {checklist.map((c) => {
@@ -154,8 +158,9 @@ export function ChecklistPanel({ checklist }: { checklist: ChecklistItem[] }) {
                   {c.name}
                 </span>
                 <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-[var(--rf-ink-soft)]">
-                  💧{c.water_reward}
-                  {c.fertilizer_reward > 0 && <span>✨{c.fertilizer_reward}</span>}
+                  {c.water_reward > 0 && <span>{ICON.water}{c.water_reward}</span>}
+                  {c.fertilizer_reward > 0 && <span>{ICON.fertilizer}{c.fertilizer_reward}</span>}
+                  {c.coin_reward > 0 && <span>{ICON.coin}{c.coin_reward}</span>}
                 </span>
               </div>
               {c.target > 1 && (

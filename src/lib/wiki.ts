@@ -17,6 +17,8 @@ export type WikiSection = {
   body?: string[];
   /** compact bullet list */
   bullets?: string[];
+  /** real game sprites shown as a labelled strip */
+  sprites?: { src: string; label: string; height?: number }[];
 };
 
 export type WikiChapter = {
@@ -91,6 +93,13 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
     icon: "💧",
     sections: [
       {
+        sprites: [
+          { src: "/sprites/icons/seed_packet.png", label: "seeds", height: 32 },
+          { src: "/sprites/plants/tree_green.png", label: "growth stages", height: 44 },
+          { src: "/sprites/fruit/fruit_13.png", label: "fruit", height: 24 },
+        ],
+      },
+      {
         body: [
           "These three items are the only direct rewards in the game.",
         ],
@@ -100,7 +109,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
         bullets: [
           "💧 Water — common. Helps your trees grow a stage at a time.",
           "🌰 Seeds — plant them to expand your farm with new trees.",
-          "✨ Fertilizer — more special. Instantly ripens a tree that's waiting on its fruit timer.",
+          "🧴 Fertilizer — more special. Instantly ripens a tree that's waiting on its fruit timer.",
         ],
       },
       {
@@ -159,9 +168,16 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
   },
   {
     id: "daily-seeds",
-    title: "Daily Seeds",
+    title: "Daily KudoSeeds",
     icon: "🌰",
     sections: [
+      {
+        heading: "Say something, too",
+        body: [
+          "A KudoSeed carries a note if you want it to. Thank someone, tell them what you noticed, celebrate a milestone they hit. Tap a starter phrase or write your own — they'll see it with the seed.",
+          "You still earn 💧 10 water for sending one, and they get a seed to plant. Kindness is the only currency that grows both ways.",
+        ],
+      },
       {
         body: [
           "Once a day, you can give a Seed to another farmer — a small, quiet way of saying \"I see you.\"",
@@ -198,6 +214,119 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
           "A notification lets you know when you've reached one.",
           "Progress lives in the Goals window on the bottom menu.",
           "Checklist rewards never include Fruits — those still come from your harvest.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "world-map",
+    title: "The World Map",
+    icon: "🗺️",
+    sections: [
+      {
+        body: [
+          "Tap Map on the bottom menu to see the valley. Your farm isn't the only place you can be.",
+          "Pick a destination and your farmer walks there — trees and flowers drift past, butterflies tag along, and a little tune plays for the trip. When you arrive the music changes to match the place.",
+        ],
+      },
+      {
+        heading: "Where you can go",
+        bullets: [
+          "🌳 Community Garden — the shared tree everyone tends.",
+          "🏪 General Store — spend Coins on supplies.",
+          "🏡 Your RecoverTree Farm — home, always one tap away.",
+          "🛋️ Furniture Store and 🎣 Fishing Supply Store — boarded up for now. Something to look forward to.",
+        ],
+      },
+      {
+        heading: "You're not alone out there",
+        body: [
+          "Anywhere you travel, farmers who are there right now appear too — wandering between spots, stopping to look around. Tap one to walk over and say hello. A heart pops up over you both and you earn 💧 10 water for reaching out. Once per neighbor per day.",
+          "Farmers who go quiet for five minutes head home on their own.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "community-garden",
+    title: "Community Garden",
+    icon: "🌳",
+    sections: [
+      {
+        body: [
+          "Every week the whole community tends one giant tree together. Nobody competes; nobody wins. It either blooms or it doesn't, and either way the care counted.",
+        ],
+      },
+      {
+        heading: "How it works",
+        bullets: [
+          "The garden opens Monday and rests Sunday night.",
+          "Tap the donation box — your farmer walks over and the crate opens up close.",
+          "Add 💧 water, 🌰 seeds, or 🧴 fertilizer. There's a daily limit per person, but you can come back tomorrow.",
+          "The tree grows as the group's supplies add up. Flowers spread across the grass. At 100% it blooms pink.",
+        ],
+      },
+      {
+        heading: "The Garden Share Bundle",
+        body: [
+          "If all three goals are met before Sunday, every farmer who added anything receives a bundle: 💧 25 water, 🌰 2 seeds, 🧴 1 fertilizer, and 🪙 15 coins.",
+          "If it doesn't quite bloom, that's alright. The garden didn't fail — it just needed more hands. As always, no Fruits: those only come from harvesting your own trees.",
+        ],
+        sprites: [
+          { src: "/sprites/plants/tree_community.png", label: "growing", height: 44 },
+          { src: "/sprites/plants/tree_cherry.png", label: "bloomed", height: 52 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "general-store",
+    title: "General Store",
+    icon: "🏪",
+    sections: [
+      {
+        body: [
+          "A warm room with a wooden counter, a till, and a shopkeeper who's always glad to see you. Walk around, browse, take your time.",
+          "Tap the register or the shopkeeper to open the shelves. Everything here costs 🪙 Coins — never Fruits.",
+        ],
+      },
+      {
+        heading: "On the shelves",
+        bullets: [
+          "💧 Water — the cheapest thing here, sold in bundles of 25.",
+          "🧴 Fertilizer — ripens a waiting tree.",
+          "🌰 Seeds — plant another tree on your farm.",
+          "🎟️ Xtra Goose Entry — one extra Golden Goose answer, only while the goose is collecting.",
+          "🎫 Lottery Ticket — out of stock. Maybe one day.",
+        ],
+      },
+      {
+        heading: "Today's Sale",
+        body: [
+          "One item goes on sale each day, somewhere between 10% and 40% off. Deep discounts are rare. The sale holds all day, so there's no need to refresh and hope.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "coins",
+    title: "Coins",
+    icon: "🪙",
+    sections: [
+      {
+        body: [
+          "Coins are the spending money of the valley. They buy supplies at the General Store, and one day they'll buy cosmetics and furniture too.",
+          "Coins are not score. The leaderboard only ever counts Fruits you harvested. Spend them freely.",
+        ],
+      },
+      {
+        heading: "Where Coins come from",
+        bullets: [
+          "A few coins ride along with every reward you earn.",
+          "Rewards with seeds or fertilizer carry a slightly bigger coin bonus.",
+          "Finishing a monthly goal pays coins on top of water and fertilizer.",
+          "The Garden Share Bundle includes coins.",
+          "Season-end medals pay the most: 🥇 100, 🥈 60, 🥉 35.",
         ],
       },
     ],

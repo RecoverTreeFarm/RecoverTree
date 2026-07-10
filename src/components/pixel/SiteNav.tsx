@@ -3,6 +3,7 @@ import { SPRITES } from "@/lib/sprites";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SoundToggle } from "@/components/pixel/SoundToggle";
+import { MusicToggle } from "@/components/pixel/MusicToggle";
 
 const memberLinks: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Farm" },
@@ -25,13 +26,15 @@ export async function SiteNav() {
 
   // Role-aware links: Host for meeting_host/admin, Admin for admin only.
   let role: string | null = null;
+  let musicEnabled = true;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, music_enabled")
       .eq("user_id", user.id)
       .maybeSingle();
     role = profile?.role ?? null;
+    musicEnabled = (profile?.music_enabled as boolean | undefined) ?? true;
   }
   const links = [
     ...memberLinks,
@@ -77,6 +80,11 @@ export async function SiteNav() {
           <li>
             <SoundToggle />
           </li>
+          {user && (
+            <li>
+              <MusicToggle initialEnabled={musicEnabled} />
+            </li>
+          )}
 
           {user ? (
             <>

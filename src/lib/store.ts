@@ -21,10 +21,11 @@ export type StoreState = {
   sale: StoreSale | null;
 };
 
-/** Display info for the shelf grid (prices come from the server state). */
+/** Display info for the shelf grid (prices come from the server state).
+ *  `shelfName` is an optional short label so tiles stay readable. */
 export const STORE_ITEMS: Record<
   StoreItemKey,
-  { icon: string; name: string; blurb: string }
+  { icon: string; name: string; blurb: string; shelfName?: string }
 > = {
   water: {
     icon: "💧",
@@ -32,7 +33,7 @@ export const STORE_ITEMS: Record<
     blurb: "Adds Water to your inventory. Great for helping trees grow.",
   },
   fertilizer: {
-    icon: "✨",
+    icon: "🧴",
     name: "Fertilizer",
     blurb: "Helps an eligible tree ripen faster.",
   },
@@ -42,8 +43,11 @@ export const STORE_ITEMS: Record<
     blurb: "Plant new trees on your farm.",
   },
   goose_entry: {
+    // `shelfName` keeps the shelf tile readable; `name` is the full title
+    // used in the confirm panel and messages.
     icon: "🎟️",
     name: "Xtra Goose Entry",
     blurb: "Adds one extra Golden Goose answer slot for the current event.",
+    shelfName: "Goose Entry",
   },
 };

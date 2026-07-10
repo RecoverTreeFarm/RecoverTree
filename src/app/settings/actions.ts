@@ -54,3 +54,23 @@ export async function updateProfile(formData: FormData) {
 
   redirect("/settings?saved=1");
 }
+
+/**
+ * Background-music preference. Stored on the profile so it follows the user
+ * across devices; RLS restricts the update to their own row.
+ */
+export async function setMusicPreference(enabled: boolean) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false as const };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ music_enabled: enabled })
+    .eq("user_id", user.id);
+
+  if (error) return { ok: false as const };
+  return { ok: true as const };
+}

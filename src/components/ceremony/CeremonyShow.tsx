@@ -7,6 +7,7 @@ import { Sprite } from "@/components/pixel/Sprite";
 import { Medal, Badge, type MedalTier } from "@/components/pixel/placeholders";
 import { ParticleBurst } from "@/components/pixel/ParticleBurst";
 import { playSfx, isMuted } from "@/lib/sfx";
+import { CertificateButton, type CertificateData } from "./Certificate";
 
 export type ShowFarmer = {
   rank: number;
@@ -118,11 +119,14 @@ export function CeremonyShow({
   badges,
   me,
   seasonName,
+  certificate,
 }: {
   farmers: ShowFarmer[];
   badges: ShowBadge[];
   me: ShowMe;
   seasonName: string;
+  /** everything the downloadable certificate needs (null if not on the board) */
+  certificate: CertificateData | null;
 }) {
   const [act, setAct] = useState<"podium" | "mvp" | "you">("podium");
   const [phase, setPhase] = useState<"line" | "rising" | "fading" | "final">("line");
@@ -366,7 +370,7 @@ export function CeremonyShow({
                   <div className="text-left text-sm">
                     <p className="font-extrabold uppercase">{me.medal} medal</p>
                     <p className="text-xs text-[var(--rf-ink-soft)]">
-                      +{MEDAL_FERT[me.medal]} fertilizer for next month ✨
+                      +{MEDAL_FERT[me.medal]} fertilizer for next month 🧴
                     </p>
                   </div>
                 </div>
@@ -374,7 +378,7 @@ export function CeremonyShow({
               {me.badges.map((b, i) => (
                 <div key={i} className="flex items-center justify-center gap-3">
                   <Badge icon={b.icon} label={b.name} earned />
-                  <span className="text-xs text-[var(--rf-ink-soft)]">+1 fertilizer ✨</span>
+                  <span className="text-xs text-[var(--rf-ink-soft)]">+1 fertilizer 🧴</span>
                 </div>
               ))}
               <p className="text-xs text-[var(--rf-ink-soft)]">
@@ -395,7 +399,8 @@ export function CeremonyShow({
             </div>
           )}
 
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {certificate && <CertificateButton data={certificate} />}
             <button type="button" onClick={() => setRunId((n) => n + 1)} className="pixel-btn pixel-btn--secondary">
               ↻ Replay
             </button>

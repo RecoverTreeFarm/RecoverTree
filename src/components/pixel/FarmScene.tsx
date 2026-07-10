@@ -52,13 +52,13 @@ const OBJECT_MIDLINE = PLOT_TOP_EDGE + OBJECT_HEIGHT_PCT / 2;
 export const BASKET_POS = { left: 10, bottom: PLOT_TOP_EDGE };
 export const GOOSE_BOX_POS = { left: 26, bottom: PLOT_TOP_EDGE };
 
-/** Where the farmer stands to use an object (just to its right, same ground). */
+/** Where the farmer stands to use an object — right up against its side. */
 export function farmerPosForObject(objLeft: number): FarmerPos {
-  return { left: Math.min(86, objLeft + 7), bottom: PLOT_TOP_EDGE + 1 };
+  return { left: Math.min(88, objLeft + 3), bottom: PLOT_TOP_EDGE + 1 };
 }
 
 /** Where the farmer stands to reach the goose (it hovers up near the top). */
-export const FARMER_POS_FOR_GOOSE: FarmerPos = { left: 48, bottom: 70 };
+export const FARMER_POS_FOR_GOOSE: FarmerPos = { left: 49, bottom: 73 };
 
 /**
  * 2D-game depth sorting: an object is drawn IN FRONT of the farmer only when
@@ -73,7 +73,8 @@ export function objectZIndex(farmerBottom: number): number {
 export function farmerPosForTree(i: number): FarmerPos {
   const col = i % GRID_COLS;
   const rowFromBottom = Math.floor(i / GRID_COLS);
-  const x = PLOT_LEFT + PLOT_WIDTH * ((col + 0.5) / GRID_COLS) - 6;
+  // stand almost on top of the plant, not a tile away from it
+  const x = PLOT_LEFT + PLOT_WIDTH * ((col + 0.5) / GRID_COLS) - 2.5;
   const bottom = PLOT_BOTTOM + PLOT_HEIGHT * (rowFromBottom / GRID_ROWS) + 2;
   return { left: Math.min(86, Math.max(6, x)), bottom: Math.min(58, bottom) };
 }

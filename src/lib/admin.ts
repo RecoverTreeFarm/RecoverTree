@@ -40,6 +40,7 @@ export type AdminChecklistGoal = {
   description: string | null;
   water_reward: number;
   fertilizer_reward: number;
+  coin_reward: number;
   active: boolean;
   sort_order: number;
 };

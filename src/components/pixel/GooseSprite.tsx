@@ -5,32 +5,40 @@ import { SPRITES } from "@/lib/sprites";
 
 /**
  * The Golden Goose.
- *  - Idle (on the ground): the wing-down frame at HALF size, gently bobbing —
- *    no wing flapping.
- *  - Flying (the farmer is doing something): grows to full size and the two
- *    flap frames alternate. The caller moves it around the farm (rf-goose-fly).
- * Static art + simple transforms only.
+ *  - On the FARM (`animated`): the wing-down frame at half size, gently
+ *    bobbing; while `flying` it grows to full size and the two flap frames
+ *    alternate as the caller swoops it around (rf-goose-fly).
+ *  - In UI (menus, panels, empty states): perfectly still. `animated` is off
+ *    by default, so a goose dropped into a window never flaps or bobs.
  */
 export function GooseSprite({
   flying = false,
+  animated = false,
   scale = 1.4,
   className = "",
 }: {
   flying?: boolean;
+  /** animate wings + bob — only true for the goose living on the farm */
+  animated?: boolean;
   scale?: number;
   className?: string;
 }) {
   const [frame, setFrame] = useState(0);
 
-  // The goose always flaps; it flaps FASTER while flying around the farm.
+  // Wings only move for the on-farm goose; faster while it's flying.
   useEffect(() => {
+    if (!animated) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFrame(0);
+      return;
+    }
     const iv = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), flying ? 130 : 420);
     return () => clearInterval(iv);
-  }, [flying]);
+  }, [flying, animated]);
 
   const src = frame === 0 ? SPRITES.goose2 : SPRITES.goose1;
   return (
-    <span className={`inline-block ${flying ? "" : "rf-goose-bob"} ${className}`}>
+    <span className={`inline-block ${animated && !flying ? "rf-goose-bob" : ""} ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
