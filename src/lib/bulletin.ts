@@ -1,68 +1,103 @@
 /**
- * Bulletin board posts for the public homepage — announcements, patch notes,
- * bug fixes, and upcoming features.
+ * Bulletin board — the homepage notice board.
  *
- * This is deliberately a plain data file, not a CMS: the project has no
- * content system, and posts change rarely. To add a notice, put a new object
- * at the TOP of BULLETIN_POSTS (newest first) and redeploy.
+ * Posts live in the `bulletin_posts` table and are managed from
+ * Admin → Bulletin. Anyone (including logged-out visitors) can read posts
+ * whose `publish_at` has arrived, which is how scheduling works: pick a
+ * future date and the post appears on its own.
  */
 
-export const BULLETIN_CATEGORIES = ["Announcement", "Update", "Patch", "Bug Fix"] as const;
+/** The three types an admin may choose. (`patch`/`bugfix` exist in the DB for
+ *  legacy rows but are deliberately NOT offered in the admin UI.) */
+export const BULLETIN_CATEGORIES = ["announcement", "update", "event"] as const;
 export type BulletinCategory = (typeof BULLETIN_CATEGORIES)[number];
 
+/** Every category the DB may return, including the legacy ones. */
+export type BulletinCategoryAny = BulletinCategory | "patch" | "bugfix";
+
 export type BulletinPost = {
-  /** stable slug — used as the React key */
   id: string;
   title: string;
-  /** ISO date (YYYY-MM-DD) */
-  date: string;
-  category: BulletinCategory;
   body: string;
+  category: BulletinCategoryAny;
+  /** a path under /sprites, or null */
+  image_src: string | null;
+  publish_at: string;
 };
 
-/** Cozy pin colors per category (the tack holding the note to the board). */
-export const CATEGORY_STYLE: Record<BulletinCategory, { pin: string; label: string }> = {
-  Announcement: { pin: "var(--rf-gold)", label: "📣" },
-  Update: { pin: "var(--rf-grass)", label: "🌱" },
-  Patch: { pin: "var(--rf-blue)", label: "🧵" },
-  "Bug Fix": { pin: "var(--rf-red)", label: "🐛" },
+/** Admin view adds scheduling info. */
+export type AdminBulletinPost = BulletinPost & {
+  created_at: string;
+  is_published: boolean;
 };
 
-/** Newest first. */
-export const BULLETIN_POSTS: BulletinPost[] = [
+/** Cozy pin color + emoji per category (the tack holding the note up). */
+export const CATEGORY_STYLE: Record<BulletinCategoryAny, { pin: string; label: string }> = {
+  announcement: { pin: "var(--rf-gold)", label: "📣" },
+  update: { pin: "var(--rf-grass)", label: "🌱" },
+  event: { pin: "var(--rf-blue)", label: "🎪" },
+  patch: { pin: "var(--rf-blue)", label: "🧵" },
+  bugfix: { pin: "var(--rf-red)", label: "🐛" },
+};
+
+export const CATEGORY_LABEL: Record<BulletinCategoryAny, string> = {
+  announcement: "Announcement",
+  update: "Update",
+  event: "Event",
+  patch: "Patch",
+  bugfix: "Bug Fix",
+};
+
+/* ---------------------------------------------------------------------------
+ * Sprite picker catalog.
+ *
+ * Game art an admin can attach to a post: characters, trees, fruit, farm and
+ * nature objects. UI assets (/ui/*, frames, buttons) are intentionally absent
+ * — the server also rejects anything that isn't under /sprites/.
+ * ------------------------------------------------------------------------- */
+
+export type SpriteChoice = { src: string; label: string };
+export type SpriteGroup = { group: string; sprites: SpriteChoice[] };
+
+const farmerSprites: SpriteChoice[] = Array.from({ length: 10 }, (_, i) => {
+  const n = String(i + 1).padStart(2, "0");
+  return { src: `/sprites/characters/farmer_variant_${n}.png`, label: `Farmer ${i + 1}` };
+});
+
+const fruitSprites: SpriteChoice[] = [4, 11, 13, 14, 15, 12, 16, 1, 3, 5, 7, 10, 18, 19, 0].map(
+  (n) => ({ src: `/sprites/fruit/fruit_${n}.png`, label: `Fruit ${n}` }),
+);
+
+export const SPRITE_CATALOG: SpriteGroup[] = [
   {
-    id: "cherry-trees",
-    title: "Cherry blossom trees are blooming",
-    date: "2026-07-09",
-    category: "Update",
-    body: "The rare cherry blossom tree has fresh art, its own drifting petals, and a little chime when it appears. Cherries now grow on cherry trees only — every other tree keeps its own fruit. A blossom still pays double Fruits when you harvest it.",
+    group: "Trees & nature",
+    sprites: [
+      { src: "/sprites/plants/tree_cherry.png", label: "Cherry blossom tree" },
+      { src: "/sprites/plants/tree_green.png", label: "Tree growth strip" },
+      { src: "/sprites/ground/grass_cozy.png", label: "Grass" },
+      { src: "/sprites/ground/dirt_cozy.png", label: "Tilled soil" },
+    ],
   },
   {
-    id: "single-plant-care",
-    title: "Tend one plant at a time",
-    date: "2026-07-09",
-    category: "Patch",
-    body: "Tapping a single plant now waters, fertilizes, or harvests just that plant. Want to do the whole farm at once? Tap the item in the top bar or in your backpack — that still applies it everywhere it can.",
+    group: "Farm & objects",
+    sprites: [
+      { src: "/sprites/misc/barn_cozy.png", label: "Barn" },
+      { src: "/sprites/icons/seed_packet.png", label: "Seed packet" },
+      { src: "/sprites/goose/egg.png", label: "Golden egg" },
+      { src: "/sprites/goose/goose_2.png", label: "Golden Goose" },
+      { src: "/sprites/map/world_map.png", label: "World map" },
+      ...Array.from({ length: 6 }, (_, i) => ({
+        src: `/sprites/houses/house_${i + 1}.png`,
+        label: `House ${i + 1}`,
+      })),
+    ],
   },
-  {
-    id: "world-map",
-    title: "A map of the valley",
-    date: "2026-07-09",
-    category: "Announcement",
-    body: "There's a new map button in the corner of your farm. For now it's just a lovely place to look at — travel and locations are coming later.",
-  },
-  {
-    id: "seasons-cycle",
-    title: "Seasons now cycle: Sparch through Octobrrr",
-    date: "2026-07-09",
-    category: "Update",
-    body: "Seasons no longer follow the calendar. Five 30-day seasons loop forever — Sparch, Maypril, Junduly, Suntember, Octobrrr — and every community starts on Sparch. When a season ends, the ceremony hands out medals and badges automatically.",
-  },
-  {
-    id: "notification-fixes",
-    title: "Quieter notifications, steadier trees",
-    date: "2026-07-09",
-    category: "Bug Fix",
-    body: "Seed reminders now appear once a day instead of every time your seed count changes. Harvested trees no longer flash their fruit for a moment before emptying. Tapping outside the notification panel closes it.",
-  },
+  { group: "Characters", sprites: farmerSprites },
+  { group: "Fruit", sprites: fruitSprites },
 ];
+
+/** Guard mirroring the server's check — nothing outside /sprites/ is allowed. */
+export function isAllowedSprite(src: string | null): boolean {
+  if (src === null) return true;
+  return src.startsWith("/sprites/");
+}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Container } from "@/components/pixel/ui";
 import { PixelLink, Panel } from "@/components/pixel/ui";
-import { FarmScene } from "@/components/pixel/FarmScene";
+import { HomeHero } from "@/components/pixel/HomeHero";
 import { BulletinBoard } from "@/components/pixel/BulletinBoard";
 import { Fruit } from "@/components/pixel/Sprite";
 import { createClient } from "@/lib/supabase/server";
@@ -26,27 +26,19 @@ export default async function LandingPage() {
 
   return (
     <Container>
-      <section className="grid items-center gap-8 md:grid-cols-2">
+      <section className="grid items-center gap-6 md:grid-cols-2">
         <div>
           <h1 className="pixel-heading text-4xl text-[var(--rf-ink)] sm:text-5xl">
             RecoverTree
           </h1>
-          <p className="mt-4 max-w-md text-sm leading-6 text-[var(--rf-ink-soft)]">
-            A tiny, nostalgic pixel farm for a recovery community. No chat, no
-            meetings here — just a cute companion that celebrates showing up.
-            Attend meetings, grow <span className="font-bold">Trees</span>,
-            harvest <span className="font-bold">Fruits</span>, and cheer each
-            other on.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap gap-3">
             <PixelLink href="/signup">Start your farm</PixelLink>
             <PixelLink href="/login" variant="secondary">
               Log in
             </PixelLink>
           </div>
         </div>
-        {/* decorative preview: a sapling, a growing bush, and one bearing fruit */}
-        <FarmScene trees={[{ stage: 1 }, { stage: 3 }, { stage: 5 }]} />
+        <HomeHero />
       </section>
 
       <section className="mt-12">

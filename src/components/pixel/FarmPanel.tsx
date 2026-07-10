@@ -15,7 +15,6 @@ import { HarvestCinematic } from "./HarvestCinematic";
 // `useFertilizer` is a server action, not a hook — aliased so the hooks
 // linter doesn't mistake calls in loops for hook calls.
 import {
-  waterTrees,
   plantSeed,
   useFertilizer as applyFertilizer,
   waterOneTree,
@@ -25,7 +24,6 @@ import {
 import { playSfx } from "@/lib/sfx";
 import { Fruit } from "./Sprite";
 import { GooseSprite } from "./GooseSprite";
-import { MapHud } from "@/components/game/MapPanel";
 import { SPRITES } from "@/lib/sprites";
 
 const WATER_PER_PLANT = 10; // each plant drinks its own 10 water per stage
@@ -57,6 +55,8 @@ export function FarmPanel({
   showGoose = false,
   avatarSrc,
   handleRef,
+  onOpenGoose,
+  farmObjects,
 }: {
   trees: TreeView[];
   water: number;
@@ -72,6 +72,10 @@ export function FarmPanel({
   avatarSrc?: string;
   /** lets the backpack window trigger confirmed item actions */
   handleRef?: React.MutableRefObject<FarmPanelHandle | null>;
+  /** clicking the goose opens the Keeper's Golden Goose screen */
+  onOpenGoose?: () => void;
+  /** event objects beside the house (basket / goose submission box) */
+  farmObjects?: React.ReactNode;
 }) {
   const router = useRouter();
   const [farmerAnim, setFarmerAnim] = useState<FarmerAnim>("idle");
@@ -276,6 +280,14 @@ export function FarmPanel({
     await iSleep(600);
   }
 
+  /**
+   * Bulk water (top bar / backpack). The farmer walks to each thirsty plant
+   * in turn and waters it — and THAT plant grows immediately, before the
+   * farmer moves on, rather than every tree popping at the end.
+   *
+   * Each step is a real `water_one_tree` call, so growth shown on screen is
+   * always a server-confirmed result; the animation never invents one.
+   */
   async function handleWater() {
     setMessage(null);
     setReadyBurst(null);
@@ -284,68 +296,94 @@ export function FarmPanel({
     setRunning("water");
     playSfx("click");
 
-    const becomingReady = wateringTargets.filter((i) => trees[i].stage === 3);
+    const grown: TreeView[] = [...trees];
+    let watered = 0;
+    let ripened = 0;
+    let waterLeft = water;
+    let failure: string | null = null;
 
     for (const i of wateringTargets) {
+      const treeId = trees[i].id;
+      if (!treeId) continue;
+
       await walkTo(farmerPosForTree(i));
       if (!full.current) {
         setFarmerAnim("tilt");
         setActiveTree(i);
         playSfx("water");
+        await iSleep(600);
       }
-      await iSleep(600);
       setActiveTree(null);
+
+      const result = await waterOneTree(treeId);
+      if (!result.ok) {
+        failure = result.message;
+        break;
+      }
+      // this tree grows RIGHT NOW, before the farmer walks away
+      grown[i] = {
+        ...grown[i],
+        stage: result.new_stage,
+        readyAt:
+          result.new_stage === 4
+            ? // runs inside an async click handler, never during render
+              // eslint-disable-next-line react-hooks/purity
+              new Date(Date.now() + 4 * 3_600_000).toISOString()
+            : grown[i].readyAt,
+        isBlossom: result.became_blossom || grown[i].isBlossom,
+      };
+      setOverride([...grown]);
+      waterLeft = result.water_left;
+      watered += 1;
+      if (result.new_stage === 4) {
+        ripened += 1;
+        burstSeq.current += 1;
+        setReadyBurst({ id: burstSeq.current, indexes: [i] });
+      }
+      if (result.became_blossom) celebrateCherry(i);
     }
 
-    if (full.current) playSfx("water");
     void walkTo(null);
-    startTransition(async () => {
-      const result = await waterTrees();
-      setFarmerAnim("idle");
-      setRunning(null);
-      resetSkip();
-      if (!result.ok) {
-        playSfx("error");
-        setMessage("Couldn’t water just now — try again.");
-      } else if (result.trees_advanced > 0) {
-        // optimistic: advance the watered plants so the farm doesn't flash
-        // the pre-watering state while the refresh is in flight
-        setOverride(
-          trees.map((t, i) =>
-            wateringTargets.includes(i)
-              ? {
-                  ...t,
-                  stage: Math.min(t.stage + 1, 4),
-                  readyAt:
-                    t.stage === 3
-                      ? new Date(Date.now() + 4 * 3_600_000).toISOString()
-                      : t.readyAt,
-                }
-              : t,
-          ),
-        );
-        if (becomingReady.length > 0) {
-          setReadyBurst({ id: Date.now(), indexes: becomingReady });
-          setMessage(
-            `Watered ${result.trees_advanced} ${result.trees_advanced === 1 ? "plant" : "plants"}! ${becomingReady.length} fully watered — fruit in 4 hours. 💧 ${result.water_left} water left.`,
-          );
-        } else {
-          setMessage(
-            `Watered ${result.trees_advanced} ${result.trees_advanced === 1 ? "plant" : "plants"}! 💧 ${result.water_left} water left.`,
-          );
-        }
-      } else {
-        setMessage("Nothing to water right now.");
-      }
-      router.refresh();
-    });
+    setFarmerAnim("idle");
+    setRunning(null);
+    resetSkip();
+
+    if (failure) {
+      playSfx("error");
+      setMessage(failure);
+    } else if (watered > 0) {
+      setMessage(
+        ripened > 0
+          ? `Watered ${watered} ${watered === 1 ? "plant" : "plants"}! ${ripened} fully watered — fruit in 4 hours. 💧 ${waterLeft} water left.`
+          : `Watered ${watered} ${watered === 1 ? "plant" : "plants"}! 💧 ${waterLeft} water left.`,
+      );
+    } else {
+      setMessage("Nothing to water right now.");
+    }
+    startTransition(() => router.refresh());
+  }
+
+  /**
+   * Plant ONE seed from the contextual button over a hole (single scope, so
+   * the button turns into ⏭ Skip while the farmer walks).
+   *
+   * TODO(selected-hole planting): the server's `plant_seed` always fills the
+   * NEXT open plot, so a seed lands in the first free hole rather than the
+   * exact hole you tapped. Honouring the tapped hole needs a `plant_seed(
+   * p_slot)` RPC and a slot column on `trees` — a schema change we're not
+   * making here. The farmer therefore walks to the plot the seed will really
+   * land in, so the animation never lies about where it went.
+   */
+  async function handlePlantOne() {
+    setRunScope("single");
+    await handlePlantAll(1, "single");
   }
 
   /** Plant up to `count` seeds, walking to each new plot. */
-  async function handlePlantAll(count: number) {
+  async function handlePlantAll(count: number, scope: "bulk" | "single" = "bulk") {
     setMessage(null);
     resetSkip();
-    setRunScope("bulk");
+    setRunScope(scope);
     setRunning("plant");
     playSfx("click");
 
@@ -373,6 +411,7 @@ export function FarmPanel({
     void walkTo(null);
     setFarmerAnim("idle");
     setRunning(null);
+    setSelectedSlot(null);
     resetSkip();
     if (lastError) {
       playSfx("error");
@@ -383,19 +422,33 @@ export function FarmPanel({
     startTransition(() => router.refresh());
   }
 
-  /** Ripen up to `count` waiting trees (server picks blossoms first). */
+  /**
+   * Ripen up to `count` waiting trees. The farmer walks to each plant first,
+   * exactly like watering. Cherry blossoms are ripened FIRST — the server's
+   * `use_fertilizer` picks blossom-first, so the walk order mirrors it.
+   */
   async function handleFertilizeAll(count: number) {
     setMessage(null);
     resetSkip();
     setRunScope("bulk");
     setRunning("fert");
 
-    const targets = waitingTargets.slice(0, count);
+    const targets = [...waitingTargets]
+      .sort((a, b) => Number(!!trees[b].isBlossom) - Number(!!trees[a].isBlossom))
+      .slice(0, count);
     const next = [...trees];
     let used = 0;
     let left = fertilizer;
 
     for (const idx of targets) {
+      await walkTo(farmerPosForTree(idx));
+      if (!full.current) {
+        setFarmerAnim("tilt");
+        setActiveTree(idx);
+        await iSleep(400);
+      }
+      setActiveTree(null);
+
       const result = await applyFertilizer();
       if (!result.ok) {
         playSfx("error");
@@ -409,9 +462,11 @@ export function FarmPanel({
       setOverride([...next]); // optimistic: fruit appears immediately
       left = result.fertilizer_left;
       used += 1;
-      await iSleep(500);
+      await iSleep(400);
     }
 
+    void walkTo(null);
+    setFarmerAnim("idle");
     setRunning(null);
     resetSkip();
     if (used > 0) {
@@ -518,20 +573,33 @@ export function FarmPanel({
     });
   }
 
-  function handleFertilizeOne(index: number, treeId: string) {
+  /** Fertilize ONE plant — the farmer walks over to it, just like watering. */
+  async function handleFertilizeOne(index: number, treeId: string) {
     setMessage(null);
+    resetSkip();
     setRunScope("single");
     setRunning("fert");
+
+    await walkTo(farmerPosForTree(index));
+    if (!full.current) {
+      setFarmerAnim("tilt");
+      await iSleep(400);
+    }
+    void walkTo(null);
+
     startTransition(async () => {
       const result = await fertilizeOneTree(treeId);
+      setFarmerAnim("idle");
       setRunning(null);
       setSelectedSlot(null);
+      resetSkip();
       if (!result.ok) {
         playSfx("error");
         setMessage(result.message);
       } else {
         playSfx("reveal");
-        setFertBurst({ id: Date.now(), index });
+        burstSeq.current += 1;
+        setFertBurst({ id: burstSeq.current, index });
         setOverride(trees.map((t, i) => (i === index ? { ...t, stage: 5, readyAt: null } : t)));
         setMessage(
           `✨ Fertilized! Harvest it when you’re ready. ${result.fertilizer_left} fertilizer left.`,
@@ -552,8 +620,9 @@ export function FarmPanel({
   /** Actions for the currently selected slot — only what's applicable now.
    *  Each acts on THIS plant alone. */
   function actionsForSlot(index: number): SlotAction[] {
-    // mid-action: the button turns into a Skip for this plant's animation
-    if (running === "water" && selectedSlot === index) {
+    // mid-action: the button turns into a Skip for THIS plant's animation
+    // (it never applies the item to the rest of the plot)
+    if (running !== null && runScope === "single" && selectedSlot === index) {
       return [
         {
           icon: <span aria-hidden>{skipStage === 0 ? "⏭" : "⏭⏭"}</span>,
@@ -572,7 +641,7 @@ export function FarmPanel({
         acts.push({
           icon: <span aria-hidden>🌱</span>,
           label: "Plant a seed here",
-          onClick: () => void handlePlantAll(1),
+          onClick: () => void handlePlantOne(),
         });
       }
       return acts;
@@ -660,8 +729,6 @@ export function FarmPanel({
     return {};
   }
 
-  const seedState = itemState("seed");
-
   return (
     <div className="relative">
       {/* Inventory — tap once to see "… all?", tap again to do it all */}
@@ -712,6 +779,13 @@ export function FarmPanel({
             setSelectedSlot((cur) => (cur === i ? null : i));
           }}
           onDismiss={() => setSelectedSlot(null)}
+          onGroundClick={(pos) => {
+            if (busy) return;
+            setFarmerAnim("walk");
+            setFarmerPos(pos);
+            window.setTimeout(() => setFarmerAnim("idle"), 620);
+          }}
+          farmObjects={farmObjects}
           // The action closures only read animation refs when clicked, never
           // during render — safe despite the conservative lint trace.
           // eslint-disable-next-line react-hooks/refs
@@ -725,6 +799,7 @@ export function FarmPanel({
             fruitIndex={cinematicIndex}
             isBlossom={trees[cinematicIndex]?.isBlossom ?? false}
             farmerSrc={avatarSrc}
+            house={house}
           />
         )}
 
@@ -740,68 +815,42 @@ export function FarmPanel({
           </button>
         )}
 
-        {/* The Golden Goose hangs out on the Keeper's farm. While the farmer
-            is doing something it takes off — full size, flapping, swooping
-            around the play area (rf-goose-fly animates left/top waypoints). */}
-        {showGoose && (
-          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+        {/* The Golden Goose hangs out on the Keeper's farm with a bouncing "!"
+            — click it to open the Keeper's question screen. While the farmer
+            is doing something it takes off, flapping faster and swooping
+            around (rf-goose-fly animates left/top waypoints).
+            It is HIDDEN during the harvest close-up. */}
+        {showGoose && !cinematic && (
+          <div className="absolute inset-0 z-20 overflow-hidden">
             <div
               className={`absolute -translate-x-1/2 ${busy ? "rf-goose-fly" : ""}`}
               style={{ left: "50%", top: "8%" }}
             >
-              <GooseSprite flying={busy} scale={1.3} />
+              <button
+                type="button"
+                aria-label="Golden Goose — open the Keeper's question screen"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenGoose?.();
+                }}
+                className="relative border-0 bg-transparent p-0"
+                style={{ cursor: onOpenGoose ? "pointer" : "default" }}
+              >
+                <span className="rf-bang text-xl font-black" style={{ top: -22, color: "var(--rf-gold)", WebkitTextStroke: "1px var(--rf-ink)" }}>
+                  !
+                </span>
+                <GooseSprite flying={busy} scale={1.3} />
+              </button>
             </div>
           </div>
         )}
 
         {/* Top-right HUD: "!" notifications on top, "?" guidebook below.
-            z-40 keeps the guidebook/notification overlays ABOVE the Plant
-            Seed callout (z-30) so nothing pokes through them. */}
+            (The floating Plant Seed and Map buttons were removed — planting
+            happens on the tapped hole, and Map lives in the bottom menu.) */}
         <div className="absolute right-2 top-2 z-40 flex flex-col items-end gap-1.5">
           {notificationSlot}
         </div>
-
-        {/* Bottom-right HUD: the map button (always) with the Plant Seed
-            callout stacked above it when Seeds are available.
-            z-50 (above the z-40 notification HUD) because the map MODAL is
-            rendered inside this wrapper's stacking context. */}
-        <div className="absolute bottom-2 right-2 z-50 flex flex-col items-end gap-1.5">
-          <MapHud />
-        </div>
-
-        {/* Plant Seed callout — above the map button.
-            Mirrors the seed item button: confirm first, skip while running. */}
-        {seeds > 0 && !cinematic && (
-          <button
-            type="button"
-            ref={calloutRef}
-            onClick={() => onItemClick("seed")}
-            disabled={itemDisabled("seed", seeds < 1)}
-            className="absolute bottom-12 right-2 z-30 flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-wide shadow-[2px_2px_0_rgba(58,42,26,0.25)] active:translate-y-px disabled:opacity-50"
-            style={{
-              background:
-                seedState === "confirm"
-                  ? "var(--rf-gold)"
-                  : seedState === "skip"
-                    ? "var(--rf-ink)"
-                    : "var(--rf-cream)",
-              borderColor: "var(--rf-ink)",
-              color: seedState === "skip" ? "var(--rf-cream)" : "var(--rf-ink)",
-            }}
-          >
-            {seedState === "skip" ? (
-              <span aria-hidden>{skipStage === 0 ? "⏭" : "⏭⏭"}</span>
-            ) : seedState === "confirm" ? (
-              <>Plant all? ({plantable})</>
-            ) : (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />
-                Plant Seed{seeds > 1 ? ` ×${seeds}` : ""}
-              </>
-            )}
-          </button>
-        )}
       </div>
 
       {message && (

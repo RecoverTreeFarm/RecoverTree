@@ -13,11 +13,13 @@ import { MeetingSessions } from "./MeetingSessions";
 import { AuditLogs } from "./AuditLogs";
 import { GameSettings } from "./GameSettings";
 import { DebugTools, type DebugInventoryRow, type DebugEventStates } from "./DebugTools";
+import { BulletinAdmin } from "./BulletinAdmin";
+import type { AdminBulletinPost } from "@/lib/bulletin";
 
 // The standalone Golden Goose tab was removed by request — Golden Goose
 // SETTINGS remain editable under Game settings. (The admin cancel RPC still
 // exists server-side if a management UI is ever wanted again.)
-type Tab = "users" | "sessions" | "logs" | "settings" | "debug";
+type Tab = "users" | "sessions" | "bulletin" | "logs" | "settings" | "debug";
 
 export function AdminConsole({
   currentUserId,
@@ -27,6 +29,7 @@ export function AdminConsole({
   goals,
   overrides,
   debug,
+  bulletin,
 }: {
   currentUserId: string;
   users: AdminUser[];
@@ -36,12 +39,14 @@ export function AdminConsole({
   overrides: SettingOverrideRow[];
   /** null = debug settings disabled → no Debug tab */
   debug: { players: DebugInventoryRow[]; events: DebugEventStates | null } | null;
+  bulletin: AdminBulletinPost[];
 }) {
   const [tab, setTab] = useState<Tab>("users");
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "users", label: "Users" },
     { id: "sessions", label: "Meetings" },
+    { id: "bulletin", label: "Bulletin" },
     { id: "settings", label: "Game settings" },
     ...(debug ? [{ id: "debug" as Tab, label: "Debug 🧪" }] : []),
     { id: "logs", label: "Audit log" },
@@ -72,6 +77,7 @@ export function AdminConsole({
         <UserManagement users={users} currentUserId={currentUserId} />
       )}
       {tab === "sessions" && <MeetingSessions sessions={sessions} />}
+      {tab === "bulletin" && <BulletinAdmin posts={bulletin} />}
       {tab === "settings" && (
         <GameSettings overrides={overrides} goals={goals} />
       )}

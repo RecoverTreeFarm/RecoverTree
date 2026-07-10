@@ -28,7 +28,9 @@ export type SfxName = keyof typeof SOUNDS;
 
 const MUTE_KEY = "rf-muted";
 const VOLUME_KEY = "rf-volume";
-const DEFAULT_VOLUME = 0.22; // the app's original fixed level
+/** Volume to restore when unmuting (the level before the mute). */
+const PREV_VOLUME_KEY = "rf-volume-prev";
+export const DEFAULT_VOLUME = 0.22; // the app's original fixed level
 const cache = new Map<SfxName, HTMLAudioElement>();
 
 export function isMuted(): boolean {
@@ -36,8 +38,22 @@ export function isMuted(): boolean {
   return window.localStorage.getItem(MUTE_KEY) === "1";
 }
 
+/**
+ * Mute drives the volume, so the slider and the mute button never disagree:
+ * muting remembers the current level and drops volume to 0; unmuting restores
+ * that level (or the default if there's nothing sensible to restore).
+ */
 export function setMuted(muted: boolean) {
   if (typeof window === "undefined") return;
+  if (muted) {
+    const current = getVolume();
+    if (current > 0) window.localStorage.setItem(PREV_VOLUME_KEY, String(current));
+    setVolume(0);
+  } else {
+    const prev = parseFloat(window.localStorage.getItem(PREV_VOLUME_KEY) ?? "");
+    const restore = Number.isFinite(prev) && prev > 0 ? prev : DEFAULT_VOLUME;
+    setVolume(restore);
+  }
   window.localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
   window.dispatchEvent(new Event("rf-mute-change"));
 }

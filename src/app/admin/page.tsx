@@ -11,6 +11,7 @@ import type {
 } from "@/lib/admin";
 import { debugSettingsEnabled, type SettingOverrideRow } from "@/lib/gameSettings";
 import type { DebugInventoryRow, DebugEventStates } from "@/components/admin/DebugTools";
+import type { AdminBulletinPost } from "@/lib/bulletin";
 
 /**
  * Admin console. Access is enforced SERVER-SIDE here (non-admins get an
@@ -48,12 +49,13 @@ export default async function AdminPage() {
   // Pull everything the console needs via the admin RPCs (each re-checks
   // is_admin() in the DB). If the migration hasn't been applied yet the RPCs
   // won't exist — surface that clearly instead of crashing.
-  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes] = await Promise.all([
+  const [usersRes, sessionsRes, logsRes, goalsRes, settingsRes, bulletinRes] = await Promise.all([
     supabase.rpc("list_admin_users"),
     supabase.rpc("list_admin_meeting_sessions"),
     supabase.rpc("list_admin_audit_logs"),
     supabase.rpc("list_admin_checklist_goals"),
     supabase.rpc("get_game_settings"),
+    supabase.rpc("list_admin_bulletin_posts"),
   ]);
 
   const missingFn =
@@ -110,6 +112,7 @@ export default async function AdminPage() {
         goals={(goalsRes.data ?? []) as AdminChecklistGoal[]}
         overrides={overrides}
         debug={debug}
+        bulletin={(bulletinRes.data ?? []) as AdminBulletinPost[]}
       />
     </Container>
   );

@@ -22,14 +22,13 @@ export function GooseSprite({
 }) {
   const [frame, setFrame] = useState(0);
 
+  // The goose always flaps; it flaps FASTER while flying around the farm.
   useEffect(() => {
-    if (!flying) return;
-    const iv = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), 240);
+    const iv = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), flying ? 130 : 420);
     return () => clearInterval(iv);
   }, [flying]);
 
-  // Idle always shows the wing-down (gliding) frame; flying alternates both.
-  const src = !flying ? SPRITES.goose2 : frame === 0 ? SPRITES.goose2 : SPRITES.goose1;
+  const src = frame === 0 ? SPRITES.goose2 : SPRITES.goose1;
   return (
     <span className={`inline-block ${flying ? "" : "rf-goose-bob"} ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}

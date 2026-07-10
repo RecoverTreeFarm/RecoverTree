@@ -20,9 +20,17 @@ export function SoundToggle() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setM(isMuted());
     setVol(getVolume());
-    const onChange = () => setM(isMuted());
+    // mute and volume are two views of one state — keep both in sync
+    const onChange = () => {
+      setM(isMuted());
+      setVol(getVolume());
+    };
     window.addEventListener("rf-mute-change", onChange);
-    return () => window.removeEventListener("rf-mute-change", onChange);
+    window.addEventListener("rf-volume-change", onChange);
+    return () => {
+      window.removeEventListener("rf-mute-change", onChange);
+      window.removeEventListener("rf-volume-change", onChange);
+    };
   }, []);
 
   function clearTimers() {
@@ -65,8 +73,10 @@ export function SoundToggle() {
         type="button"
         onClick={() => {
           const next = !muted;
+          // setMuted drives the volume too: 0 on mute, previous level on unmute
           setMuted(next);
           setM(next);
+          setVol(getVolume());
           if (!next) playSfx("click");
           showSlider();
         }}
@@ -99,8 +109,13 @@ export function SoundToggle() {
               const v = Number(e.target.value) / 100;
               setVol(v);
               setVolume(v);
-              if (muted && v > 0) {
-                setMuted(false);
+              // dragging to 0 mutes; dragging up from 0 unmutes — without
+              // going through setMuted(), which would overwrite this level
+              if (v === 0 && !muted) {
+                window.localStorage.setItem("rf-muted", "1");
+                setM(true);
+              } else if (v > 0 && muted) {
+                window.localStorage.setItem("rf-muted", "0");
                 setM(false);
               }
               armAutoHide();

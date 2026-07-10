@@ -82,20 +82,20 @@ function CherryPetals({ compact = false }: { compact?: boolean }) {
 
 /** A crate of harvested fruit beside the house (1 per 40 Fruits). Each crate
  *  shows a different fruit so a full barn reads as a varied harvest. */
-function Crate({ index = 0 }: { index?: number }) {
+function Crate({ index = 0, scale = 1 }: { index?: number; scale?: number }) {
   return (
     <span
       className="relative inline-block"
       style={{
-        width: 22,
-        height: 20,
+        width: 22 * scale,
+        height: 20 * scale,
         background: "#8a5a34",
         border: "2px solid var(--rf-ink)",
         boxShadow: "inset -2px -2px 0 rgba(0,0,0,0.25)",
       }}
     >
-      <span className="absolute left-1 top-0.5 flex gap-0.5">
-        <Fruit scale={1} index={index} />
+      <span className="absolute" style={{ left: 4 * scale, top: 2 * scale }}>
+        <Fruit scale={scale} index={index} orchard />
       </span>
     </span>
   );
@@ -129,6 +129,8 @@ export function FarmScene({
   canSelectEmpty = false,
   farmerSrc = SPRITES.farmer,
   cherryPop = null,
+  onGroundClick,
+  farmObjects,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -154,6 +156,10 @@ export function FarmScene({
   farmerSrc?: string;
   /** slot index that just blossomed — plays the one-shot cherry sparkle */
   cherryPop?: number | null;
+  /** clicking bare grass sends the farmer to that spot */
+  onGroundClick?: (pos: FarmerPos) => void;
+  /** event objects (basket / goose / submission box) shown beside the house */
+  farmObjects?: React.ReactNode;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
@@ -171,7 +177,25 @@ export function FarmScene({
     return (GRID_ROWS - 1 - rowFromTop) * GRID_COLS + col;
   });
 
-  const houseScale = compact ? 0.75 : 1;
+  // House and its fruit crates render at ~1.75x so the homestead reads as a
+  // real building rather than a doodad.
+  const houseScale = compact ? 1.2 : 1.75;
+  const crateScale = compact ? 1.3 : 1.75;
+
+  /** A click on bare grass walks the farmer there (and clears any selection).
+   *  Plants, HUD, and event objects stopPropagation, so they never trigger it. */
+  function handleSceneClick(e: React.MouseEvent<HTMLDivElement>) {
+    onDismiss?.();
+    if (!onGroundClick) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const left = ((e.clientX - r.left) / r.width) * 100;
+    const bottom = ((r.bottom - e.clientY) / r.height) * 100;
+    // keep the farmer inside the scene and out of the very bottom rail
+    onGroundClick({
+      left: Math.min(90, Math.max(4, left)),
+      bottom: Math.min(78, Math.max(6, bottom)),
+    });
+  }
 
   return (
     <div
@@ -180,22 +204,37 @@ export function FarmScene({
         border: "3px solid var(--rf-ink)",
         boxShadow: "4px 4px 0 rgba(58,42,26,0.25)",
         height: compact ? 230 : "clamp(360px, 60vh, 640px)",
+        cursor: onGroundClick ? "pointer" : undefined,
       }}
-      onClick={onDismiss}
+      onClick={handleSceneClick}
     >
-      {/* Player house + collected fruit crates */}
+      {/* Player house + collected fruit crates + any event objects */}
       <div className="absolute left-3 top-3">
         {house && (
           <Sprite src={house.src} size={[house.w, house.h]} scale={houseScale} alt="your house" />
         )}
         {crates > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 70 : 100 }}>
+          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 90 : 150 }}>
             {Array.from({ length: crates }).map((_, i) => (
-              <Crate key={i} index={i} />
+              <Crate key={i} index={i} scale={crateScale} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Traveling Basket / Golden Goose submission box sit on the grass to
+          the right of the house — clear of the plot and the HUD. They stop
+          click propagation so tapping them never walks the farmer. z-20 keeps
+          them above the plot, which is painted later. */}
+      {farmObjects && (
+        <div
+          className="absolute z-20 flex items-end gap-5"
+          style={{ left: "32%", top: compact ? 8 : 16 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {farmObjects}
+        </div>
+      )}
 
       {/* Farmer */}
       <div
@@ -292,10 +331,11 @@ export function FarmScene({
                       className="rf-ripe-glow absolute bottom-0 left-1/2"
                       style={{ width: compact ? 34 : 46, height: compact ? 34 : 46 }}
                     />
+                    {/* the sparkle sits ON the canopy, not floating above it */}
                     <span
                       aria-hidden
                       className="rf-ripe-spark absolute left-1/2 text-[13px] leading-none"
-                      style={{ top: compact ? -6 : -10 }}
+                      style={{ top: compact ? "18%" : "22%" }}
                     >
                       ✨
                     </span>

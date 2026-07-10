@@ -5,7 +5,6 @@ import { FarmPanel, type FarmPanelHandle, type FarmItemKind } from "@/components
 import { SeedPanel, type SeedMember } from "@/components/pixel/SeedPanel";
 import { BasketPanel, type BasketState } from "@/components/pixel/BasketPanel";
 import { CodeForm } from "@/components/meeting/CodeForm";
-import { Sprite } from "@/components/pixel/Sprite";
 import type { TreeView } from "@/components/pixel/FarmScene";
 import { ProfilePanel, type ProfileInfo } from "./ProfilePanel";
 import { ChecklistPanel, LeaderboardPanel, InventoryPanel } from "./panels";
@@ -13,13 +12,16 @@ import type { ChecklistItem, LeaderboardRow } from "./panels";
 import { NotificationCenter, type FarmNotification } from "./NotificationCenter";
 import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
+import { MapModalBody } from "./MapPanel";
+import { FarmBasket, GoldenSubmissionBox } from "@/components/pixel/FarmObjects";
 import type { GooseState } from "@/lib/goose";
-import { HOUSE_SPRITES, SPRITES, seasonEmoji } from "@/lib/sprites";
+import { HOUSE_SPRITES, seasonEmoji } from "@/lib/sprites";
 
 type PanelId =
   | "inventory"
   | "code"
   | "seed"
+  | "map"
   | "basket"
   | "goose"
   | "checklist"
@@ -110,14 +112,11 @@ export function GameShell(props: GameShellProps) {
     {
       id: "seed",
       label: "Seed",
-      icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-7 w-7" />,
+      icon: <img src="/sprites/icons/seed_packet.png" alt="" className="pixelated h-7 w-7" />,
     },
-    { id: "basket", label: "Basket", icon: <span aria-hidden className="text-xl">🧺</span> },
-    {
-      id: "goose",
-      label: "Goose",
-      icon: <img src={SPRITES.goose2} alt="" className="pixelated h-6 w-auto" />,
-    },
+    // Basket and Goose left the menu — they now appear ON the farm during
+    // their events. Map takes a permanent slot here instead.
+    { id: "map", label: "Map", icon: <span aria-hidden className="text-xl">🗺️</span> },
     { id: "checklist", label: "Goals", icon: <span aria-hidden className="text-xl">📋</span> },
     {
       id: "leaderboard",
@@ -135,12 +134,40 @@ export function GameShell(props: GameShellProps) {
     inventory: "Your items",
     code: "Enter meeting code",
     seed: "Today’s Seed",
+    map: "🗺️ World map",
     basket: "Traveling Basket",
     goose: "Golden Goose",
     checklist: "Monthly checklist",
     leaderboard: "Leaderboard",
     profile: "Your farmer",
   };
+
+  /* ---- on-farm event objects -------------------------------------------- */
+  const g = props.goose;
+  const gooseEvent = !!g && g.has_event;
+  // First 24h = answers open; afterwards the Keeper reviews the submissions.
+  const answersOpen = gooseEvent && g.status === "answer_collection";
+  const selectionOpen = gooseEvent && g.status === "selection_open";
+  const iAmKeeper = gooseEvent && g.i_am_keeper;
+
+  // The goose itself only visits the Keeper while answers are being collected.
+  const showGoose = answersOpen && iAmKeeper;
+  // The box: non-Keepers drop answers in during phase 1; in phase 2 it moves
+  // to the Keeper, who reads them and picks a favorite.
+  const submissionBox: "submit" | "review" | null =
+    answersOpen && !iAmKeeper ? "submit" : selectionOpen && iAmKeeper ? "review" : null;
+
+  const basketOnFarm = !!props.basket?.has_chain && props.basket.status === "active" && !!props.basket.i_hold_it;
+
+  const farmObjects =
+    basketOnFarm || submissionBox ? (
+      <>
+        {basketOnFarm && <FarmBasket onClick={() => setOpen("basket")} />}
+        {submissionBox && (
+          <GoldenSubmissionBox role={submissionBox} onClick={() => setOpen("goose")} />
+        )}
+      </>
+    ) : null;
 
   return (
     <div className="pb-24">
@@ -172,12 +199,9 @@ export function GameShell(props: GameShellProps) {
           house={{ src: house.src, w: house.w, h: house.h }}
           avatarSrc={props.avatarSrc}
           handleRef={farmRef}
-          showGoose={
-            !!props.goose &&
-            props.goose.has_event &&
-            props.goose.i_am_keeper &&
-            (props.goose.status === "answer_collection" || props.goose.status === "selection_open")
-          }
+          showGoose={showGoose}
+          onOpenGoose={() => setOpen("goose")}
+          farmObjects={farmObjects}
           notificationSlot={
             <>
               <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
@@ -194,6 +218,7 @@ export function GameShell(props: GameShellProps) {
             <InventoryPanel farm={props.farm} onUseItem={useItemFromBackpack} />
           )}
           {open === "code" && <CodeForm />}
+          {open === "map" && <MapModalBody />}
           {open === "seed" && (
             <SeedPanel
               members={props.members}
@@ -309,15 +334,21 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
 
   const b = props.basket;
   if (b?.has_chain && b.status === "active") {
+    // Basket day begins: everyone hears about it once.
+    out.push({
+      id: `basket-day-${b.chain_id}`,
+      text: "The Traveling Basket is moving today. It may come your way.",
+    });
     if (b.i_hold_it) {
       out.push({
         id: `basket-held-${b.chain_id}`,
         text: "The Traveling Basket is in your hands! Keep it or pass it along.",
       });
-    } else if (!b.i_touched_it) {
+    } else if (b.holder_username) {
+      // The basket moved — the id embeds the holder, so each pass is new.
       out.push({
-        id: `basket-today-${b.chain_id}`,
-        text: "The Traveling Basket is traveling today — it may come your way.",
+        id: `basket-pass-${b.chain_id}-${b.holder_username}`,
+        text: `The Traveling Basket was passed to @${b.holder_username}.`,
       });
     }
   }
@@ -337,10 +368,18 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
         text: "Your answer won the Golden Goose Egg — 1 seed, 1 fertilizer, and 10 water! 🥚",
       });
     }
+    // Day 1: everyone is told to look for the question in the group chat…
+    if (g.status === "answer_collection") {
+      out.push({
+        id: `goose-day1-${g.assignment_id}`,
+        text: "The Golden Goose is visiting! Check the group chat for today’s question, then drop your answer in the Submission Box on your farm.",
+      });
+    }
+    // …and the Keeper is told to post it there.
     if (g.i_am_keeper && g.status === "answer_collection") {
       out.push({
         id: `goose-keeper-${g.assignment_id}`,
-        text: "You’re the Golden Goose Keeper! Ask your question in the chat — answers are open.",
+        text: "You’re the Golden Goose Keeper! Post your question in the group chat — then tap the goose on your farm.",
       });
     }
     if (g.i_am_keeper && g.status === "selection_open") {

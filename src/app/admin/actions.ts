@@ -51,6 +51,9 @@ function friendly(message: string): string {
   if (m.includes("UNKNOWN_SETTING_KEY")) return "One of the settings isn’t recognized.";
   if (m.includes("TEXT_LENGTH") || m.includes("INVALID_TEXT")) return "Names must be 1–40 characters.";
   if (m.includes("DEBUG_DISABLED")) return "Debug settings are turned off — enable them in Game settings first.";
+  if (m.includes("INVALID_CATEGORY")) return "Pick Announcement, Update, or Event.";
+  if (m.includes("INVALID_IMAGE")) return "Choose an image from the game sprites.";
+  if (m.includes("POST_NOT_FOUND")) return "That post no longer exists.";
   if (m.includes("QUANTITY_OUT_OF_RANGE")) return "Quantities must be between 0 and 1,000,000.";
   if (m.includes("HOURS_OUT_OF_RANGE")) return "Hours must be between 1 and 720.";
   if (m.includes("INVALID_")) return "One of the values isn’t valid.";
@@ -146,6 +149,44 @@ export async function resetGameSettings(): Promise<Result> {
   if (error) return { ok: false, message: error };
   const { error: rpcError } = await supabase.rpc("reset_game_settings_to_defaults");
   revalidatePath("/admin");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+/* ---------------------------------------------------------------------------
+ * BULLETIN posts — the homepage notice board. Both RPCs re-check is_admin()
+ * server-side, validate the category and image path, and audit-log.
+ * ------------------------------------------------------------------------- */
+
+export async function createBulletinPost(input: {
+  title: string;
+  body: string;
+  category: string;
+  imageSrc: string | null;
+  /** ISO datetime; omit/blank to publish immediately */
+  publishAt: string | null;
+}): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("create_bulletin_post", {
+    p_title: input.title,
+    p_body: input.body,
+    p_category: input.category,
+    p_image_src: input.imageSrc,
+    p_publish_at: input.publishAt,
+  });
+  revalidatePath("/admin");
+  revalidatePath("/");
+  if (rpcError) return { ok: false, message: friendly(rpcError.message) };
+  return { ok: true };
+}
+
+export async function deleteBulletinPost(id: string): Promise<Result> {
+  const { supabase, error } = await requireAdmin();
+  if (error) return { ok: false, message: error };
+  const { error: rpcError } = await supabase.rpc("delete_bulletin_post", { p_id: id });
+  revalidatePath("/admin");
+  revalidatePath("/");
   if (rpcError) return { ok: false, message: friendly(rpcError.message) };
   return { ok: true };
 }
