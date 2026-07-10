@@ -867,7 +867,11 @@ export function FarmPanel({
             around (rf-goose-fly animates left/top waypoints).
             It is HIDDEN during the harvest close-up. */}
         {showGoose && !cinematic && (
-          <div className="absolute inset-0 z-20 overflow-hidden">
+          // The wrapper spans the whole farm so the goose can swoop across it,
+          // so it MUST stay click-through — otherwise it blankets the plot and
+          // swallows every tap on a tree or on the grass. Only the goose
+          // itself takes pointer events.
+          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
             <div
               className={`absolute -translate-x-1/2 ${busy ? "rf-goose-fly" : ""}`}
               style={{ left: "50%", top: "8%" }}
@@ -880,7 +884,7 @@ export function FarmPanel({
                   // the farmer wanders under the goose first, then it opens
                   void walkToAndOpen(FARMER_POS_FOR_GOOSE, onOpenGoose);
                 }}
-                className="relative border-0 bg-transparent p-0"
+                className="pointer-events-auto relative border-0 bg-transparent p-0"
                 style={{ cursor: onOpenGoose ? "pointer" : "default" }}
               >
                 <span className="rf-bang text-xl font-black" style={{ top: -22, color: "var(--rf-gold)", WebkitTextStroke: "1px var(--rf-ink)" }}>
