@@ -13,7 +13,6 @@ import { NotificationCenter, type FarmNotification } from "./NotificationCenter"
 import { WikiHelp } from "./WikiPanel";
 import { GoosePanel } from "./GoosePanel";
 import { MapModalBody } from "./MapPanel";
-import { FarmBasket, GoldenSubmissionBox } from "@/components/pixel/FarmObjects";
 import type { GooseState } from "@/lib/goose";
 import { HOUSE_SPRITES, seasonEmoji } from "@/lib/sprites";
 
@@ -152,22 +151,27 @@ export function GameShell(props: GameShellProps) {
 
   // The goose itself only visits the Keeper while answers are being collected.
   const showGoose = answersOpen && iAmKeeper;
-  // The box: non-Keepers drop answers in during phase 1; in phase 2 it moves
-  // to the Keeper, who reads them and picks a favorite.
+
+  // The Keeper's box stays until the event is COMPLETELY over — i.e. until the
+  // selection deadline passes — so they can reopen the review screen after
+  // choosing. (Note: `select_golden_goose_winner` marks the event completed and
+  // pays the egg on the first pick, so re-picking is refused server-side.)
+  const keeperReviewOpen =
+    gooseEvent &&
+    iAmKeeper &&
+    (selectionOpen ||
+      (["completed", "auto_completed"].includes(g.status) &&
+        // the deadline is server-supplied and hours away; a per-render read of
+        // the clock is precise enough to decide whether the event is over
+        // eslint-disable-next-line react-hooks/purity
+        new Date(g.selection_deadline_at).getTime() > Date.now()));
+
+  // Non-Keepers drop answers in during phase 1; afterwards it's the Keeper's.
   const submissionBox: "submit" | "review" | null =
-    answersOpen && !iAmKeeper ? "submit" : selectionOpen && iAmKeeper ? "review" : null;
+    answersOpen && !iAmKeeper ? "submit" : keeperReviewOpen ? "review" : null;
 
-  const basketOnFarm = !!props.basket?.has_chain && props.basket.status === "active" && !!props.basket.i_hold_it;
-
-  const farmObjects =
-    basketOnFarm || submissionBox ? (
-      <>
-        {basketOnFarm && <FarmBasket onClick={() => setOpen("basket")} />}
-        {submissionBox && (
-          <GoldenSubmissionBox role={submissionBox} onClick={() => setOpen("goose")} />
-        )}
-      </>
-    ) : null;
+  const basketOnFarm =
+    !!props.basket?.has_chain && props.basket.status === "active" && !!props.basket.i_hold_it;
 
   return (
     <div className="pb-24">
@@ -201,7 +205,9 @@ export function GameShell(props: GameShellProps) {
           handleRef={farmRef}
           showGoose={showGoose}
           onOpenGoose={() => setOpen("goose")}
-          farmObjects={farmObjects}
+          onOpenBasket={() => setOpen("basket")}
+          basketOnFarm={basketOnFarm}
+          submissionBoxRole={submissionBox}
           notificationSlot={
             <>
               <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />

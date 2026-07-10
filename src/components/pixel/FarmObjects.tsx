@@ -73,10 +73,10 @@ export function GoldenSubmissionBox({
       title="Golden Goose Submission Box"
     >
       <Bang />
-      {/* fruit crates are 22x20 — this is about 2x that */}
-      <span aria-hidden className="rf-farm-object rf-golden-box block" style={{ width: 44, height: 40 }} />
-      <span className="mt-0.5 max-w-[92px] rounded border border-[var(--rf-ink)] bg-[var(--rf-cream)] px-1 text-[8px] font-extrabold uppercase leading-tight tracking-tight text-[var(--rf-ink)]">
-        Golden Goose Submission Box
+      {/* a little bigger than a fruit crate (22x20), not overwhelming */}
+      <span aria-hidden className="rf-farm-object rf-golden-box block" style={{ width: 36, height: 32 }} />
+      <span className="mt-0.5 rounded border border-[var(--rf-ink)] bg-[var(--rf-cream)] px-1 text-[8px] font-extrabold uppercase leading-tight tracking-tight text-[var(--rf-ink)]">
+        Golden Goose
       </span>
     </button>
   );

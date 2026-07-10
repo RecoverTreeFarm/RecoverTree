@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { SPRITES } from "@/lib/sprites";
 import { Sprite, Tree, Fruit } from "./Sprite";
 import { ParticleBurst } from "./ParticleBurst";
@@ -39,6 +40,34 @@ const PLOT_LEFT = 6;
 const PLOT_WIDTH = 88;
 const PLOT_BOTTOM = 5;
 const PLOT_HEIGHT = 48;
+
+/** Event objects stand ON the top edge of the dirt, left of centre. */
+export const PLOT_TOP_EDGE = PLOT_BOTTOM + PLOT_HEIGHT; // 53%
+/** Roughly how tall an event object is, in scene % (used for depth sorting). */
+const OBJECT_HEIGHT_PCT = 11;
+/** The farmer is BEHIND an object once his feet pass its upper half. */
+const OBJECT_MIDLINE = PLOT_TOP_EDGE + OBJECT_HEIGHT_PCT / 2;
+
+/** Where the Traveling Basket and the Golden Goose box sit (scene %). */
+export const BASKET_POS = { left: 10, bottom: PLOT_TOP_EDGE };
+export const GOOSE_BOX_POS = { left: 26, bottom: PLOT_TOP_EDGE };
+
+/** Where the farmer stands to use an object (just to its right, same ground). */
+export function farmerPosForObject(objLeft: number): FarmerPos {
+  return { left: Math.min(86, objLeft + 7), bottom: PLOT_TOP_EDGE + 1 };
+}
+
+/** Where the farmer stands to reach the goose (it hovers up near the top). */
+export const FARMER_POS_FOR_GOOSE: FarmerPos = { left: 48, bottom: 70 };
+
+/**
+ * 2D-game depth sorting: an object is drawn IN FRONT of the farmer only when
+ * the farmer is standing further "up" the screen than the object's midline —
+ * i.e. he has walked behind its upper half. Otherwise he's in front of it.
+ */
+export function objectZIndex(farmerBottom: number): number {
+  return farmerBottom > OBJECT_MIDLINE ? 20 : 5;
+}
 
 /** Scene-% spot for the farmer to stand at slot `i` (0 = bottom-left). */
 export function farmerPosForTree(i: number): FarmerPos {
@@ -130,7 +159,8 @@ export function FarmScene({
   farmerSrc = SPRITES.farmer,
   cherryPop = null,
   onGroundClick,
-  farmObjects,
+  basketObject,
+  gooseBoxObject,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -158,8 +188,10 @@ export function FarmScene({
   cherryPop?: number | null;
   /** clicking bare grass sends the farmer to that spot */
   onGroundClick?: (pos: FarmerPos) => void;
-  /** event objects (basket / goose / submission box) shown beside the house */
-  farmObjects?: React.ReactNode;
+  /** the Traveling Basket, when it's sitting on this farm */
+  basketObject?: React.ReactNode;
+  /** the Golden Goose submission box, when this farm has one */
+  gooseBoxObject?: React.ReactNode;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
@@ -177,19 +209,35 @@ export function FarmScene({
     return (GRID_ROWS - 1 - rowFromTop) * GRID_COLS + col;
   });
 
-  // House and its fruit crates render at ~1.75x so the homestead reads as a
-  // real building rather than a doodad.
-  const houseScale = compact ? 1.2 : 1.75;
-  const crateScale = compact ? 1.3 : 1.75;
+  // The homestead reads as a real building without dominating the farm.
+  const houseScale = compact ? 1 : 1.35;
+  const crateScale = compact ? 1.1 : 1.35;
+
+  const houseRef = useRef<HTMLDivElement>(null);
+
+  // depth sort: in front of the farmer only once he's behind their upper half
+  const objZ = objectZIndex(pos.bottom);
 
   /** A click on bare grass walks the farmer there (and clears any selection).
-   *  Plants, HUD, and event objects stopPropagation, so they never trigger it. */
+   *  Plants, HUD, and event objects stopPropagation, so they never trigger it.
+   *  The farmer can never end up standing ON the house: a click inside the
+   *  homestead walks him to the grass just below it instead. */
   function handleSceneClick(e: React.MouseEvent<HTMLDivElement>) {
     onDismiss?.();
     if (!onGroundClick) return;
     const r = e.currentTarget.getBoundingClientRect();
-    const left = ((e.clientX - r.left) / r.width) * 100;
-    const bottom = ((r.bottom - e.clientY) / r.height) * 100;
+    let clientY = e.clientY;
+    let clientX = e.clientX;
+
+    const h = houseRef.current?.getBoundingClientRect();
+    if (h && clientX >= h.left && clientX <= h.right && clientY >= h.top && clientY <= h.bottom) {
+      // stepped onto the house — stand just below its front wall instead
+      clientY = h.bottom + 6;
+      clientX = Math.min(clientX, h.right - 4);
+    }
+
+    const left = ((clientX - r.left) / r.width) * 100;
+    const bottom = ((r.bottom - clientY) / r.height) * 100;
     // keep the farmer inside the scene and out of the very bottom rail
     onGroundClick({
       left: Math.min(90, Math.max(4, left)),
@@ -208,13 +256,13 @@ export function FarmScene({
       }}
       onClick={handleSceneClick}
     >
-      {/* Player house + collected fruit crates + any event objects */}
-      <div className="absolute left-3 top-3">
+      {/* Player house + collected fruit crates. The farmer can't stand here. */}
+      <div ref={houseRef} className="absolute left-3 top-3">
         {house && (
           <Sprite src={house.src} size={[house.w, house.h]} scale={houseScale} alt="your house" />
         )}
         {crates > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 90 : 150 }}>
+          <div className="mt-1 flex flex-wrap gap-1" style={{ width: compact ? 76 : 120 }}>
             {Array.from({ length: crates }).map((_, i) => (
               <Crate key={i} index={i} scale={crateScale} />
             ))}
@@ -222,17 +270,27 @@ export function FarmScene({
         )}
       </div>
 
-      {/* Traveling Basket / Golden Goose submission box sit on the grass to
-          the right of the house — clear of the plot and the HUD. They stop
-          click propagation so tapping them never walks the farmer. z-20 keeps
-          them above the plot, which is painted later. */}
-      {farmObjects && (
+      {/* Event objects stand ON the top edge of the dirt, clear of the house.
+          Their z-index is depth-sorted against the farmer (see objectZIndex),
+          so he passes in front of them normally and behind them only once he
+          walks past their upper half. They stop click propagation, so tapping
+          one never doubles as a walk-to-this-spot click. */}
+      {basketObject && (
         <div
-          className="absolute z-20 flex items-end gap-5"
-          style={{ left: "32%", top: compact ? 8 : 16 }}
+          className="absolute"
+          style={{ left: `${BASKET_POS.left}%`, bottom: `${BASKET_POS.bottom}%`, zIndex: objZ }}
           onClick={(e) => e.stopPropagation()}
         >
-          {farmObjects}
+          {basketObject}
+        </div>
+      )}
+      {gooseBoxObject && (
+        <div
+          className="absolute"
+          style={{ left: `${GOOSE_BOX_POS.left}%`, bottom: `${GOOSE_BOX_POS.bottom}%`, zIndex: objZ }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {gooseBoxObject}
         </div>
       )}
 

@@ -5,12 +5,17 @@ import { useRouter } from "next/navigation";
 import {
   FarmScene,
   farmerPosForTree,
+  farmerPosForObject,
+  BASKET_POS,
+  GOOSE_BOX_POS,
+  FARMER_POS_FOR_GOOSE,
   MAX_TREES,
   type TreeView,
   type FarmerAnim,
   type FarmerPos,
   type SlotAction,
 } from "./FarmScene";
+import { FarmBasket, GoldenSubmissionBox } from "./FarmObjects";
 import { HarvestCinematic } from "./HarvestCinematic";
 // `useFertilizer` is a server action, not a hook — aliased so the hooks
 // linter doesn't mistake calls in loops for hook calls.
@@ -56,7 +61,9 @@ export function FarmPanel({
   avatarSrc,
   handleRef,
   onOpenGoose,
-  farmObjects,
+  onOpenBasket,
+  basketOnFarm = false,
+  submissionBoxRole = null,
 }: {
   trees: TreeView[];
   water: number;
@@ -74,8 +81,12 @@ export function FarmPanel({
   handleRef?: React.MutableRefObject<FarmPanelHandle | null>;
   /** clicking the goose opens the Keeper's Golden Goose screen */
   onOpenGoose?: () => void;
-  /** event objects beside the house (basket / goose submission box) */
-  farmObjects?: React.ReactNode;
+  /** clicking the basket opens the Traveling Basket screen */
+  onOpenBasket?: () => void;
+  /** the Traveling Basket is sitting on this farm */
+  basketOnFarm?: boolean;
+  /** the Golden Goose box on this farm, and what tapping it does */
+  submissionBoxRole?: "submit" | "review" | null;
 }) {
   const router = useRouter();
   const [farmerAnim, setFarmerAnim] = useState<FarmerAnim>("idle");
@@ -94,6 +105,8 @@ export function FarmPanel({
   const cinematic = cinematicIndex !== null;
   /** slot index that just blossomed — drives the one-shot cherry sparkle */
   const [cherryPop, setCherryPop] = useState<number | null>(null);
+  /** the farmer is walking over to a tapped basket / goose box */
+  const [walkingToObject, setWalkingToObject] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [confirmItem, setConfirmItem] = useState<FarmItemKind | null>(null);
@@ -173,7 +186,7 @@ export function FarmPanel({
     setSkipStage(0);
   }
 
-  const busy = running !== null || cinematic || pending;
+  const busy = running !== null || cinematic || pending || walkingToObject;
   const now = Date.now();
   const waterableIdx = trees.map((t, i) => (t.stage < 4 ? i : -1)).filter((i) => i >= 0);
   // each plant drinks its own 10 water; oldest plants drink first
@@ -278,6 +291,21 @@ export function FarmPanel({
     setFarmerAnim("walk");
     setFarmerPos(pos);
     await iSleep(600);
+  }
+
+  /**
+   * Tapping an event object sends the farmer over to it first; the panel only
+   * opens once he arrives. (Ignored while another action is animating.)
+   */
+  async function walkToAndOpen(pos: FarmerPos, open?: () => void) {
+    if (busy || !open) return;
+    setWalkingToObject(true);
+    setFarmerAnim("walk");
+    setFarmerPos(pos);
+    await new Promise((r) => setTimeout(r, 640)); // matches the CSS transition
+    setFarmerAnim("idle");
+    setWalkingToObject(false);
+    open();
   }
 
   /**
@@ -785,7 +813,25 @@ export function FarmPanel({
             setFarmerPos(pos);
             window.setTimeout(() => setFarmerAnim("idle"), 620);
           }}
-          farmObjects={farmObjects}
+          basketObject={
+            basketOnFarm && !cinematic ? (
+              <FarmBasket
+                onClick={() =>
+                  void walkToAndOpen(farmerPosForObject(BASKET_POS.left), onOpenBasket)
+                }
+              />
+            ) : null
+          }
+          gooseBoxObject={
+            submissionBoxRole && !cinematic ? (
+              <GoldenSubmissionBox
+                role={submissionBoxRole}
+                onClick={() =>
+                  void walkToAndOpen(farmerPosForObject(GOOSE_BOX_POS.left), onOpenGoose)
+                }
+              />
+            ) : null
+          }
           // The action closures only read animation refs when clicked, never
           // during render — safe despite the conservative lint trace.
           // eslint-disable-next-line react-hooks/refs
@@ -831,7 +877,8 @@ export function FarmPanel({
                 aria-label="Golden Goose — open the Keeper's question screen"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenGoose?.();
+                  // the farmer wanders under the goose first, then it opens
+                  void walkToAndOpen(FARMER_POS_FOR_GOOSE, onOpenGoose);
                 }}
                 className="relative border-0 bg-transparent p-0"
                 style={{ cursor: onOpenGoose ? "pointer" : "default" }}
