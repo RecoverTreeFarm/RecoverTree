@@ -1032,24 +1032,32 @@ export function FarmPanel({
           </div>
         )}
 
-        {/* Item alert — overlaps the bottom of the play area instead of
-            pushing the page taller. Tap it to dismiss. */}
-        {message && (
-          <button
-            type="button"
-            role="status"
-            title="Tap to dismiss"
-            onClick={(e) => {
-              e.stopPropagation();
-              setMessage(null);
-            }}
-            className="absolute bottom-2 left-1/2 z-40 max-w-[92%] -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1.5 text-xs font-bold"
-            style={{ boxShadow: "2px 2px 0 rgba(58,42,26,0.35)" }}
+      </div>
+
+      {/* Item alert (watered / harvested / nothing to fertilize…). Pinned to
+          the VIEWPORT just above the bottom menu — same shelf as the reward
+          banner — so it's always visible without any scrolling, regardless of
+          how tall the farm scene is. Tap it to dismiss. */}
+      {message && (
+        <button
+          type="button"
+          role="status"
+          title="Tap to dismiss"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMessage(null);
+          }}
+          className="rf-fixed-game-w fixed z-[86] mx-auto flex justify-center px-4"
+          style={{ bottom: "6.5rem", background: "transparent", border: "none", padding: 0 }}
+        >
+          <span
+            className="max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-4 py-1.5 text-center text-xs font-extrabold"
+            style={{ boxShadow: "0 2px 0 var(--rf-ink)" }}
           >
             {message}
-          </button>
-        )}
-      </div>
+          </span>
+        </button>
+      )}
     </div>
   );
 }
