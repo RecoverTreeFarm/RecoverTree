@@ -22,23 +22,30 @@ export type StoreState = {
 };
 
 /** Display info for the shelf grid (prices come from the server state).
+ *  `icon` is the emoji fallback (still used in plain-text messages); `sprite`
+ *  is the cozy pixel-art tile used everywhere it's shown as an image.
  *  `shelfName` is an optional short label so tiles stay readable. */
+import type { ItemIconName } from "@/components/pixel/Sprite";
+
 export const STORE_ITEMS: Record<
   StoreItemKey,
-  { icon: string; name: string; blurb: string; shelfName?: string }
+  { icon: string; sprite: ItemIconName; name: string; blurb: string; shelfName?: string }
 > = {
   water: {
     icon: "💧",
+    sprite: "water",
     name: "Water",
     blurb: "Adds Water to your inventory. Great for helping trees grow.",
   },
   fertilizer: {
     icon: "🧴",
+    sprite: "fertilizer",
     name: "Fertilizer",
     blurb: "Helps an eligible tree ripen faster.",
   },
   seed: {
     icon: "🌰",
+    sprite: "seed",
     name: "Seeds",
     blurb: "Plant new trees on your farm.",
   },
@@ -46,6 +53,7 @@ export const STORE_ITEMS: Record<
     // `shelfName` keeps the shelf tile readable; `name` is the full title
     // used in the confirm panel and messages.
     icon: "🎟️",
+    sprite: "ticket",
     name: "Xtra Goose Entry",
     blurb: "Adds one extra Golden Goose answer slot for the current event.",
     shelfName: "Goose Entry",

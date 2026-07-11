@@ -50,9 +50,11 @@ export async function SiteNav() {
       style={{
         background: "var(--rf-grass)",
         borderBottom: "3px solid var(--rf-ink)",
+        // keep the header clear of iPhone notches (viewportFit: "cover")
+        paddingTop: "env(safe-area-inset-top)",
       }}
     >
-      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2">
+      <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2">
         <Link href="/" className="flex shrink-0 items-center gap-2">
           {/* the pink cherry blossom tree is the app's emblem */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

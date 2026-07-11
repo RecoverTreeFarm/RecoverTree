@@ -18,7 +18,6 @@ export function MapModalBody({
   onOpenGarden,
   onOpenStore,
   onGoHome,
-  onOpenLottery,
 }: {
   /** open the Community Garden scene */
   onOpenGarden: () => void;
@@ -26,8 +25,6 @@ export function MapModalBody({
   onOpenStore: () => void;
   /** close the map and return to the player's own farm */
   onGoHome: () => void;
-  /** open the Weekly Orchard Lottery window (run from the General Store) */
-  onOpenLottery: () => void;
 }) {
   const [construction, setConstruction] = useState<string | null>(null);
 
@@ -40,21 +37,20 @@ export function MapModalBody({
         className="pixelated mx-auto block h-auto w-full max-w-full rounded border-2 border-[var(--rf-ink)]"
       />
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <button type="button" onClick={onOpenGarden} className={btnCls}>
-          <span aria-hidden className="text-lg leading-none">🌳</span>
-          Community Garden
-        </button>
+        {/* Home first — it's where players most often want to go. The Weekly
+            Orchard Lottery is deliberately NOT a map destination: it's run
+            from the General Store (the shelf's Lottery tile opens it). */}
         <button type="button" onClick={onGoHome} className={btnCls}>
           <span aria-hidden className="text-lg leading-none">🏡</span>
           Your RecoverTree Farm
         </button>
+        <button type="button" onClick={onOpenGarden} className={btnCls}>
+          <span aria-hidden className="text-lg leading-none">🌳</span>
+          Community Garden
+        </button>
         <button type="button" onClick={onOpenStore} className={btnCls}>
           <span aria-hidden className="text-lg leading-none">🏪</span>
           General Store
-        </button>
-        <button type="button" onClick={onOpenLottery} className={btnCls}>
-          <span aria-hidden className="text-lg leading-none">🎟️</span>
-          Weekly Orchard Lottery
         </button>
         {/* boarded-up teasers — not travelable yet */}
         <button

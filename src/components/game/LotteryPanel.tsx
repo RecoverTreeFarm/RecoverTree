@@ -4,7 +4,19 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { buyLotteryTickets } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
+import { PixelIcon } from "@/components/pixel/Sprite";
 import type { LotteryState } from "@/lib/lottery";
+
+/** Coin amount with the cozy coin sprite (replaces the 🪙 glyph). */
+function Coins({ n, prefix = "" }: { n: number; prefix?: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      <PixelIcon name="coin" size={13} />
+      {prefix}
+      {n}
+    </span>
+  );
+}
 
 /**
  * Weekly Orchard Lottery panel — a cozy community raffle, not a casino.
@@ -106,15 +118,15 @@ export function LotteryPanel({ state, myCoins }: { state: LotteryState; myCoins:
           </div>
 
           <div className="mt-1.5">
-            {stat("Ticket price", <>🪙 {price}</>)}
+            {stat("Ticket price", <Coins n={price} />)}
             {stat("Your tickets", `${round.my_tickets} / ${round.max_tickets_per_user}`)}
             {state.show_ticket_count && stat("Total tickets", round.total_tickets)}
             {state.show_participant_count && stat("Farmers entered", round.distinct_participant_count)}
             {state.show_pot && (
               <>
-                {stat("Community pot", <>🪙 {round.player_funded_pot_coins}</>)}
-                {stat(`Orchard bonus (${round.orchard_bonus_percent}%)`, <>+🪙 {round.orchard_bonus_preview}</>)}
-                {stat("Sunday prize", <>🪙 {round.final_prize_preview}</>)}
+                {stat("Community pot", <Coins n={round.player_funded_pot_coins} />)}
+                {stat(`Orchard bonus (${round.orchard_bonus_percent}%)`, <Coins n={round.orchard_bonus_preview} prefix="+" />)}
+                {stat("Sunday prize", <Coins n={round.final_prize_preview} />)}
               </>
             )}
             {stat("Ticket sales close", fmt(round.sales_close_at))}
@@ -146,11 +158,13 @@ export function LotteryPanel({ state, myCoins }: { state: LotteryState; myCoins:
                   </div>
                 ) : (
                   <div className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-gold)]/20 p-2.5">
-                    <p className="text-sm font-extrabold">
-                      Spend 🪙 {price * confirmQty} for {confirmQty}{" "}
+                    <p className="flex flex-wrap items-center gap-1 text-sm font-extrabold">
+                      Spend <Coins n={price * confirmQty} /> for {confirmQty}{" "}
                       {confirmQty === 1 ? "ticket" : "tickets"}?
                     </p>
-                    <p className="mt-0.5 text-[11px] text-[var(--rf-ink-soft)]">You have 🪙 {myCoins}.</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--rf-ink-soft)]">
+                      You have <Coins n={myCoins} />.
+                    </p>
                     <div className="mt-2 flex gap-2">
                       <button type="button" disabled={pending} onClick={() => buy(confirmQty)}
                         className="pixel-btn flex-1 text-xs disabled:opacity-50">

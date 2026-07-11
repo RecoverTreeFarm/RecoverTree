@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SPRITES, TREE_SHEET } from "@/lib/sprites";
+import { SPRITES } from "@/lib/sprites";
+import { type ItemIconName } from "@/components/pixel/Sprite";
 import { gardenTreeStage, type GardenState } from "@/lib/garden";
 import { contributeToGarden } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
@@ -18,6 +19,7 @@ import {
   NeighborSprite,
   PlayerFarmer,
   type Neighbor,
+  type Blocker,
 } from "./Neighbors";
 
 /* ---------------------------------------------------------------------------
@@ -225,14 +227,14 @@ function DonationBox({ onClick }: { onClick: () => void }) {
 /** Fixed idle spots for visiting neighbors — gathered NEAR the donation box
  *  (which sits around 67%/22%), like folks chatting by the collection point. */
 const NEIGHBOR_SPOTS: { left: number; bottom: number }[] = [
-  { left: 76, bottom: 18 },
-  { left: 60, bottom: 12 },
-  { left: 82, bottom: 28 },
-  { left: 70, bottom: 34 },
-  { left: 55, bottom: 26 },
-  { left: 86, bottom: 12 },
-  { left: 64, bottom: 42 },
-  { left: 78, bottom: 44 },
+  { left: 14, bottom: 14 },
+  { left: 30, bottom: 10 },
+  { left: 44, bottom: 16 },
+  { left: 24, bottom: 20 },
+  { left: 82, bottom: 12 },
+  { left: 88, bottom: 18 },
+  { left: 76, bottom: 10 },
+  { left: 40, bottom: 22 },
 ];
 
 /** Non-interactive dressing scattered around the green. */
@@ -311,10 +313,14 @@ const BOX_POS = { left: 67, bottom: 22 };
 /** Where the farmer stands to use the donation box — shoulder to shoulder. */
 const FARMER_POS_FOR_BOX = { left: 63, bottom: 21 };
 const FARMER_HOME = { left: 30, bottom: 12 };
-/** Farmers can wander the green but not onto the sky band. */
-const WALK_BOUNDS = { minLeft: 3, maxLeft: 91, minBottom: 3, maxBottom: 56 };
-
-type Pos = { left: number; bottom: number };
+/**
+ * Farmers roam the front lawn only. maxBottom is held below the tree base
+ * (bottom 30) so — because every walk is a straight line — the farmer can
+ * never climb into the sky band, stand in the growing tree, or pass through
+ * it. The trunk is also a blocker as an end-position guard.
+ */
+const WALK_BOUNDS = { minLeft: 3, maxLeft: 91, minBottom: 3, maxBottom: 24 };
+const TREE_BLOCKER: Blocker[] = [{ left: 40, right: 60, bottom: 24, top: 50 }];
 
 // ---------------------------------------------------------------------------
 export function GardenScene({
@@ -338,6 +344,19 @@ export function GardenScene({
   const endsAt = state.has_event ? state.ends_at : undefined;
   const timeLeft = useCountdown(active ? endsAt : undefined);
   const [donateOpen, setDonateOpen] = useState(false);
+  // The item the farmer is "holding" (shown in-hand after tending). Set when a
+  // contribution lands; cleared a few seconds after the crate closes.
+  const [held, setHeld] = useState<ItemIconName | null>(null);
+  const heldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (heldTimer.current) clearTimeout(heldTimer.current); }, []);
+
+  function closeDonate() {
+    setDonateOpen(false);
+    if (held) {
+      if (heldTimer.current) clearTimeout(heldTimer.current);
+      heldTimer.current = setTimeout(() => setHeld(null), 2800);
+    }
+  }
 
   // Garden music plays while the scene is mounted, stops on leave.
   useEffect(() => {
@@ -350,7 +369,11 @@ export function GardenScene({
   const visitors = usePresence("garden", initialOthers);
   const wanderTargets = useWandering(visitors.length, NEIGHBOR_SPOTS);
   
-  const { pos, walking, walkMs, walkTo, walkToClick } = useWalk(FARMER_HOME, WALK_BOUNDS);
+  const { pos, walking, walkMs, walkTo, walkToClick } = useWalk(
+    FARMER_HOME,
+    WALK_BOUNDS,
+    TREE_BLOCKER,
+  );
   const { greet, heartFor, myHeart } = useGreeting(walkTo);
 
   function onBoxClick() {
@@ -417,8 +440,8 @@ export function GardenScene({
           />
         ))}
 
-        {/* my farmer */}
-        <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={myHeart} />
+        {/* my farmer (holds the item just used to tend the garden) */}
+        <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={myHeart} held={held} />
 
         {/* HUD overlay (notifications + guidebook) */}
         {notificationSlot && (
@@ -490,7 +513,8 @@ export function GardenScene({
           myWater={myWater}
           mySeeds={mySeeds}
           myFertilizer={myFertilizer}
-          onClose={() => setDonateOpen(false)}
+          onUseItem={setHeld}
+          onClose={closeDonate}
         />
       )}
     </div>
@@ -508,12 +532,15 @@ function DonationCloseup({
   myWater,
   mySeeds,
   myFertilizer,
+  onUseItem,
   onClose,
 }: {
   state: Extract<GardenState, { has_event: true }>;
   myWater: number;
   mySeeds: number;
   myFertilizer: number;
+  /** report which item was just used so the farmer can be shown holding it */
+  onUseItem: (item: ItemIconName) => void;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -555,6 +582,11 @@ function DonationCloseup({
       push(ICON.fertilizer, fert);
       setDrops(icons);
       setSparkle(true);
+      // hand the farmer whatever they contributed the most of (watering can /
+      // seed bag / fertilizer), so they're shown holding it back in the scene.
+      onUseItem(
+        water >= seed && water >= fert ? "water" : seed >= fert ? "seed" : "fertilizer",
+      );
       playSfx(seed > 0 ? "seed" : water > 0 ? "water" : "reveal");
       setTimeout(() => {
         setDrops([]);

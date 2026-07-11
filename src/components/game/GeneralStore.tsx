@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SPRITES } from "@/lib/sprites";
+import { PixelIcon, type ItemIconName } from "@/components/pixel/Sprite";
 import { STORE_ITEMS, type StoreItemKey, type StoreState } from "@/lib/store";
-import { purchaseStoreItem } from "@/app/dashboard/actions";
+import { purchaseStoreItem, greetStorePet } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
 import { playMusic, stopMusic } from "@/lib/music";
 import { announceReward } from "./RewardBanner";
@@ -17,6 +18,7 @@ import {
   PlayerFarmer,
   type Blocker,
   type Neighbor,
+  type Pos,
 } from "./Neighbors";
 
 /* ---------------------------------------------------------------------------
@@ -47,20 +49,27 @@ const REGISTER_POS = { left: 50, bottom: 42 };
  *  so he reads as standing behind the counter rather than floating over it. */
 const KEEPER_POS = { left: 44, bottom: 44 };
 /** Where the farmer stands to be served — leaning on the counter. */
-const FARMER_AT_COUNTER = { left: 50, bottom: 24.5 };
+const FARMER_AT_COUNTER = { left: 50, bottom: 23 };
 const FARMER_HOME = { left: 30, bottom: 12 };
-const WALK_BOUNDS = { minLeft: 6, maxLeft: 92, minBottom: 6, maxBottom: 52 };
+/**
+ * Walkable region is the WOOD FLOOR in FRONT of the counter only. maxBottom is
+ * held below the counter (bottom 26) so the farmer can never climb onto the
+ * counter or the back wall, and — because every walk is a straight line — can
+ * never pass through the counter to reach the far side either. The counter
+ * stays a blocker too, as a belt-and-suspenders end-position guard.
+ */
+const WALK_BOUNDS = { minLeft: 6, maxLeft: 92, minBottom: 6, maxBottom: 24 };
 
-/** Shoppers browse near the shelves, clear of the counter and doorway. */
+/** Shoppers browse the front floor, spread out and clear of the counter. */
 const SHOPPER_SPOTS = [
-  { left: 12, bottom: 14 },
-  { left: 84, bottom: 12 },
-  { left: 18, bottom: 46 },
-  { left: 86, bottom: 44 },
-  { left: 70, bottom: 10 },
-  { left: 34, bottom: 10 },
-  { left: 8, bottom: 30 },
-  { left: 90, bottom: 28 },
+  { left: 12, bottom: 12 },
+  { left: 28, bottom: 18 },
+  { left: 44, bottom: 10 },
+  { left: 60, bottom: 17 },
+  { left: 78, bottom: 11 },
+  { left: 90, bottom: 19 },
+  { left: 20, bottom: 22 },
+  { left: 70, bottom: 22 },
 ];
 
 function Bang() {
@@ -75,16 +84,94 @@ function Bang() {
   );
 }
 
-/** A wall shelf holding a few goods (decor only). */
-function WallShelf({ items, style }: { items: string; style?: React.CSSProperties }) {
+/** A wall shelf holding a few goods (real item sprites, decor only). */
+function WallShelf({ items, style }: { items: ItemIconName[]; style?: React.CSSProperties }) {
   return (
     <div aria-hidden className="absolute flex flex-col items-center" style={style}>
-      <span className="text-base leading-none">{items}</span>
+      <span className="flex items-end gap-1.5 leading-none">
+        {items.map((n, i) => (
+          <PixelIcon key={i} name={n} size={16} />
+        ))}
+      </span>
       <span
         className="mt-0.5 block h-2 w-24 rounded-sm"
         style={{ background: "var(--rf-wood)", border: "2px solid var(--rf-ink)", boxShadow: "0 2px 0 rgba(0,0,0,0.25)" }}
       />
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * The shop pet — a little yorkie that wanders the store floor. Pat it (same
+ * once-a-day +10 water as greeting a neighbor; server-enforced). Faces the way
+ * it's walking. Purely a client-side stroll; the bonus is a server call.
+ * ------------------------------------------------------------------------- */
+const PET_SPOTS: Pos[] = [
+  { left: 14, bottom: 8 },
+  { left: 62, bottom: 9 },
+  { left: 82, bottom: 15 },
+  { left: 38, bottom: 6 },
+  { left: 26, bottom: 18 },
+  { left: 72, bottom: 20 },
+];
+
+function StorePet({ heart, onPat }: { heart: boolean; onPat: (spot: Pos) => void }) {
+  const [idx, setIdx] = useState(0);
+  const [facing, setFacing] = useState<1 | -1>(1);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    const local = timers.current;
+    function step() {
+      const wait = 4500 + Math.random() * 5000; // amble every ~5–10s
+      const t = setTimeout(() => {
+        setIdx((prev) => {
+          let next = Math.floor(Math.random() * PET_SPOTS.length);
+          if (next === prev) next = (next + 1) % PET_SPOTS.length;
+          // face toward where it's heading (sprite is drawn facing right)
+          setFacing(PET_SPOTS[next].left >= PET_SPOTS[prev].left ? 1 : -1);
+          return next;
+        });
+        step();
+      }, wait);
+      local.push(t);
+    }
+    step();
+    return () => {
+      local.forEach(clearTimeout);
+      local.length = 0;
+    };
+  }, []);
+
+  const spot = PET_SPOTS[idx];
+  return (
+    <button
+      type="button"
+      aria-label="Pat the shop pup"
+      title="Pat the shop pup"
+      onClick={(e) => {
+        e.stopPropagation();
+        onPat(spot);
+      }}
+      className="absolute flex flex-col items-center border-0 bg-transparent p-0"
+      style={{
+        left: `${spot.left}%`,
+        bottom: `${spot.bottom}%`,
+        zIndex: Math.round(60 - spot.bottom),
+        transition: "left 2s linear, bottom 2s linear",
+      }}
+    >
+      {heart && <span aria-hidden className="rf-reward-pop absolute -top-4 text-base">💗</span>}
+      {/* dedicated left/right animated GIFs — the browser plays the 4-frame
+          walk cycle; no CSS flip needed. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={facing === 1 ? SPRITES.yorkieWalkRight : SPRITES.yorkieWalkLeft}
+        alt=""
+        className="pixelated"
+        style={{ width: 40, height: 40 }}
+      />
+    </button>
   );
 }
 
@@ -100,7 +187,9 @@ function Register() {
         className="absolute left-1 top-0 rounded-sm"
         style={{ width: 18, height: 12, background: "var(--rf-cream)", border: "2px solid var(--rf-ink)" }}
       />
-      <span className="absolute bottom-1 right-1 text-[9px]" style={{ color: "var(--rf-gold)" }}>🪙</span>
+      <span className="absolute bottom-1 right-1">
+        <PixelIcon name="coin" size={9} />
+      </span>
     </span>
   );
 }
@@ -137,8 +226,32 @@ export function StoreScene({
   );
   const { greet, heartFor, myHeart } = useGreeting(walkTo);
 
+  // Patting the yorkie: walk over, then the same +10 water bonus as a greeting.
+  const router = useRouter();
+  const [petHeart, setPetHeart] = useState(false);
+  const petPending = useRef(false);
+
   if (!state) {
     return <p className="text-sm text-[var(--rf-ink-soft)]">The General Store isn’t set up yet.</p>;
+  }
+
+  function patPet(spot: Pos) {
+    if (petPending.current) return;
+    petPending.current = true;
+    walkTo({ left: spot.left - 4, bottom: spot.bottom }, async () => {
+      const r = await greetStorePet();
+      petPending.current = false;
+      if (!r.ok) {
+        playSfx("error");
+        announceReward(r.message);
+        return;
+      }
+      playSfx("seed");
+      setPetHeart(true);
+      announceReward(`💧 +${r.water_earned} water — the shop pup loves you!`);
+      setTimeout(() => setPetHeart(false), 2600);
+      router.refresh();
+    });
   }
 
   /** Tapping the register or the shopkeeper walks you up to the counter. */
@@ -181,14 +294,9 @@ export function StoreScene({
           className="pointer-events-none absolute rounded"
           style={{ left: "8%", top: "10%", width: 52, height: 40, background: "var(--rf-sky)", border: "3px solid var(--rf-ink)", boxShadow: "inset 0 0 0 2px var(--rf-cream)" }}
         />
-        <WallShelf items="🫙 🍯 🧺" style={{ right: "8%", top: "10%" }} />
-        <WallShelf items="🌰 💧 ✨" style={{ right: "30%", top: "18%" }} />
-        <WallShelf items="🪴 📦 🧴" style={{ left: "22%", top: "20%" }} />
-
-        {/* floor decor */}
-        <span aria-hidden className="pointer-events-none absolute text-xl" style={{ left: "4%", bottom: "6%" }}>🪴</span>
-        <span aria-hidden className="pointer-events-none absolute text-lg" style={{ right: "4%", bottom: "5%" }}>📦</span>
-        <span aria-hidden className="pointer-events-none absolute text-lg" style={{ right: "10%", bottom: "18%" }}>🧺</span>
+        <WallShelf items={["basket", "coin", "sprout"]} style={{ right: "8%", top: "10%" }} />
+        <WallShelf items={["seed", "water", "fertilizer"]} style={{ right: "30%", top: "18%" }} />
+        <WallShelf items={["sprout", "basket", "water"]} style={{ left: "22%", top: "20%" }} />
         {/* rug */}
         <span
           aria-hidden
@@ -266,6 +374,9 @@ export function StoreScene({
           />
         ))}
 
+        {/* the shop yorkie — pat it for a little water (once a day) */}
+        <StorePet heart={petHeart} onPat={patPet} />
+
         {/* my farmer */}
         <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={myHeart} />
 
@@ -282,10 +393,15 @@ export function StoreScene({
       </div>
 
       <p className="mt-2 text-xs font-bold">Welcome to the General Store.</p>
-      <p className="text-[11px] text-[var(--rf-ink-soft)]">
-        {state.enabled
-          ? `Tap the register (or the shopkeeper) to browse. You have 🪙 ${state.coins}.`
-          : "The store is closed right now — check back soon."}
+      <p className="flex flex-wrap items-center gap-1 text-[11px] text-[var(--rf-ink-soft)]">
+        {state.enabled ? (
+          <>
+            Tap the register (or the shopkeeper) to browse. You have
+            <PixelIcon name="coin" size={13} /> {state.coins}.
+          </>
+        ) : (
+          "The store is closed right now — check back soon."
+        )}
       </p>
 
       {menuOpen && state.enabled && (
@@ -418,7 +534,7 @@ function StoreMenu({
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="General Store menu">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/50" />
-      <div className="ui-frame absolute left-1/2 top-1/2 max-h-[86vh] w-[min(94vw,30rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-[var(--rf-cream)] p-4">
+      <div className="ui-frame absolute left-1/2 top-1/2 max-h-[86vh] w-[min(94vw,calc(var(--game-w)-1rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-[var(--rf-cream)] p-4">
         <div className="flex items-center justify-between">
           <h2 className="pixel-heading text-base">Pick something for the farm 🏪</h2>
           <button
@@ -430,7 +546,9 @@ function StoreMenu({
             ✕
           </button>
         </div>
-        <p className="mt-0.5 text-[11px] text-[var(--rf-ink-soft)]">You have 🪙 {state.coins}.</p>
+        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--rf-ink-soft)]">
+          You have <PixelIcon name="coin" size={13} /> {state.coins}.
+        </p>
 
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           {/* main 3x3 shelf */}
@@ -464,7 +582,7 @@ function StoreMenu({
                     className={shelfCellCls(false)}
                     title="Weekly Orchard Lottery — buy tickets with Coins."
                   >
-                    <span aria-hidden className="text-xl">🎟️</span>
+                    <PixelIcon name="ticket" size={26} />
                     <span className="text-[9px] font-extrabold uppercase leading-tight">Lottery</span>
                     <span className="rounded bg-[var(--rf-gold)] px-1 text-[8px] font-extrabold uppercase text-[var(--rf-ink)]">
                       Sunday draw
@@ -483,13 +601,15 @@ function StoreMenu({
                   className={shelfCellCls(disabled)}
                   title={item.blurb}
                 >
-                  <span aria-hidden className={`text-xl ${disabled ? "grayscale" : ""}`}>{item.icon}</span>
+                  <PixelIcon name={item.sprite} size={26} className={disabled ? "grayscale" : ""} />
                   <span className="text-[9px] font-extrabold uppercase leading-tight text-center">
                     {cell.key === "water"
                       ? `${state.water_amount} ${item.name}`
                       : (item.shelfName ?? item.name)}
                   </span>
-                  <span className="text-[10px] font-bold">🪙 {state.prices[cell.key]}</span>
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold">
+                    <PixelIcon name="coin" size={11} /> {state.prices[cell.key]}
+                  </span>
                   {disabled && gooseNote && (
                     <span
                       className="absolute inset-x-0 -bottom-0.5 truncate px-0.5 text-center text-[7px] font-bold uppercase text-[var(--rf-ink-soft)]"
@@ -518,16 +638,22 @@ function StoreMenu({
                 <span className="absolute -top-2 right-1 rotate-6 rounded border border-[var(--rf-ink)] bg-[var(--rf-red)] px-1 text-[9px] font-extrabold text-[var(--rf-cream)]">
                   −{state.sale.discount_percent}%
                 </span>
-                <span aria-hidden className="text-2xl">{STORE_ITEMS[state.sale.item_key].icon}</span>
+                <PixelIcon name={STORE_ITEMS[state.sale.item_key].sprite} size={32} />
                 <span className="text-[9px] font-extrabold uppercase leading-tight text-center">
                   {state.sale.item_key === "water"
                     ? `${state.water_amount} Water`
                     : (STORE_ITEMS[state.sale.item_key].shelfName ??
                       STORE_ITEMS[state.sale.item_key].name)}
                 </span>
-                <span className="text-[10px]">
-                  <span className="line-through opacity-60">🪙{state.sale.base_price}</span>{" "}
-                  <span className="font-extrabold">🪙{state.sale.sale_price}</span>
+                <span className="flex items-center gap-0.5 text-[10px]">
+                  <span className="inline-flex items-center gap-0.5 line-through opacity-60">
+                    <PixelIcon name="coin" size={10} />
+                    {state.sale.base_price}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 font-extrabold">
+                    <PixelIcon name="coin" size={11} />
+                    {state.sale.sale_price}
+                  </span>
                 </span>
               </button>
             ) : (
@@ -543,8 +669,8 @@ function StoreMenu({
         {/* confirm panel */}
         {selected && (
           <div className="mt-3 rounded border-2 border-[var(--rf-ink)] bg-white/60 p-3">
-            <p className="text-xs font-bold">
-              {STORE_ITEMS[selected.key].icon}{" "}
+            <p className="flex items-center gap-1 text-xs font-bold">
+              <PixelIcon name={STORE_ITEMS[selected.key].sprite} size={16} />
               {selected.key === "water" ? `${state.water_amount} Water` : STORE_ITEMS[selected.key].name}
               {selected.sale && state.sale && (
                 <span className="ml-1.5 rounded bg-[var(--rf-red)] px-1 text-[9px] font-extrabold text-[var(--rf-cream)]">
@@ -580,8 +706,8 @@ function StoreMenu({
                   +
                 </button>
                 {selected.key === "water" && (
-                  <span className="text-[10px] text-[var(--rf-ink-soft)]">
-                    = 💧 {state.water_amount * qty}
+                  <span className="flex items-center gap-0.5 text-[10px] text-[var(--rf-ink-soft)]">
+                    = <PixelIcon name="water" size={13} /> {state.water_amount * qty}
                   </span>
                 )}
               </div>
@@ -594,8 +720,9 @@ function StoreMenu({
               return (
                 <>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold">
-                      {qty > 1 ? `Buy ${qty} for` : "Purchase for"} 🪙 {total}?
+                    <span className="flex items-center gap-0.5 text-[11px] font-bold">
+                      {qty > 1 ? `Buy ${qty} for` : "Purchase for"}{" "}
+                      <PixelIcon name="coin" size={12} /> {total}?
                     </span>
                     <button
                       type="button"

@@ -49,6 +49,88 @@ body {
   letter-spacing: 0.02em;
 }
 
+/* ---------------------------------------------------------------------------
+ * Mobile-first game frame.
+ *
+ * Player-facing routes render inside a fixed-width phone-shaped column
+ * (.rf-game-frame). On phones it IS the screen (width: 100%); on anything
+ * wider it stays at --game-w, centered, with the quiet .rf-backdrop filling
+ * the rest of the browser — a cozy game window, not a stretched website.
+ *
+ * position:fixed overlays (bottom menu, sheets, banners) are centered with
+ * the SAME --game-w cap in their own components rather than captured via a
+ * transformed ancestor — fixed-inside-transform has long-standing Safari
+ * bugs, and per-element caps are dumb but bulletproof.
+ *
+ * Admin / host / debug routes bypass the frame entirely (see AppFrame).
+ * ------------------------------------------------------------------------- */
+:root {
+  /* the one knob: player viewport width (phone-first, iPhone-ish) */
+  --game-w: 420px;
+}
+
+/* Below the frame-chrome breakpoint the game IS the screen: let the frame
+ * (and every fixed element capped to --game-w) span the full width, so a
+ * 430px phone isn't left with odd 5px backdrop slivers. */
+@media (max-width: 459px) {
+  :root {
+    --game-w: 100%;
+  }
+}
+
+/* Muted, earthy space around the centered frame on desktop. The texture is a
+ * barely-there pixel weave done in CSS (no asset, nothing animated) so it
+ * never competes with the farm. */
+.rf-backdrop {
+  min-height: 100dvh;
+  background-color: #75855e;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(64, 52, 42, 0.05) 0 2px,
+      transparent 2px 8px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(247, 239, 223, 0.03) 0 2px,
+      transparent 2px 8px
+    ),
+    linear-gradient(#7c8c64 0%, #6d7d57 100%);
+}
+
+/* The phone-shaped game column. Carries the sky background that used to
+ * live on <body>, so the world looks unchanged from inside the frame. */
+.rf-game-frame {
+  position: relative;
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--game-w);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(var(--rf-sky) 0%, var(--rf-sky-2) 100%);
+}
+
+/* Frame chrome only when there's actually a backdrop to separate from. */
+@media (min-width: 460px) {
+  .rf-game-frame {
+    border-left: 3px solid var(--rf-ink);
+    border-right: 3px solid var(--rf-ink);
+    box-shadow: 0 0 0 1px rgba(247, 239, 223, 0.25), 0 10px 40px rgba(32, 26, 20, 0.35);
+  }
+}
+
+/* Reusable "centered at game width" helper for position:fixed player UI
+ * (bottom menu, sheets, banners). left/right anchoring + margin auto keeps
+ * it centered without transform (transforms are often already in use). */
+.rf-fixed-game-w {
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: 100%;
+  max-width: var(--game-w);
+}
+
 /* Retro headings: chunky, uppercase, tight */
 .pixel-heading {
   font-weight: 800;

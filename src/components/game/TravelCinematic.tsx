@@ -111,7 +111,10 @@ export function TravelCinematic({
 
   return (
     <div
-      className="rf-cine-in fixed inset-0 z-[80] overflow-hidden"
+      // Contained to the phone-width game frame (rf-fixed-game-w) — the
+      // walking scene plays inside the game window, never stretched across a
+      // desktop browser. All scenery inside is %-based, so it adapts.
+      className="rf-cine-in rf-fixed-game-w fixed inset-y-0 z-[80] overflow-hidden"
       role="status"
       aria-label={`Traveling to ${destinationLabel}`}
       style={{ background: "linear-gradient(var(--rf-sky) 0%, var(--rf-sky-2) 62%, var(--rf-grass) 62%)" }}

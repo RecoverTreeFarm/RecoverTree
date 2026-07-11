@@ -6,6 +6,47 @@ tools (WhatsApp / Signal / Google Meet). RecoverTree celebrates showing up,
 through a small farming game. Design source of truth:
 `RecoverTree.Game Design Document.rtf`.
 
+## 🚦 Next agent: start here
+
+The owner wants a **hard launch**. All game features are built and verified.
+What's left is entirely **launch logistics**, not gameplay — the owner has
+made the calls below, so don't re-litigate them:
+
+1. **Wire a transactional email provider — Resend or Postmark, whichever is
+   cheaper — then integrate it as Supabase's Auth SMTP sender.** This is the
+   one hard launch blocker: Supabase's built-in mailer caps out around
+   2 emails/hour, which will silently drop signup/reset emails once more than
+   a couple of people join in the same hour. Compare current pricing for both
+   (as of this session, Resend's free tier — 3,000 emails/mo, 100/day — was
+   the more generous free tier for an app this size; Postmark's free tier is
+   a one-time 100-email trial, then paid plans start around $15/mo). Confirm
+   current numbers before deciding, since pricing changes. Once picked:
+   create the account, verify a sending domain (SPF/DKIM), then wire it into
+   **Supabase Dashboard → Authentication → Emails → SMTP Settings** (both
+   providers have first-class SMTP docs for Supabase). No app code changes
+   needed for this — it's entirely a Supabase Auth config change.
+2. **Push to GitHub, connect Vercel, set the two env vars, deploy.** The repo
+   has no remote configured yet (`git remote -v` is empty). Standard flow:
+   create a GitHub repo, push this branch, then in Vercel "Import Project"
+   from that repo. Set `NEXT_PUBLIC_SUPABASE_URL` and
+   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (values in `.env.local`, **not**
+   committed) as Vercel project env vars. No `vercel.json` or custom build
+   config needed — it's a stock `next build`. Confirm the build succeeds on
+   Vercel (it passes locally as of this commit) before sharing the URL
+   around. A custom domain can be added after, in Vercel's dashboard.
+
+**Deliberately deferred, do not "fix" unless the owner asks:**
+- `debug_settings_enabled` stays **ON** in the live DB — the owner wants
+  admins to keep access to the Debug tab. Not an oversight.
+- Leaked-password protection stays **OFF** in Supabase Auth for now — the
+  owner's call, not urgent. It's a 30-second dashboard toggle
+  (Auth → Policies) whenever they want it.
+
+**Already done this session (verified, do not redo):**
+- `handle_new_profile()` — anon/authenticated `EXECUTE` revoked
+  (migration `20260710070000`). The advisor's one real finding is resolved.
+- Working tree committed (see git log for exactly what shipped).
+
 ## Tech
 - **Next.js 16** (App Router; session refresh lives in `src/proxy.ts`, not `middleware`)
 - **TypeScript + Tailwind v4**, custom cozy pixel components (no shadcn)
@@ -71,6 +112,46 @@ Every other reward is a currency — **Water, Seed, Fertilizer, or Coins 🪙** 
   settings, optional Debug, Audit log. Every action is audit-logged.
 - **Music/Sound**: separate 🔊 (effects) and 🎵 (background music) nav toggles;
   the music preference persists on the account (`profiles.music_enabled`).
+- **Cozy item sprites + shop pet** — the emoji glyphs are replaced by real
+  pixel art (`public/sprites/items/`: coin/water/fertilizer/sprout/basket/
+  ticket) via `PixelIcon` (Sprite.tsx) and `STORE_ITEMS[key].sprite`. Swapped
+  everywhere prominent: the General Store (shelves, tiles, prices, decor,
+  sale, confirm), the farm inventory bar (water/fert/seed/coin), and the
+  Lottery panel coin rows. Plain-text messages/banners keep the emoji (can't
+  inline a sprite there). The **shop yorkie** wanders the store floor using
+  the real animated CozySpriteBundle GIFs (`public/sprites/pets/
+  yorkie_walk_{left,right}.gif`, 18×18 4-frame cycles, dedicated L/R sheets so
+  no CSS-flip artifacts — the browser just animates them); patting it gives
+  the same +10 water once-a-day bonus as greeting a neighbor — server-enforced
+  via `greet_store_pet()` + its own `store_pet_greetings` table (migration
+  `20260710060000`, applied + verified; kept separate so it never counts
+  toward the "greet neighbors" goal). Item sprites were sliced/recolored from
+  the asset packs (fertilizer = recolored potion; ticket hand-authored). The
+  avatar roster also gained 4 black-outfit classic variants (worker/customer
+  3 & 4 → 26 total avatar choices).
+- **Walkable-scene boundaries fixed** — the General Store and Community Garden
+  confine the player BELOW their obstacles (store `maxBottom` under the
+  counter; garden `maxBottom` under the tree base + a trunk `Blocker`). Since
+  walks are straight-line CSS transitions, staying below the obstacle means the
+  player can never climb the wall/sky, stand in the counter/tree, or pass
+  through it. Stray neighbour/shopper spots that sat on the wall/upper grass
+  were moved onto the floor; store floor decor was removed. Garden tending now
+  shows the farmer holding the item used (watering can / seed bag / fertilizer)
+  via `PlayerFarmer`'s `held` prop, cleared a few seconds after the crate closes.
+- **Mobile-first fixed game viewport** — player routes render inside a
+  phone-shaped frame (`--game-w: 420px`, `.rf-game-frame` / `.rf-backdrop` in
+  globals.css; `AppFrame` picks by pathname — `/admin`, `/host`, `/debug`
+  stay full-width). On phones the frame is the screen (100% under 460px); on
+  desktop it's centered over a muted textured backdrop with border + shadow.
+  Every fixed overlay (bottom menu, GameWindow sheets, Wiki, store menu,
+  reward banners, travel cinematic) is individually capped/centered at
+  `--game-w` via `.rf-fixed-game-w` — deliberately NOT the
+  transform-containing-block trick (Safari fixed-in-transform bugs).
+  Safe-area insets via `viewport: { viewportFit: "cover" }` + `env()` padding
+  on the header and bottom menu; no zoom-blocking meta. The Wiki now uses one
+  wrapping chip-tab row everywhere (the desktop sidebar was retired).
+  Tutorial coach cards render top/center/anchored only — never at the bottom
+  of the screen where mobile chrome could clip them.
 - **In-game Guidebook** (wiki) with chapters for every feature + sprite strips.
   Now deep-linkable to a chapter (one panel mounted via `wikiController`); a
   Cherry Blossom "Rare Trees" section lives under Fruits & Leaderboard.
@@ -124,7 +205,20 @@ migration (`20260710040000` — profiles columns + `grant_tutorial_supplies` /
 `complete_tutorial` / `mark_feature_intro_seen`; all applied + verified), and
 the **Weekly Orchard Lottery** (`20260710050000` + `20260710051000` — tables,
 purchase/resolution functions, goals, badges, settings **v11**, season summary;
-both applied + verified live).
+both applied + verified live), the **store pet greet** bonus
+(`20260710060000`), and the **anon-execute revoke** on `handle_new_profile()`
+(`20260710070000`). All applied + verified live on `usmtdjmxvbuuwvmzobln`.
+
+⚠️ **Advisor noise, not a gap:** `get_advisors` (security) reports ~76 warnings
+of the form "Signed-In Users Can Execute SECURITY DEFINER Function." That's
+expected and by design for this app — every game action (`plant_seed`,
+`water_one_tree`, `purchase_store_item`, every `admin_*` function, etc.) is
+deliberately a SECURITY DEFINER RPC the authenticated client calls directly,
+and each one internally checks `auth.uid()`, ownership, ban status, or
+`is_admin()` before doing anything. Don't "fix" these one by one — the only
+finding worth acting on was the `anon`-callable `handle_new_profile()`, now
+resolved. (One low-severity leftover: `protect_privileged_profile_columns()`
+has a mutable search_path — cosmetic hardening, not urgent.)
 
 ⚠️ **Migration-ordering caveat:** `update_game_settings` has been recreated many
 times, each adding allowed setting keys. **The newest version is v11 in
@@ -151,18 +245,18 @@ variables for maybe-unassigned data. (Fixed in `20260709250000`.)
   effective (admin-tunable) values passed from the ceremony page.
 - ~~Certificate download not verified end-to-end~~ **Verified** — drives the
   canvas → PNG path cleanly (900×640, same-origin sprites, no CORS taint).
-- `debug_settings_enabled` may be ON in the live DB — turn off before real play.
 - Pre-existing lint baseline (3 errors) is safe to leave.
-
-## What still needs building (before a wide launch)
-- **Auth email**: uses Supabase's built-in mailer (~2/hr). Wire a real email
-  provider and enable **leaked-password protection** in Supabase Auth.
-- **`handle_new_profile()`** is a SECURITY DEFINER function the `anon` role can
-  call directly (flagged by the Supabase advisor) — revoke `anon` EXECUTE.
 - **Bug-report form** in the Guidebook is a placeholder (`BUG_REPORT_EMAIL` in
-  `src/lib/wiki.ts`); no email backend.
-- Real pixel sprites for Water/Seed/Fertilizer (all glyphs live in `src/lib/icons.ts`).
-- `/debug/auth` is a temporary dev page — delete before launch.
+  `src/lib/wiki.ts`); no email backend. Could piggyback on whichever email
+  provider gets wired in for auth, but that's a separate, optional feature —
+  not required for launch.
+- `/debug/auth` is a temporary dev page — harmless (not linked anywhere, and
+  `debug_settings_enabled` is intentionally on), but worth deleting once the
+  owner is confident they won't need it for troubleshooting after launch.
+
+## What still needs building before a hard launch
+See **"Next agent: start here"** at the top of this file — email provider
+integration and the GitHub/Vercel deploy are the only two remaining items.
 
 ## Secrets / safety
 - `.env.local` holds the Supabase URL + **publishable** (browser-safe) key and is
@@ -170,8 +264,19 @@ variables for maybe-unassigned data. (Fixed in `20260709250000`.)
 - No service-role/secret keys, DB passwords, or API secrets are in the repo.
 
 ## Next recommended step
-Ship-readiness, not new features: enable leaked-password protection + wire a real
-email provider + revoke `anon` EXECUTE on `handle_new_profile()`. These are the
-only things between this build and letting real members in. If building instead:
-swap the CSS store interior for real interior sprites, or surface coin rewards in
-the ceremony recap.
+See **"Next agent: start here"** at the top of this file. In short: wire
+Resend or Postmark into Supabase Auth SMTP, then push to GitHub, connect
+Vercel, set the two env vars, and deploy. If asked to build instead of ship:
+swap the CSS store interior for real interior sprites is the next-best use of
+time.
+
+## Promotional poster (marketing asset, not part of the app)
+Built once this session as a self-contained HTML file composited from real
+game sprites (base64-inlined PNGs/GIFs — house, cherry-blossom tree, farmer,
+coins, medal, item icons), then exported to a one-page PDF via headless
+Chrome (`--headless --print-to-pdf`, with a custom `@page` size in the file's
+print CSS sized to the actual content so it doesn't paginate onto a blank
+second page). It lives only in this session's scratchpad (ephemeral, not in
+the repo) and was published as a Claude Artifact. If the owner wants it
+changed again, ask them for the Artifact URL — updating it needs the `url:`
+param on the Artifact tool to edit in place rather than minting a new link.

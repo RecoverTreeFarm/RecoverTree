@@ -32,8 +32,21 @@ type Step =
 const ACTION_STEPS: Step[] = ["plant", "water", "fertilize", "harvest"];
 
 type StepDef = {
-  /** data-tutorial anchor to point at (undefined = centered card) */
+  /** data-tutorial anchor: for "anchored" placement (where to point), or for
+   *  "top"/"center" just to drive the action-step highlight ring, if any */
   anchor?: string;
+  /**
+   * Where the card sits. Never "bottom" — cards must never be pinned near the
+   * bottom edge, where a mobile browser's chrome/keyboard can clip them with
+   * no way to scroll into view.
+   *   "anchored" — below a top-of-screen control (item bar buttons), clamped
+   *     so it can never reach the bottom nav; falls back to "top" if the
+   *     viewport is too short to fit it.
+   *   "top"      — pinned as a context-cue banner just below the header, over
+   *     the play area but never at the bottom.
+   *   "center"   — a centered modal card (the welcome/finish gate steps).
+   */
+  placement: "anchored" | "top" | "center";
   /** dim + block the rest of the screen (info/gate steps) */
   blocking: boolean;
   title: string;
@@ -45,6 +58,7 @@ type StepDef = {
 
 const STEP_DEFS: Record<Step, StepDef> = {
   intro: {
+    placement: "center",
     blocking: true,
     title: "Welcome to your farm",
     body: "Let’s take a quick tour. You’ll plant your first Seed, water it, use Fertilizer, and harvest your first Fruit.",
@@ -52,6 +66,7 @@ const STEP_DEFS: Record<Step, StepDef> = {
   },
   plant: {
     anchor: "item-seed",
+    placement: "anchored",
     blocking: false,
     title: "Plant your first Seed",
     body: "Everyone gets 1 free Seed to start. You can earn more Seeds as you play.",
@@ -59,20 +74,21 @@ const STEP_DEFS: Record<Step, StepDef> = {
   },
   water: {
     anchor: "item-water",
+    placement: "anchored",
     blocking: false,
     title: "Give it some Water",
     body: "Water helps your trees grow. Keep tapping Water until your little tree is fully grown.",
     instruction: "Tap Water.",
   },
   timer: {
-    anchor: "farm-scene",
+    placement: "top",
     blocking: true,
     title: "Trees take time",
     body: "Some trees need time before they produce Fruit. You can wait, or use Fertilizer when you want to hurry things along.",
     cta: "Continue",
   },
   cherry: {
-    anchor: "farm-scene",
+    placement: "top",
     blocking: true,
     title: "Rare blooms",
     body: "Every now and then, a tree may become a Cherry Blossom while it grows. Cherry Blossoms are rare, and when they produce cherries, they give x2 Cherries.",
@@ -80,26 +96,33 @@ const STEP_DEFS: Record<Step, StepDef> = {
   },
   fertilize: {
     anchor: "item-fert",
+    placement: "anchored",
     blocking: false,
     title: "Use Fertilizer",
     body: "Fertilizer can help a tree finish faster. It’s more special than Water, so use it when it counts.",
     instruction: "Tap Fertilizer.",
   },
   harvest: {
+    // kept only for the highlight ring around the play area — the CARD is
+    // pinned to the top, never anchored near the bottom of the scene.
     anchor: "farm-scene",
+    placement: "top",
     blocking: false,
     title: "Harvest your Fruit",
     body: "Fruits come from trees. Harvested Fruits are what count on the leaderboard.",
     instruction: "Tap the ready tree to harvest.",
   },
   leaderboard: {
-    anchor: "menu-leaderboard",
+    // The real target (the Leaders button) lives in the bottom nav — never
+    // anchor a card down there. Shown as a top context cue instead.
+    placement: "top",
     blocking: true,
     title: "Fruits are your score",
     body: "Water, Seeds, and Fertilizer help your farm grow. Fruits only come from harvested trees, and Fruits decide the leaderboard.",
     cta: "Continue",
   },
   explore: {
+    placement: "center",
     blocking: true,
     title: "Explore the map",
     body: "You know the basics now, but there’s a lot more to discover. Explore the map, check in on your farm, and look out for community events like the Traveling Basket, Golden Goose, and Community Garden.",
@@ -346,6 +369,15 @@ function useAnchorRect(anchor: string | undefined): DOMRect | null {
   return rect;
 }
 
+/** Clears the sticky header (SiteNav, ~64px) with a little breathing room. */
+const TOP_SAFE = 76;
+/** Clears the fixed bottom game menu (~64px) with a little breathing room. */
+const BOTTOM_SAFE = 88;
+const GAP = 14;
+/** Below this much room, an anchored card would be too cramped — use the top
+ *  banner instead rather than risk a squeezed or clipped card. */
+const MIN_ANCHORED_SPACE = 120;
+
 function TutorialCoach({
   def,
   isAction,
@@ -361,33 +393,57 @@ function TutorialCoach({
   onExit?: () => void;
 }) {
   const rect = useAnchorRect(def.anchor);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-  const cardW = Math.min(340, (typeof window !== "undefined" ? window.innerWidth : 360) - 24);
-
-  // Decide placement. Bottom sheet when: no anchor rect and it's an action
-  // step, OR we're on a narrow screen (keeps the card readable + tappable and
-  // never off-screen). Centered modal for blocking gate steps without anchor.
-  const bottomSheet = isAction && (!rect || isMobile);
-  const centered = !def.anchor && !isAction;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 400;
+  const cardW = Math.min(340, vw - 24);
 
   let cardStyle: React.CSSProperties;
-  let pointer: "up" | "down" | null = null;
+  let pointer: "up" | null = null;
 
-  if (bottomSheet) {
-    cardStyle = { left: "50%", bottom: 88, transform: "translateX(-50%)", width: cardW };
-  } else if (centered || !rect) {
-    cardStyle = { left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: cardW };
-  } else {
-    const vh = window.innerHeight;
-    const below = rect.bottom + 150 < vh;
-    const cx = Math.min(Math.max(rect.left + rect.width / 2, 12 + cardW / 2), window.innerWidth - 12 - cardW / 2);
-    if (below) {
-      cardStyle = { left: cx, top: rect.bottom + 14, transform: "translateX(-50%)", width: cardW };
+  // Cards never sit at the bottom of the screen — only "anchored" (below a
+  // top-of-screen control, clamped) or "top"/"center", both well clear of the
+  // bottom edge where mobile browser chrome or the fixed bottom nav could
+  // clip them with no way to scroll into view.
+  if (def.placement === "anchored" && rect) {
+    const belowSpace = vh - rect.bottom - GAP - BOTTOM_SAFE;
+    if (belowSpace >= MIN_ANCHORED_SPACE) {
+      const cx = Math.min(Math.max(rect.left + rect.width / 2, 12 + cardW / 2), vw - 12 - cardW / 2);
+      cardStyle = {
+        left: cx,
+        top: rect.bottom + GAP,
+        transform: "translateX(-50%)",
+        width: cardW,
+        maxHeight: belowSpace,
+      };
       pointer = "up";
     } else {
-      cardStyle = { left: cx, bottom: vh - rect.top + 14, transform: "translateX(-50%)", width: cardW };
-      pointer = "down";
+      // Not enough room below the anchor (short viewport) — fall back to the
+      // top banner rather than crowd the card toward the bottom edge.
+      cardStyle = {
+        left: "50%",
+        top: TOP_SAFE,
+        transform: "translateX(-50%)",
+        width: cardW,
+        maxHeight: vh - TOP_SAFE - BOTTOM_SAFE,
+      };
     }
+  } else if (def.placement === "center") {
+    cardStyle = {
+      left: "50%",
+      top: "50%",
+      transform: "translate(-50%,-50%)",
+      width: cardW,
+      maxHeight: vh - TOP_SAFE - BOTTOM_SAFE,
+    };
+  } else {
+    // "top" — a pinned context-cue banner just below the header.
+    cardStyle = {
+      left: "50%",
+      top: TOP_SAFE,
+      transform: "translateX(-50%)",
+      width: cardW,
+      maxHeight: vh - TOP_SAFE - BOTTOM_SAFE,
+    };
   }
 
   return (
@@ -421,20 +477,20 @@ function TutorialCoach({
         />
       )}
 
-      {/* The card */}
+      {/* The card — overflow-y-auto is a safety net: if content is ever
+          taller than the clamped maxHeight allows, it scrolls internally
+          rather than getting clipped with no way to see the rest. */}
       <div
-        className="ui-frame pointer-events-auto absolute bg-[var(--rf-cream)] p-0"
+        className="ui-frame pointer-events-auto absolute overflow-y-auto bg-[var(--rf-cream)] p-0"
         style={cardStyle}
       >
-        {pointer && (
+        {/* Only ever points UP at an anchor above the card — cards never sit
+            below their target, so there's no "down" pointer case. */}
+        {pointer === "up" && (
           <span
             aria-hidden
             className="absolute left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-[var(--rf-ink)] bg-[var(--rf-cream)]"
-            style={
-              pointer === "up"
-                ? { top: -7, borderTopWidth: 2, borderLeftWidth: 2 }
-                : { bottom: -7, borderBottomWidth: 2, borderRightWidth: 2 }
-            }
+            style={{ top: -7, borderTopWidth: 2, borderLeftWidth: 2 }}
           />
         )}
         <div className="p-4">

@@ -44,3 +44,9 @@ next-env.d.ts
 
 # Unused 355MB source music pack (only the three chosen tracks are copied to public/music)
 8BitMusic/Retro-Fit Adventure (Free 8-Bit Video Game Music)/
+
+# Unused ~31MB downloaded asset pack (only a handful of small item icons were
+# sliced from it into public/sprites/items/ — the raw pack itself isn't needed)
+Spritesheets/More Farming Sprites/Sunnyside_World_ASSET_PACK_V2.1/
+Spritesheets/More Farming Sprites/free version/
+Spritesheets/farming sprites/Farm RPG FREE 16x16 - Tiny Asset Pack.rar

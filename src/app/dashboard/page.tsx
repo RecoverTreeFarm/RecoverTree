@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnProfile, VISIBILITY_OPTIONS } from "@/lib/profile";
-import { Container, Panel } from "@/components/pixel/ui";
+import { Panel } from "@/components/pixel/ui";
 import { GameShell } from "@/components/game/GameShell";
 import type { BasketState } from "@/components/pixel/BasketPanel";
 import type { ChecklistItem, LeaderboardRow } from "@/components/game/panels";
@@ -195,7 +195,9 @@ export default async function DashboardPage() {
   );
 
   return (
-    <Container className="max-w-4xl">
+    // Tighter than the shared Container: on a phone the farm should own the
+    // height, so the dashboard skips Container's roomy py-8.
+    <main className="mx-auto w-full flex-1 px-3 pb-8 pt-2">
       {farmError && (
         <Panel className="mb-4">
           <p className="text-sm font-bold text-[var(--rf-red)]">
@@ -244,6 +246,6 @@ export default async function DashboardPage() {
           featureIntroSeen: (profile.feature_intro_seen ?? {}) as Record<string, boolean>,
         }}
       />
-    </Container>
+    </main>
   );
 }

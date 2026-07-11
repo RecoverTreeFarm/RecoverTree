@@ -240,7 +240,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
       {
         heading: "How a week works",
         bullets: [
-          "A new drawing opens each week. Find it at the General Store or on the Map.",
+          "A new drawing opens each week. Find it on the shelf at the General Store.",
           "Buy up to 3 tickets with 🪙 Coins. Each ticket is one entry.",
           "Every ticket adds its Coin price to the community-funded pot.",
           "On Sunday, the Orchard adds a bonus — 25% of the community pot.",

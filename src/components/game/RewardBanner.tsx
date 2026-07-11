@@ -59,7 +59,7 @@ export function RewardBannerHost() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 z-[85] flex flex-col items-center gap-1.5"
+      className="rf-fixed-game-w pointer-events-none fixed z-[85] flex flex-col items-center gap-1.5"
       style={{ bottom: "6.5rem" }}
       aria-live="polite"
     >
@@ -67,7 +67,7 @@ export function RewardBannerHost() {
         <p
           key={b.id}
           role="status"
-          className="rf-reward-banner w-fit max-w-[90vw] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-4 py-1.5 text-center text-xs font-extrabold uppercase tracking-wide"
+          className="rf-reward-banner w-fit max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-4 py-1.5 text-center text-xs font-extrabold uppercase tracking-wide"
           style={{ boxShadow: "0 2px 0 var(--rf-ink)" }}
         >
           {b.text}

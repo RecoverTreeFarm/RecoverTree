@@ -164,3 +164,46 @@ export function Fruit({
 export function CherryFruit({ scale = 2, className = "" }: { scale?: number; className?: string }) {
   return <Fruit scale={scale} index={DEFAULT_FRUIT_INDEX} className={className} />;
 }
+
+/**
+ * A small cozy item icon — real pixel sprite in place of an emoji glyph
+ * (water / fertilizer / coin / seed / sprout / basket / ticket). Renders inline
+ * and crisp, so it drops straight into "🪙 40"-style rows next to a number.
+ */
+const ITEM_ICON_SRC = {
+  water: SPRITES.itemWater,
+  fertilizer: SPRITES.itemFertilizer,
+  coin: SPRITES.itemCoin,
+  seed: SPRITES.seedPacket,
+  sprout: SPRITES.itemSprout,
+  basket: SPRITES.itemBasket,
+  ticket: SPRITES.itemTicket,
+} as const;
+
+export type ItemIconName = keyof typeof ITEM_ICON_SRC;
+
+export function PixelIcon({
+  name,
+  size = 18,
+  title,
+  className = "",
+}: {
+  name: ItemIconName;
+  /** rendered px (square) */
+  size?: number;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={ITEM_ICON_SRC[name]}
+      alt={title ?? name}
+      title={title}
+      width={size}
+      height={size}
+      className={`pixelated inline-block shrink-0 align-middle ${className}`}
+      style={{ width: size, height: size }}
+    />
+  );
+}

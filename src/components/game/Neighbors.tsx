@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SPRITES, AVATAR_SPRITES } from "@/lib/sprites";
+import { PixelIcon, type ItemIconName } from "@/components/pixel/Sprite";
 import { greetNeighbor, pingLocationPresence } from "@/app/dashboard/actions";
 import { announceReward } from "./RewardBanner";
 import { playSfx } from "@/lib/sfx";
@@ -249,13 +250,15 @@ export function NeighborSprite({
   );
 }
 
-/** Your own farmer, walking around a location. */
+/** Your own farmer, walking around a location. `held` shows a small item
+ *  sprite in the farmer's hand (e.g. while tending the garden). */
 export function PlayerFarmer({
   src,
   pos,
   walking,
   walkMs,
   heart,
+  held = null,
   size = 58,
 }: {
   src: string;
@@ -263,6 +266,7 @@ export function PlayerFarmer({
   walking: boolean;
   walkMs: number;
   heart: boolean;
+  held?: ItemIconName | null;
   size?: number;
 }) {
   return (
@@ -285,6 +289,16 @@ export function PlayerFarmer({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt="Your farmer" className="pixelated" style={{ width: size, height: size }} />
         </div>
+        {held && (
+          // tucked into the farmer's hand (front, at waist height)
+          <span
+            aria-hidden
+            className="rf-reward-pop absolute"
+            style={{ right: -size * 0.14, bottom: size * 0.28 }}
+          >
+            <PixelIcon name={held} size={Math.round(size * 0.42)} />
+          </span>
+        )}
       </div>
     </div>
   );

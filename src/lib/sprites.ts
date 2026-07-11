@@ -20,6 +20,32 @@ export const FARMER_VARIANTS = [
   "/sprites/characters/farmer_variant_10.png",
 ] as const;
 
+/**
+ * The "classic" roster — the original characters from the Farm RPG tiny asset
+ * pack (Spritesheets/farming sprites/Characters, 16x16), upscaled 2x with
+ * nearest-neighbor into drop-in 32x32 idle frames so they render at the same
+ * size as the cozy farmers everywhere (farm, presence, ceremony, profile).
+ */
+export const CLASSIC_VARIANTS = [
+  "/sprites/characters/classic_worker_1.png",
+  "/sprites/characters/classic_worker_2.png",
+  "/sprites/characters/classic_worker_3.png",
+  "/sprites/characters/classic_worker_4.png",
+  "/sprites/characters/classic_worker_5.png",
+  "/sprites/characters/classic_customer_1.png",
+  "/sprites/characters/classic_customer_2.png",
+  "/sprites/characters/classic_customer_3.png",
+  "/sprites/characters/classic_customer_4.png",
+  "/sprites/characters/classic_customer_5.png",
+  "/sprites/characters/classic_customer_6.png",
+  "/sprites/characters/classic_customer_7.png",
+  // black-outfit recolours of the classic roster (16x16 → 32x32)
+  "/sprites/characters/classic_worker_3_black.png",
+  "/sprites/characters/classic_worker_4_black.png",
+  "/sprites/characters/classic_customer_3_black.png",
+  "/sprites/characters/classic_customer_4_black.png",
+] as const;
+
 /** Characters are 32x32 now (were 16x16). */
 export const CHARACTER_SIZE = 32;
 
@@ -49,6 +75,21 @@ export const SPRITES = {
 
   // Small UI icons
   seedPacket: "/sprites/icons/seed_packet.png", // 16x16
+
+  // Cozy item icons (real pixel art, replacing the emoji glyphs). All 32x32.
+  itemWater: "/sprites/items/water.png",
+  itemFertilizer: "/sprites/items/fertilizer.png",
+  itemCoin: "/sprites/items/coin.png",
+  itemSprout: "/sprites/items/sprout.png",
+  itemBasket: "/sprites/items/basket.png",
+  itemTicket: "/sprites/items/ticket.png",
+
+  // The shop pet — a little yorkie that wanders the General Store. Real
+  // animated GIFs from CozySpriteBundle (18x18, 4-frame walk cycles); the
+  // browser animates them, and dedicated left/right sheets avoid CSS flipping.
+  yorkieWalkRight: "/sprites/pets/yorkie_walk_right.gif",
+  yorkieWalkLeft: "/sprites/pets/yorkie_walk_left.gif",
+  yorkieSit: "/sprites/pets/yorkie_sit_right.gif",
 
   // Golden Goose (two flap frames + egg)
   goose1: "/sprites/goose/goose_1.png", // wings up
@@ -184,11 +225,23 @@ export function orchardFruitSprite(index: number): string {
 
 /**
  * Avatar sprites a user can pick for their profile. The chosen key is stored
- * in profiles.avatar_config as {"sprite": "<key>"}. Keys are variant_01..10.
+ * in profiles.avatar_config as {"sprite": "<key>"}. Keys are variant_01..10
+ * for the cozy farmers, plus classic_worker_N / classic_customer_N for the
+ * classic roster (key = the sprite's filename, so keys stay stable). The
+ * pickers and server validation both iterate AVATAR_KEYS, so this map is the
+ * only place a new choice has to be added.
  */
-export const AVATAR_SPRITES: Record<string, string> = Object.fromEntries(
-  FARMER_VARIANTS.map((src, i) => [`variant_${String(i + 1).padStart(2, "0")}`, src]),
-);
+export const AVATAR_SPRITES: Record<string, string> = {
+  ...Object.fromEntries(
+    FARMER_VARIANTS.map((src, i) => [`variant_${String(i + 1).padStart(2, "0")}`, src]),
+  ),
+  ...Object.fromEntries(
+    CLASSIC_VARIANTS.map((src) => [
+      src.slice(src.lastIndexOf("/") + 1).replace(".png", ""),
+      src,
+    ]),
+  ),
+};
 
 export const AVATAR_KEYS = Object.keys(AVATAR_SPRITES);
 

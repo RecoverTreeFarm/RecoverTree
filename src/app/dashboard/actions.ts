@@ -400,6 +400,24 @@ export async function pingLocationPresence(location: "garden" | "store") {
   return { ok: true as const, others: row.others ?? [] };
 }
 
+/** Pat the shop yorkie — the same +10 water once-a-day bonus as greeting a
+ *  neighbor (server-enforced; separate from neighbor greetings). */
+export async function greetStorePet() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("greet_store_pet");
+  revalidatePath("/dashboard");
+  if (error) {
+    const m = error.message;
+    if (m.includes("ALREADY_GREETED_TODAY"))
+      return { ok: false as const, message: "You already gave the pup some love today. 🐾" };
+    if (m.includes("BANNED"))
+      return { ok: false as const, message: "Your account can’t do that right now." };
+    return { ok: false as const, message: "The pup scampered off — try again." };
+  }
+  const row = data as { water_earned: number };
+  return { ok: true as const, water_earned: row.water_earned };
+}
+
 /** Say hi to a neighbor — hearts + a little water for reaching out
  *  (server-limited to once per neighbor per location per day). */
 export async function greetNeighbor(presenceId: string) {

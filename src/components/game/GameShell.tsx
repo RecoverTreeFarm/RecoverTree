@@ -389,7 +389,6 @@ export function GameShell(props: GameShellProps) {
               onOpenGarden={() => travel("garden")}
               onOpenStore={() => travel("store")}
               onGoHome={() => travel("farm")}
-              onOpenLottery={() => setOpen("lottery")}
             />
           )}
           {open === "lottery" &&
@@ -446,10 +445,15 @@ export function GameShell(props: GameShellProps) {
           tapping another icon switches panels directly (mobile-game feel). */}
       <nav
         aria-label="Game menu"
-        className="fixed inset-x-0 bottom-0 z-[60]"
-        style={{ background: "var(--rf-grass)", borderTop: "3px solid var(--rf-ink)" }}
+        className="rf-fixed-game-w fixed bottom-0 z-[60]"
+        style={{
+          background: "var(--rf-grass)",
+          borderTop: "3px solid var(--rf-ink)",
+          // keep the menu clear of the iPhone home indicator
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
       >
-        <div className="mx-auto flex max-w-3xl items-stretch justify-around px-1 py-1.5">
+        <div className="mx-auto flex items-stretch justify-around px-1 py-1.5">
           {menu.map((m) => {
             const active = m.id !== "home" && open === m.id;
             return (
@@ -732,17 +736,16 @@ function buildNotifications(props: GameShellProps, seedNotifId: string): FarmNot
   return out;
 }
 
-/** Small game window: bottom sheet on mobile, centered window on desktop.
- *  `wide` widens the desktop window for scene-like content (the garden). */
+/** Small game window: a bottom sheet inside the phone-width game frame.
+ *  Every player panel lives within --game-w — never the full desktop width —
+ *  so the game reads as one contained mobile experience everywhere. */
 function GameWindow({
   title,
   onClose,
-  wide = false,
   children,
 }: {
   title: string;
   onClose: () => void;
-  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -754,9 +757,7 @@ function GameWindow({
         className="absolute inset-0 bg-black/40"
       />
       <div
-        className={`ui-frame absolute inset-x-0 bottom-16 mx-auto flex max-h-[72vh] w-full flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[80vh] sm:-translate-x-1/2 sm:-translate-y-1/2 ${
-          wide ? "sm:w-[min(94vw,40rem)]" : "sm:w-[min(92vw,30rem)]"
-        }`}
+        className="ui-frame rf-fixed-game-w absolute bottom-16 flex max-h-[72vh] flex-col bg-[var(--rf-cream)] p-0 sm:max-h-[76vh]"
       >
         <div
           className="flex items-center justify-between px-4 py-2"

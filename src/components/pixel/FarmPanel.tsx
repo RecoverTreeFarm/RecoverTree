@@ -27,10 +27,8 @@ import {
   harvestOneTree,
 } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
-import { Fruit } from "./Sprite";
+import { Fruit, PixelIcon } from "./Sprite";
 import { GooseSprite } from "./GooseSprite";
-import { SPRITES } from "@/lib/sprites";
-import { ICON } from "@/lib/icons";
 
 const WATER_PER_PLANT = 10; // each plant drinks its own 10 water per stage
 
@@ -726,7 +724,7 @@ export function FarmPanel({
 
     if (tree.stage < 4 && water >= WATER_PER_PLANT) {
       acts.push({
-        icon: <span aria-hidden>💧</span>,
+        icon: <PixelIcon name="water" size={20} />,
         label: "Water this plant",
         onClick: () => void handleWaterOne(index, tree.id!),
       });
@@ -735,7 +733,7 @@ export function FarmPanel({
     const waiting = tree.stage === 4 && tree.readyAt && new Date(tree.readyAt).getTime() > now;
     if (waiting && fertilizer > 0) {
       acts.push({
-        icon: <span aria-hidden>{ICON.fertilizer}</span>,
+        icon: <PixelIcon name="fertilizer" size={20} />,
         label: "Fertilize this plant (ripens it now)",
         onClick: () => handleFertilizeOne(index, tree.id!),
       });
@@ -784,12 +782,11 @@ export function FarmPanel({
       if (kind === "fert") return <>Fertilize all? ({fertCount})</>;
       return <>Plant all? ({plantable})</>;
     }
-    if (kind === "water") return <><span aria-hidden>💧</span> {water}</>;
-    if (kind === "fert") return <><span aria-hidden>{ICON.fertilizer}</span> {fertilizer}</>;
+    if (kind === "water") return <><PixelIcon name="water" size={17} /> {water}</>;
+    if (kind === "fert") return <><PixelIcon name="fertilizer" size={17} /> {fertilizer}</>;
     return (
       <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={SPRITES.seedPacket} alt="" className="pixelated h-4 w-4" /> {seeds}
+        <PixelIcon name="seed" size={16} /> {seeds}
       </>
     );
   }
@@ -834,10 +831,10 @@ export function FarmPanel({
           blurb={`Your Season score — only harvesting trees makes Fruits. You have ${fruitTotal}.`}
         />
         <InfoChip
-          icon={<span aria-hidden>🪙</span>}
+          icon={<PixelIcon name="coin" size={16} />}
           count={coins}
           name="Coins"
-          blurb={`Spend on future shop goodies — Coins never affect the leaderboard. You have ${coins}.`}
+          blurb={`Spend at the store and lottery — Coins never affect the leaderboard. You have ${coins}.`}
         />
         <InfoChip
           icon={<span aria-hidden>🌳</span>}

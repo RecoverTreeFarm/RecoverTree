@@ -96,10 +96,11 @@ function WikiPanel({
         onClick={onClose}
         className="absolute inset-0 bg-black/40"
       />
-      {/* Phone: a CONTAINED sheet (inset on every side — never pinned to the
-          viewport top, nothing can clip off the right edge). Desktop: the
-          same centered game window as before. */}
-      <div className="ui-frame absolute inset-x-2 bottom-20 top-16 flex flex-col bg-[var(--rf-cream)] p-0 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[82vh] sm:w-[min(94vw,46rem)] sm:-translate-x-1/2 sm:-translate-y-1/2">
+      {/* A CONTAINED sheet (inset on every side — never pinned to the
+          viewport top, nothing can clip off the right edge). Capped at the
+          phone game-frame width on every screen size, so the guidebook stays
+          inside the centered game viewport on desktop too. */}
+      <div className="ui-frame absolute inset-x-0 bottom-20 top-16 mx-auto flex w-[calc(100%-16px)] max-w-[calc(var(--game-w)-16px)] flex-col bg-[var(--rf-cream)] p-0">
         <div
           className="flex items-center justify-between px-4 py-2"
           style={{ borderBottom: "2px solid var(--rf-ink)" }}
@@ -115,12 +116,13 @@ function WikiPanel({
           </button>
         </div>
 
-        {/* Phone: chapter chips WRAP inside the sheet (own scroll area if
-            tall) — nothing scrolls off the right edge. */}
+        {/* Chapter chips WRAP inside the sheet (own scroll area if tall) —
+            the panel is phone-width everywhere now, so the one chip row
+            replaces the old desktop sidebar. */}
         <div
           role="tablist"
           aria-label="Chapters"
-          className="flex max-h-36 shrink-0 flex-wrap gap-1 overflow-y-auto px-2 py-1.5 sm:hidden"
+          className="flex max-h-36 shrink-0 flex-wrap gap-1 overflow-y-auto px-2 py-1.5"
           style={{ borderBottom: "2px solid var(--rf-ink)" }}
         >
           {WIKI_CHAPTERS.map((c) => (
@@ -129,18 +131,6 @@ function WikiPanel({
         </div>
 
         <div className="flex min-h-0 flex-1">
-          {/* Desktop: chapter tabs down the side */}
-          <div
-            role="tablist"
-            aria-label="Chapters"
-            className="hidden w-44 shrink-0 flex-col gap-0.5 overflow-y-auto p-2 sm:flex"
-            style={{ borderRight: "2px solid var(--rf-ink)" }}
-          >
-            {WIKI_CHAPTERS.map((c) => (
-              <Tab key={c.id} c={c} />
-            ))}
-          </div>
-
           {/* Chapter content */}
           <div className="min-w-0 flex-1 overflow-y-auto p-4">
             <h3 className="pixel-heading mb-2 text-lg">
