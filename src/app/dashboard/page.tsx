@@ -103,9 +103,11 @@ export default async function DashboardPage() {
       // Server component renders per-request, so "now" is stable per render.
       // eslint-disable-next-line react-hooks/purity
       const now = Date.now();
+      // floor (not ceil) so the numbers read consistently with the date chip:
+      // on the "2nd of Maypril" in a 30-day season there are 28 days left.
       seasonDaysLeft = Math.max(
         0,
-        Math.ceil((new Date(seasonRow.ends_at as string).getTime() - now) / 86_400_000),
+        Math.floor((new Date(seasonRow.ends_at as string).getTime() - now) / 86_400_000),
       );
       if (seasonRow.starts_at) {
         seasonDayOfMonth = Math.max(
