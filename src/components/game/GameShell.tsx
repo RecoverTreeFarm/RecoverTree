@@ -53,6 +53,66 @@ function ordinal(n: number): string {
   return `${n}th`;
 }
 
+/**
+ * The tiny season-date pill on the farm HUD. Tapping it opens a small
+ * "there are N days left in the season" popup; tapping the pill again — or
+ * anywhere else — closes it.
+ */
+function SeasonChip({
+  emoji,
+  dateLabel,
+  daysLeft,
+}: {
+  emoji: string | null;
+  dateLabel: string;
+  daysLeft: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative flex flex-col items-center">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label="Season date — tap for days remaining"
+        onClick={() => setOpen((o) => !o)}
+        className="flex flex-col items-center rounded border border-[var(--rf-ink)]/30 px-1.5 py-0.5 leading-none"
+        style={{ background: "rgba(247,239,223,0.82)" }}
+      >
+        {emoji && (
+          <span aria-hidden className="text-[13px] leading-none">
+            {emoji}
+          </span>
+        )}
+        <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+          {dateLabel}
+        </span>
+      </button>
+      {open && (
+        <div
+          role="status"
+          className="absolute top-full mt-1.5 w-max max-w-[240px] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-2 text-center text-xs font-bold text-[var(--rf-ink)]"
+          style={{ boxShadow: "2px 2px 0 rgba(58,42,26,0.35)" }}
+        >
+          {daysLeft !== null
+            ? `There ${daysLeft === 1 ? "is" : "are"} ${daysLeft} ${daysLeft === 1 ? "day" : "days"} left in the season. ${emoji ?? "🌱"}`
+            : "A new season will begin soon. 🌱"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const LOCATION_LABELS: Record<LocationId, string> = {
   farm: "your farm",
   garden: "the Community Garden",
@@ -321,29 +381,18 @@ export function GameShell(props: GameShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, location, basketOnFarm, gooseEvent, canShowGuides, featureToShow]);
 
-  // Compact season date: lives INSIDE the farm's item bar (no row of its own,
-  // so nothing scrolls). Emoji stacked above a tiny "8th of Maypril"; the
-  // days-left detail moved to the tooltip.
+  // Compact season date: floats on the farm HUD (no row of its own, so
+  // nothing scrolls). Tap it for the days-left popup.
   const seasonChip = (
-    <span
-      className="flex shrink-0 flex-col items-center leading-none"
-      title={
-        props.seasonDaysLeft !== null
-          ? `${props.seasonDaysLeft} ${props.seasonDaysLeft === 1 ? "day" : "days"} left in ${props.farm.seasonName}`
+    <SeasonChip
+      emoji={seasonEmoji(props.seasonCyclePosition) || null}
+      dateLabel={
+        props.seasonDayOfMonth !== null
+          ? `${ordinal(props.seasonDayOfMonth)} of ${props.farm.seasonName}`
           : props.farm.seasonName
       }
-    >
-      {seasonEmoji(props.seasonCyclePosition) && (
-        <span aria-hidden className="text-[13px] leading-none">
-          {seasonEmoji(props.seasonCyclePosition)}
-        </span>
-      )}
-      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-        {props.seasonDayOfMonth !== null
-          ? `${ordinal(props.seasonDayOfMonth)} of ${props.farm.seasonName}`
-          : props.farm.seasonName}
-      </span>
-    </span>
+      daysLeft={props.seasonDaysLeft}
+    />
   );
 
   return (

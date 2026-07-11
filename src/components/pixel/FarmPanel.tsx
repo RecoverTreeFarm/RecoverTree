@@ -1021,11 +1021,12 @@ export function FarmPanel({
         </div>
 
         {/* Season date — a tiny HUD chip floating at the top of the scene,
-            so it never takes a layout row (and never causes scrolling). */}
+            so it never takes a layout row (and never causes scrolling).
+            Tap for the days-left popup; clicks stay out of the walk logic. */}
         {seasonSlot && (
           <div
-            className="absolute left-1/2 top-1.5 z-30 -translate-x-1/2 rounded border border-[var(--rf-ink)]/30 px-1.5 py-0.5"
-            style={{ background: "rgba(247,239,223,0.82)" }}
+            className="absolute left-1/2 top-1.5 z-30 -translate-x-1/2"
+            onClick={(e) => e.stopPropagation()}
           >
             {seasonSlot}
           </div>
