@@ -36,12 +36,13 @@ export const MAX_TREES = GRID_COLS * GRID_ROWS;
 export const FARMER_HOME: FarmerPos = { left: 45, bottom: 66 };
 
 // Plot geometry (scene %), matched to the tilled-soil rectangle painted in
-// public/sprites/ground/farm_plot.png (measured from the image: x 9.3–91.8%,
-// y 48–83.5% from the top). The 4 grid columns land on its 4 soil strips.
+// public/sprites/ground/farm_plot.png. The source art is cropped to 840x1160
+// (bottom grass trimmed so the farm needs less scrolling); soil rect measured
+// at x 9.3–91.8%, y 636–1107px. The 4 grid columns land on its 4 soil strips.
 const PLOT_LEFT = 9;
 const PLOT_WIDTH = 83;
-const PLOT_BOTTOM = 16.5;
-const PLOT_HEIGHT = 35.5;
+const PLOT_BOTTOM = 4.6;
+const PLOT_HEIGHT = 40.6;
 
 /** Event objects stand ON the top edge of the dirt, left of centre. */
 export const PLOT_TOP_EDGE = PLOT_BOTTOM + PLOT_HEIGHT; // 53%
@@ -274,7 +275,7 @@ export function FarmScene({
         backgroundSize: compact ? "cover" : "100% 100%",
         backgroundPosition: "center",
         imageRendering: "pixelated",
-        ...(compact ? { height: 230 } : { aspectRatio: "840 / 1326" }),
+        ...(compact ? { height: 230 } : { aspectRatio: "840 / 1160" }),
         cursor: onGroundClick ? "pointer" : undefined,
       }}
       onClick={handleSceneClick}
