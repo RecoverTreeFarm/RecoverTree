@@ -58,23 +58,30 @@ export async function SiteNav() {
       }}
     >
       <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2">
-        <Link
-          href={user ? "/dashboard" : "/"}
-          className="flex shrink-0 items-center gap-2"
-        >
-          {/* Logged-in: the player's chosen house doubles as a "Return to
-              Farm" button. Logged-out visitors still see the cherry-blossom
-              emblem + wordmark. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={user && houseSrc ? houseSrc : SPRITES.treeBlossom}
-            alt=""
-            className="pixelated h-11 w-auto"
-          />
-          <span className="pixel-heading text-sm text-[var(--rf-ink)] sm:text-lg">
-            {user ? "Return to Farm" : "RecoverTree"}
-          </span>
-        </Link>
+        {user ? (
+          // Logged-in: the player's chosen house is the emblem (tap = home),
+          // with the domain wordmark tucked small underneath.
+          <Link
+            href="/dashboard"
+            className="flex shrink-0 flex-col items-center leading-none"
+            aria-label="Return to your farm"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={houseSrc ?? SPRITES.treeBlossom} alt="" className="pixelated h-10 w-auto" />
+            <span className="mt-0.5 text-[9px] font-bold tracking-wide text-[var(--rf-ink)]">
+              recovertree.farm
+            </span>
+          </Link>
+        ) : (
+          // Logged-out visitors: the cherry-blossom emblem + wordmark.
+          <Link href="/" className="flex shrink-0 items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={SPRITES.treeBlossom} alt="" className="pixelated h-11 w-auto" />
+            <span className="pixel-heading text-sm text-[var(--rf-ink)] sm:text-lg">
+              RecoverTree
+            </span>
+          </Link>
+        )}
 
         <ul className="flex flex-wrap items-center gap-1.5">
           {user &&

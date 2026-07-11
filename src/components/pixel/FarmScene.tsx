@@ -80,10 +80,19 @@ export function farmerPosForTree(i: number): FarmerPos {
 }
 
 /**
- * Drifting cherry-blossom petals — the cherry tree's signature effect. Pure
- * CSS (see .rf-petal in globals.css); no dependency, no sprite sheet.
+ * Drifting leaves — pink cherry-blossom petals on a bearing cherry tree, or
+ * green leaves on an ordinary tree that's waiting on its fruit timer. Pure CSS
+ * (see .rf-petal in globals.css). They start partway down so they fall FROM the
+ * canopy, not from empty air above the tree.
  */
-function CherryPetals({ compact = false }: { compact?: boolean }) {
+function FallingLeaves({
+  compact = false,
+  color = "#f7a8c4",
+}: {
+  compact?: boolean;
+  /** petal/leaf fill colour */
+  color?: string;
+}) {
   const petals = [
     { left: "18%", delay: "0s", drift: "10px" },
     { left: "38%", delay: "0.7s", drift: "-8px" },
@@ -92,7 +101,8 @@ function CherryPetals({ compact = false }: { compact?: boolean }) {
     { left: "48%", delay: "2.1s", drift: "6px" },
   ];
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: compact ? 2 : 6 }}>
+    // start lower on the canopy so leaves drift down FROM the foliage
+    <span aria-hidden className="pointer-events-none absolute inset-x-0" style={{ top: compact ? "34%" : "38%" }}>
       {petals.map((p, i) => (
         <span
           key={i}
@@ -100,6 +110,7 @@ function CherryPetals({ compact = false }: { compact?: boolean }) {
           style={
             {
               left: p.left,
+              background: color,
               animationDelay: p.delay,
               "--drift": p.drift,
             } as React.CSSProperties & Record<string, string>
@@ -442,8 +453,12 @@ export function FarmScene({
                     fruitIndex={bottomIndex}
                     isBlossom={tree.isBlossom}
                   />
-                  {/* the cherry tree's signature drifting petals */}
-                  {tree.stage === 5 && tree.isBlossom && <CherryPetals compact={compact} />}
+                  {/* the cherry tree's signature drifting pink petals */}
+                  {tree.stage === 5 && tree.isBlossom && <FallingLeaves compact={compact} />}
+                  {/* ordinary trees shed green leaves while waiting on fruit */}
+                  {waiting && !tree.isBlossom && (
+                    <FallingLeaves compact={compact} color="#7ba05b" />
+                  )}
                 </button>
 
                 {/* one-shot sparkle ring the moment a cherry tree blossoms */}

@@ -59,7 +59,7 @@ export async function submitFeedback(formData: FormData) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: process.env.FEEDBACK_FROM_EMAIL ?? `RecoverTree <feedback@recovertree.com>`,
+          from: process.env.FEEDBACK_FROM_EMAIL ?? `RecoverTree <feedback@recovertree.farm>`,
           to: [SUPPORT_EMAIL],
           subject,
           text: [

@@ -9,7 +9,7 @@
  */
 
 /** Feedback lands in the feedback_reports table and is emailed here. */
-export const SUPPORT_EMAIL = "support@recovertree.com";
+export const SUPPORT_EMAIL = "support@recovertree.farm";
 
 /** Selectable feedback types — the slug is stored; the label is the email
  *  subject. Must match submit_feedback()'s allowed types. */
