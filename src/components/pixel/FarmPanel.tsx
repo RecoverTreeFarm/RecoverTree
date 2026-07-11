@@ -1016,16 +1016,25 @@ export function FarmPanel({
         <div className="absolute right-2 top-2 z-40 flex flex-col items-end gap-1.5">
           {notificationSlot}
         </div>
-      </div>
 
-      {message && (
-        <p
-          role="status"
-          className="mt-2 inline-block rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1.5 text-xs font-bold"
-        >
-          {message}
-        </p>
-      )}
+        {/* Item alert — overlaps the bottom of the play area instead of
+            pushing the page taller. Tap it to dismiss. */}
+        {message && (
+          <button
+            type="button"
+            role="status"
+            title="Tap to dismiss"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMessage(null);
+            }}
+            className="absolute bottom-2 left-1/2 z-40 max-w-[92%] -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1.5 text-xs font-bold"
+            style={{ boxShadow: "2px 2px 0 rgba(58,42,26,0.35)" }}
+          >
+            {message}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

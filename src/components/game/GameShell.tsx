@@ -310,7 +310,7 @@ export function GameShell(props: GameShellProps) {
   }, [open, location, basketOnFarm, gooseEvent, canShowGuides, featureToShow]);
 
   return (
-    <div className="pb-24">
+    <div className="pb-20">
       {/* Season chip only — the avatar + affirmation greeting row was removed
           to give the farm more vertical room. */}
       <div className="mb-2 flex items-center justify-end">

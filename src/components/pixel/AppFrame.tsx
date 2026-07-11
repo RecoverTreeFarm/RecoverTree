@@ -42,7 +42,9 @@ export function AppFrame({
       <div className="rf-game-frame">
         {nav}
         {children}
-        {footer}
+        {/* No footer inside the game frame — the play area should end at the
+            bottom menu with nothing to scroll to (owner request). The footer
+            still renders on full-width management routes above. */}
       </div>
     </div>
   );

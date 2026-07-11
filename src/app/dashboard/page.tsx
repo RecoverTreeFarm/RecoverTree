@@ -196,8 +196,10 @@ export default async function DashboardPage() {
 
   return (
     // Tighter than the shared Container: on a phone the farm should own the
-    // height, so the dashboard skips Container's roomy py-8.
-    <main className="mx-auto w-full flex-1 px-3 pb-8 pt-2">
+    // height, so the dashboard skips Container's roomy py-8. No bottom padding
+    // of its own — GameShell's pb clears the fixed menu and nothing scrolls
+    // below the play area.
+    <main className="mx-auto w-full flex-1 px-3 pb-0 pt-2">
       {farmError && (
         <Panel className="mb-4">
           <p className="text-sm font-bold text-[var(--rf-red)]">
