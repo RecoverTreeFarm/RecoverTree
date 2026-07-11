@@ -15,13 +15,30 @@ import {
 import { playSfx } from "@/lib/sfx";
 import { playMusic, stopMusic } from "@/lib/music";
 import { announceReward } from "./RewardBanner";
+import { useWalk, PlayerFarmer, type Blocker, type Pos } from "./Neighbors";
 
 const LAKE_SRC = "/sprites/fishing/lake_scene.png";
 
+/* Scene geometry (percent, bottom-up) matched to lake_scene.png (840x1120):
+   water fills the upper 2/3, a walkable grass shore is the bottom third, the
+   dock juts from the shore up into the water at centre, and the hut sits on
+   the right shore. The player walks the shore + up the dock, but the water is
+   two blocker rectangles (with a gap for the dock), so they can't swim. */
+const FISH_HOME: Pos = { left: 32, bottom: 12 };
+const WALK_BOUNDS = { minLeft: 6, maxLeft: 92, minBottom: 4, maxBottom: 58 };
+const WATER_BLOCKERS: Blocker[] = [
+  { left: 6, right: 44, bottom: 38, top: 92 }, // water left of the dock
+  { left: 56, right: 92, bottom: 38, top: 92 }, // water right of the dock
+];
+const DOCK_END: Pos = { left: 50, bottom: 55 }; // stand here to cast
+const HUT_SPOT: Pos = { left: 74, bottom: 15 }; // stand here to enter the hut
+/** true when the farmer is out on the end of the dock (over the water). */
+const onDock = (p: Pos) => p.bottom >= 46 && Math.abs(p.left - 50) <= 10;
+
 /* ===========================================================================
- * The Fishing Lake — Phase 1. Admin-only preview: cast → wait → "!" → tap →
- * the catch minigame → the fish lands in a separate fish inventory. Sell fish
- * for Coins in the hut on the shore. No rods/bait/seasons/weather yet.
+ * The Fishing Lake — Phase 1. Admin-only preview: walk the shore, step onto
+ * the dock to cast → wait → "!" → tap → the catch minigame → the fish lands
+ * in a separate fish inventory. Walk to the hut to sell fish for Coins.
  * ========================================================================= */
 
 type Phase = "idle" | "waiting" | "bite" | "playing" | "result";
@@ -45,6 +62,12 @@ export function FishingScene({
   const [hutOpen, setHutOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const { pos, walking, walkMs, walkTo, walkToClick } = useWalk(
+    FISH_HOME,
+    WALK_BOUNDS,
+    WATER_BLOCKERS,
+  );
+  const atDock = onDock(pos) && !walking;
 
   useEffect(() => {
     playMusic("garden"); // reuse the calm garden loop until a lake track exists
@@ -72,12 +95,10 @@ export function FishingScene({
     }
     setHooked(r.fish);
     setPhase("waiting");
-    // random bite delay (1.4–4s)
     const wait = 1400 + Math.random() * 2600;
     const t1 = setTimeout(() => {
       setPhase("bite");
       playSfx("click"); // placeholder "nibble"
-      // the player has ~1.4s to react or the fish gets away
       const t2 = setTimeout(() => {
         setPhase((p) => {
           if (p === "bite") {
@@ -96,6 +117,17 @@ export function FishingScene({
     if (phase !== "bite") return;
     clearTimers();
     setPhase("playing");
+  }
+
+  /** Tapping the dock walks the farmer out to its end. */
+  function goToDock() {
+    if (phase !== "idle") return;
+    walkTo(DOCK_END);
+  }
+
+  /** Tapping the hut walks the farmer over, THEN opens the sell menu. */
+  function goToHut() {
+    walkTo(HUT_SPOT, () => setHutOpen(true));
   }
 
   const onMinigameDone = useCallback(
@@ -137,7 +169,9 @@ export function FishingScene({
           backgroundImage: `url(${LAKE_SRC})`,
           backgroundSize: "100% 100%",
           imageRendering: "pixelated",
+          cursor: "pointer",
         }}
+        onClick={walkToClick}
       >
         {/* sign */}
         <div
@@ -147,74 +181,118 @@ export function FishingScene({
           🎣 Fishing Lake
         </div>
 
-        {/* the angler stands at the end of the dock */}
-        <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "44%", zIndex: 10 }}>
-          <span className={phase === "waiting" || phase === "bite" ? "rf-idle block" : "block"}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={avatarSrc} alt="" className="pixelated" style={{ width: 46, height: 46 }} />
-          </span>
-          {/* the bite "!" — tap to strike */}
-          {phase === "bite" && (
-            <button
-              type="button"
-              aria-label="Strike!"
-              onClick={strike}
-              className="absolute -top-6 left-1/2 -translate-x-1/2 rf-throb text-2xl font-black"
-              style={{ color: "var(--rf-red)", WebkitTextStroke: "1.5px var(--rf-ink)", zIndex: 40 }}
+        {/* dock hotspot: a bobbing "!" over the dock end. Tap it (or walk onto
+            the dock) to head out to the casting spot. */}
+        {phase === "idle" && !atDock && (
+          <button
+            type="button"
+            aria-label="Go to the dock to cast"
+            title="Fish from the dock"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToDock();
+            }}
+            className="absolute -translate-x-1/2 -translate-y-1/2"
+            style={{ left: "50%", top: "42%", zIndex: 22 }}
+          >
+            <span
+              className="rf-throb block text-xl font-black leading-none"
+              style={{ color: "var(--rf-gold)", WebkitTextStroke: "1.5px var(--rf-ink)" }}
             >
               !
-            </button>
-          )}
-        </div>
+            </span>
+          </button>
+        )}
 
-        {/* the hut — tap to sell fish */}
+        {/* the hut — tap it; the farmer walks over, then the sell menu opens */}
         <button
           type="button"
           aria-label="Fishing hut — sell your fish"
           title="Sell your fish"
-          onClick={() => setHutOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            goToHut();
+          }}
           className="absolute"
-          style={{ left: "66%", top: "68%", width: "28%", height: "18%", zIndex: 12 }}
+          style={{ left: "68%", top: "72%", width: "30%", height: "18%", zIndex: 12 }}
         >
-          <span className="rf-bang absolute left-1/2 top-0 -translate-x-1/2 text-lg font-black" style={{ color: "var(--rf-gold)", WebkitTextStroke: "1px var(--rf-ink)" }}>
+          <span
+            className="rf-bang absolute left-1/2 top-0 -translate-x-1/2 text-lg font-black"
+            style={{ color: "var(--rf-gold)", WebkitTextStroke: "1px var(--rf-ink)" }}
+          >
             !
           </span>
         </button>
 
-        {/* cast prompt / status, bottom-centre */}
-        <div className="absolute inset-x-0 bottom-3 flex flex-col items-center gap-1.5" style={{ zIndex: 20 }}>
-          {phase === "idle" && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={cast}
-              className="pixel-btn text-xs disabled:opacity-50"
-            >
-              🎣 Cast Line
-            </button>
-          )}
-          {phase === "waiting" && (
-            <span className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1 text-xs font-bold">
-              Waiting for a bite…
-            </span>
-          )}
-          {phase === "bite" && (
-            <button
-              type="button"
-              onClick={strike}
-              className="pixel-btn animate-pulse text-xs"
-            >
-              Tap to reel! ❗
-            </button>
-          )}
+        {/* the player */}
+        <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={false} size={46} />
+
+        {/* the bite "!" appears over the player while a fish is on the line */}
+        {(phase === "bite") && (
           <button
             type="button"
-            onClick={() => setHutOpen(true)}
-            className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-2.5 py-0.5 text-[11px] font-bold"
+            aria-label="Strike!"
+            onClick={(e) => {
+              e.stopPropagation();
+              strike();
+            }}
+            className="absolute -translate-x-1/2 rf-throb text-2xl font-black"
+            style={{
+              left: `${pos.left}%`,
+              bottom: `calc(${pos.bottom}% + 44px)`,
+              color: "var(--rf-red)",
+              WebkitTextStroke: "1.5px var(--rf-ink)",
+              zIndex: 40,
+            }}
           >
-            🐟 Fish: {totalFish} — sell at the hut
+            !
           </button>
-        </div>
+        )}
+
+        {/* cast prompt — only when standing out on the dock */}
+        {phase === "idle" && atDock && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              cast();
+            }}
+            className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 text-xs disabled:opacity-50"
+            style={{ zIndex: 24 }}
+          >
+            🎣 Cast Line
+          </button>
+        )}
+        {phase === "waiting" && (
+          <span
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1 text-xs font-bold"
+            style={{ zIndex: 24 }}
+          >
+            Waiting for a bite…
+          </span>
+        )}
+        {phase === "bite" && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              strike();
+            }}
+            className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 animate-pulse text-xs"
+            style={{ zIndex: 24 }}
+          >
+            Tap to reel! ❗
+          </button>
+        )}
+        {phase === "idle" && !atDock && (
+          <span
+            className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)]/90 px-2.5 py-0.5 text-[11px] font-bold"
+            style={{ zIndex: 20 }}
+          >
+            Walk onto the dock to cast · 🐟 {totalFish}
+          </span>
+        )}
 
         {/* HUD (notifications / guidebook), top-right */}
         {notificationSlot && (
@@ -226,7 +304,7 @@ export function FishingScene({
 
       <p className="mt-2 text-xs font-bold">The old fishing lake. 🎣</p>
       <p className="text-[11px] text-[var(--rf-ink-soft)]">
-        Cast your line, reel when you feel a bite, and keep the fish in the green bar. Sell your catch for Coins at the hut.
+        Tap the water to walk the shore. Step onto the dock to cast, reel when you feel a bite, and keep the fish in the green bar. Tap the hut to sell your catch for Coins.
       </p>
 
       {phase === "playing" && hooked && (
@@ -270,16 +348,20 @@ function FishMinigame({
 
   // track is 0 (bottom) .. 100 (top). bar spans BAR_H; fish is a point.
   const BAR_H = Math.max(14, 26 - (fish.rarity === "legendary" ? 8 : fish.rarity === "rare" ? 4 : 0));
-  const [barBottom, setBarBottom] = useState(50 - BAR_H / 2);
-  const [fishPos, setFishPos] = useState(50);
-  const [meter, setMeter] = useState(45);
+
+  // DOM refs — the loop writes styles DIRECTLY every frame (no React re-render
+  // per frame, no CSS transitions), so the bar/fish/meter animate smoothly at
+  // 60fps. Fixes the meter "only changing colour, not moving" bug.
+  const barEl = useRef<HTMLDivElement>(null);
+  const fishEl = useRef<HTMLImageElement>(null);
+  const meterEl = useRef<HTMLDivElement>(null);
 
   const holding = useRef(false);
-  const barRef = useRef(50 - BAR_H / 2);
-  const velRef = useRef(0);
-  const fishRef = useRef(50);
+  const barPos = useRef(50 - BAR_H / 2);
+  const vel = useRef(0);
+  const fishY = useRef(50);
   const fishTarget = useRef(50);
-  const meterRef = useRef(45);
+  const meterV = useRef(45);
   const raf = useRef(0);
   const last = useRef(0);
   const done = useRef(false);
@@ -290,50 +372,35 @@ function FishMinigame({
       const dt = Math.min(0.05, last.current ? (now - last.current) / 1000 : 0.016);
       last.current = now;
 
-      // --- green bar physics: hold = thrust up, release = gravity down ---
+      // green bar physics: hold = thrust up, release = gravity down
       const accel = holding.current ? 190 : -150;
-      velRef.current += accel * dt;
-      velRef.current = Math.max(-95, Math.min(95, velRef.current));
-      barRef.current += velRef.current * dt;
-      if (barRef.current <= 0) {
-        barRef.current = 0;
-        velRef.current *= -0.35; // soft bounce off the floor
-      }
-      if (barRef.current + BAR_H >= 100) {
-        barRef.current = 100 - BAR_H;
-        velRef.current *= -0.35; // soft bounce off the ceiling
+      vel.current = Math.max(-95, Math.min(95, vel.current + accel * dt));
+      barPos.current += vel.current * dt;
+      if (barPos.current <= 0) { barPos.current = 0; vel.current *= -0.35; }
+      if (barPos.current + BAR_H >= 100) { barPos.current = 100 - BAR_H; vel.current *= -0.35; }
+
+      // fish movement: darts, pauses, drifts toward a target
+      if (Math.random() < beh.dartChance) fishTarget.current = Math.random() * 100;
+      else if (Math.random() < beh.pause) fishTarget.current = fishY.current;
+      fishY.current = Math.max(0, Math.min(100,
+        fishY.current + Math.sign(fishTarget.current - fishY.current) * beh.speed * dt));
+
+      // meter: fill inside the bar, drain outside
+      const inside = fishY.current >= barPos.current && fishY.current <= barPos.current + BAR_H;
+      meterV.current = Math.max(0, Math.min(100,
+        meterV.current + (inside ? beh.catchRate : -beh.escapeRate * diff) * dt));
+
+      // write styles directly
+      if (barEl.current) barEl.current.style.bottom = `${barPos.current}%`;
+      if (fishEl.current) fishEl.current.style.bottom = `${fishY.current}%`;
+      if (meterEl.current) {
+        meterEl.current.style.height = `${meterV.current}%`;
+        meterEl.current.style.background =
+          meterV.current > 66 ? "#5f8a6b" : meterV.current > 33 ? "var(--rf-gold)" : "var(--rf-red)";
       }
 
-      // --- fish movement: darts, pauses, drifts toward a target ---
-      if (Math.random() < beh.dartChance) {
-        fishTarget.current = Math.random() * 100;
-      } else if (Math.random() < beh.pause) {
-        fishTarget.current = fishRef.current; // brief hold
-      }
-      const dir = Math.sign(fishTarget.current - fishRef.current);
-      fishRef.current += dir * beh.speed * dt;
-      fishRef.current = Math.max(0, Math.min(100, fishRef.current));
-
-      // --- meter: fill inside the bar, drain outside ---
-      const inside =
-        fishRef.current >= barRef.current && fishRef.current <= barRef.current + BAR_H;
-      meterRef.current += (inside ? beh.catchRate : -beh.escapeRate * diff) * dt;
-      meterRef.current = Math.max(0, Math.min(100, meterRef.current));
-
-      setBarBottom(barRef.current);
-      setFishPos(fishRef.current);
-      setMeter(meterRef.current);
-
-      if (meterRef.current >= 100) {
-        done.current = true;
-        onDone(true);
-        return;
-      }
-      if (meterRef.current <= 0) {
-        done.current = true;
-        onDone(false);
-        return;
-      }
+      if (meterV.current >= 100) { done.current = true; onDone(true); return; }
+      if (meterV.current <= 0) { done.current = true; onDone(false); return; }
       raf.current = requestAnimationFrame(frame);
     }
     raf.current = requestAnimationFrame(frame);
@@ -343,9 +410,6 @@ function FishMinigame({
 
   const hold = () => (holding.current = true);
   const letGo = () => (holding.current = false);
-
-  const meterColor =
-    meter > 66 ? "#5f8a6b" : meter > 33 ? "var(--rf-gold)" : "var(--rf-red)";
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Fishing minigame">
@@ -373,9 +437,10 @@ function FishMinigame({
           >
             {/* green catch bar */}
             <div
+              ref={barEl}
               className="absolute inset-x-1 rounded"
               style={{
-                bottom: `${barBottom}%`,
+                bottom: `${50 - BAR_H / 2}%`,
                 height: `${BAR_H}%`,
                 background: "rgba(95,138,107,0.55)",
                 border: "2px solid #5f8a6b",
@@ -384,18 +449,20 @@ function FishMinigame({
             {/* the fish */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              ref={fishEl}
               src={FISH[fish.species_id]?.sprite}
               alt=""
               className="pixelated absolute left-1/2 -translate-x-1/2 translate-y-1/2"
-              style={{ bottom: `${fishPos}%`, width: 26, height: 26 }}
+              style={{ bottom: "50%", width: 26, height: 26 }}
             />
           </div>
 
-          {/* catch meter */}
+          {/* catch meter — height driven directly by the loop (no transition) */}
           <div className="relative w-4 overflow-hidden rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)]">
             <div
-              className="absolute inset-x-0 bottom-0 transition-[height] duration-75"
-              style={{ height: `${meter}%`, background: meterColor }}
+              ref={meterEl}
+              className="absolute inset-x-0 bottom-0"
+              style={{ height: "45%", background: "var(--rf-gold)" }}
             />
           </div>
         </div>
