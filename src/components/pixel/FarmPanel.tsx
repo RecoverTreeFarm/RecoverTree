@@ -69,6 +69,7 @@ export function FarmPanel({
   tutorialTreeId = null,
   hasMail = false,
   onOpenMail,
+  seasonSlot,
 }: {
   trees: TreeView[];
   water: number;
@@ -103,6 +104,8 @@ export function FarmPanel({
   hasMail?: boolean;
   /** open the Mailbox window (received KudoSeeds + send one) */
   onOpenMail?: () => void;
+  /** compact season date chip, pinned to the item bar's right end */
+  seasonSlot?: React.ReactNode;
 }) {
   const router = useRouter();
   const [farmerAnim, setFarmerAnim] = useState<FarmerAnim>("idle");
@@ -1016,6 +1019,17 @@ export function FarmPanel({
         <div className="absolute right-2 top-2 z-40 flex flex-col items-end gap-1.5">
           {notificationSlot}
         </div>
+
+        {/* Season date — a tiny HUD chip floating at the top of the scene,
+            so it never takes a layout row (and never causes scrolling). */}
+        {seasonSlot && (
+          <div
+            className="absolute left-1/2 top-1.5 z-30 -translate-x-1/2 rounded border border-[var(--rf-ink)]/30 px-1.5 py-0.5"
+            style={{ background: "rgba(247,239,223,0.82)" }}
+          >
+            {seasonSlot}
+          </div>
+        )}
 
         {/* Item alert — overlaps the bottom of the play area instead of
             pushing the page taller. Tap it to dismiss. */}

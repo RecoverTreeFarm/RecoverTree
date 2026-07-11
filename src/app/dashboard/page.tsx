@@ -89,13 +89,14 @@ export default async function DashboardPage() {
     isBlossom: (t.is_blossom as boolean | undefined) ?? false,
   }));
 
-  // Season countdown for the header (icon + "N days left in Sparch").
+  // Season date for the compact chip ("8th of Maypril") + countdown data.
   let seasonDaysLeft: number | null = null;
+  let seasonDayOfMonth: number | null = null;
   let seasonCyclePosition: number | null = null;
   if (farm) {
     const { data: seasonRow } = await supabase
       .from("seasons")
-      .select("ends_at, cycle_position")
+      .select("starts_at, ends_at, cycle_position")
       .eq("id", farm.season_id)
       .maybeSingle();
     if (seasonRow?.ends_at) {
@@ -106,6 +107,12 @@ export default async function DashboardPage() {
         0,
         Math.ceil((new Date(seasonRow.ends_at as string).getTime() - now) / 86_400_000),
       );
+      if (seasonRow.starts_at) {
+        seasonDayOfMonth = Math.max(
+          1,
+          Math.floor((now - new Date(seasonRow.starts_at as string).getTime()) / 86_400_000) + 1,
+        );
+      }
     }
     seasonCyclePosition = (seasonRow?.cycle_position as number | null) ?? null;
   }
@@ -223,6 +230,7 @@ export default async function DashboardPage() {
           treeCount: farm?.tree_count ?? trees.length,
         }}
         seasonDaysLeft={seasonDaysLeft}
+        seasonDayOfMonth={seasonDayOfMonth}
         seasonCyclePosition={seasonCyclePosition}
         members={members}
         sentToday={Boolean(todaySeed)}

@@ -43,6 +43,16 @@ type PanelId =
 /** Places the player can BE (walkable scenes, reached via the map). */
 type LocationId = "farm" | "garden" | "store";
 
+/** 1 → "1st", 22 → "22nd", 23 → "23rd" — for the season date chip. */
+function ordinal(n: number): string {
+  const rem10 = n % 10;
+  const rem100 = n % 100;
+  if (rem10 === 1 && rem100 !== 11) return `${n}st`;
+  if (rem10 === 2 && rem100 !== 12) return `${n}nd`;
+  if (rem10 === 3 && rem100 !== 13) return `${n}rd`;
+  return `${n}th`;
+}
+
 const LOCATION_LABELS: Record<LocationId, string> = {
   farm: "your farm",
   garden: "the Community Garden",
@@ -67,6 +77,8 @@ export type GameShellProps = {
   };
   /** whole days until the current season ends (null if unknown) */
   seasonDaysLeft: number | null;
+  /** 1-based day within the current season ("8th of Maypril") */
+  seasonDayOfMonth: number | null;
   /** 1..5 position in the season cycle — picks the header icon */
   seasonCyclePosition: number | null;
   members: SeedMember[];
@@ -309,25 +321,33 @@ export function GameShell(props: GameShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, location, basketOnFarm, gooseEvent, canShowGuides, featureToShow]);
 
+  // Compact season date: lives INSIDE the farm's item bar (no row of its own,
+  // so nothing scrolls). Emoji stacked above a tiny "8th of Maypril"; the
+  // days-left detail moved to the tooltip.
+  const seasonChip = (
+    <span
+      className="flex shrink-0 flex-col items-center leading-none"
+      title={
+        props.seasonDaysLeft !== null
+          ? `${props.seasonDaysLeft} ${props.seasonDaysLeft === 1 ? "day" : "days"} left in ${props.farm.seasonName}`
+          : props.farm.seasonName
+      }
+    >
+      {seasonEmoji(props.seasonCyclePosition) && (
+        <span aria-hidden className="text-[13px] leading-none">
+          {seasonEmoji(props.seasonCyclePosition)}
+        </span>
+      )}
+      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+        {props.seasonDayOfMonth !== null
+          ? `${ordinal(props.seasonDayOfMonth)} of ${props.farm.seasonName}`
+          : props.farm.seasonName}
+      </span>
+    </span>
+  );
+
   return (
     <div className="pb-20">
-      {/* Season chip only — the avatar + affirmation greeting row was removed
-          to give the farm more vertical room. */}
-      <div className="mb-2 flex items-center justify-end">
-        <span className="flex shrink-0 items-center gap-1.5">
-          {seasonEmoji(props.seasonCyclePosition) && (
-            <span aria-hidden className="text-lg leading-none">
-              {seasonEmoji(props.seasonCyclePosition)}
-            </span>
-          )}
-          <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-            {props.seasonDaysLeft !== null
-              ? `${props.seasonDaysLeft} ${props.seasonDaysLeft === 1 ? "day" : "days"} left in ${props.farm.seasonName}`
-              : props.farm.seasonName}
-          </span>
-        </span>
-      </div>
-
       {/* THE CURRENT LOCATION — your farm, or the shared Community Garden */}
       <div className="relative">
         {location === "farm" ? (
@@ -350,6 +370,7 @@ export function GameShell(props: GameShellProps) {
             tutorialTreeId={tutorial.tutorialTreeId}
             hasMail={props.kudoseeds.length > 0 && mailKey !== mailReadKey}
             onOpenMail={openMailbox}
+            seasonSlot={seasonChip}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
