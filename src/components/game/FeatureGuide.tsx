@@ -17,7 +17,8 @@ export type FeatureKey =
   | "community_garden"
   | "traveling_basket"
   | "golden_goose"
-  | "lottery";
+  | "lottery"
+  | "fishing_lake";
 
 type Guide = { title: string; body: string; icon: string; chapter: string };
 
@@ -57,6 +58,12 @@ export const FEATURE_GUIDES: Record<FeatureKey, Guide> = {
     body: "Buy up to 3 tickets with Coins. Every ticket adds to the community pot, the Orchard adds a bonus, and one ticket is drawn on Sunday.",
     icon: "🎟️",
     chapter: "weekly-lottery",
+  },
+  fishing_lake: {
+    title: "Fishing",
+    body: "Cast your line and try your luck! Keep the fish inside the green bar until the catch meter fills. Different fish behave differently and can be sold for Coins in the fishing hut.",
+    icon: "🎣",
+    chapter: "fishing",
   },
 };
 

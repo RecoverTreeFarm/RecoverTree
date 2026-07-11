@@ -769,7 +769,7 @@ export function FarmPanel({
   // Wooden plate from the UI sprite sheet; the confirm/skip states override
   // its tint via inline styles so the label stays legible in every state.
   const itemBtn =
-    "ui-btn-plate flex items-center gap-1.5 px-2 py-1 text-sm font-extrabold disabled:cursor-not-allowed";
+    "ui-btn-plate flex flex-col items-center gap-0 px-2.5 py-1 text-sm font-extrabold leading-tight disabled:cursor-not-allowed";
 
   function itemState(kind: FarmItemKind): "skip" | "confirm" | "idle" {
     // Only a BULK run turns the inventory button into its own skip control;
@@ -798,13 +798,22 @@ export function FarmPanel({
       if (kind === "fert") return <>Fertilize all? ({fertCount})</>;
       return <>Plant all? ({plantable})</>;
     }
-    if (kind === "water") return <><PixelIcon name="water" size={17} /> {water}</>;
-    if (kind === "fert") return <><PixelIcon name="fertilizer" size={17} /> {fertilizer}</>;
-    return (
+    // Idle: BIG icon + count on top, the item's name in tiny type below.
+    const row = (icon: React.ReactNode, count: number, name: string) => (
       <>
-        <PixelIcon name="seed" size={16} /> {seeds}
+        <span className="flex items-center gap-1.5">
+          {icon} {count}
+        </span>
+        <span className="text-[7px] font-bold uppercase tracking-widest opacity-90">
+          {name}
+        </span>
       </>
     );
+    if (kind === "water")
+      return row(<span aria-hidden className="text-lg leading-none">💧</span>, water, "Water");
+    if (kind === "fert")
+      return row(<PixelIcon name="fertilizer" size={22} />, fertilizer, "Fertilizer");
+    return row(<PixelIcon name="seed" size={22} />, seeds, "Seeds");
   }
 
   /** Tint the wooden plate per state — never swap its background, or the

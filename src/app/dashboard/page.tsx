@@ -9,6 +9,7 @@ import type { GooseState } from "@/lib/goose";
 import type { GardenState } from "@/lib/garden";
 import type { StoreState } from "@/lib/store";
 import type { LotteryState } from "@/lib/lottery";
+import type { FishStack } from "@/lib/fish";
 import { avatarSprite, houseKey } from "@/lib/sprites";
 import { houseDisplayNames, type SettingOverrideRow } from "@/lib/gameSettings";
 
@@ -190,6 +191,19 @@ export default async function DashboardPage() {
   const { data: checklistRows } = await supabase.rpc("get_my_checklist");
   const checklist = (checklistRows ?? []) as ChecklistItem[];
 
+  // Fishing (Phase 1, admin-only preview). All three degrade gracefully if the
+  // migration isn't applied yet (canFish stays false → the lake shows locked).
+  const { data: canFishData } = await supabase.rpc("fishing_allowed");
+  const canFish = canFishData === true;
+  const { data: fishInvData } = await supabase.rpc("get_fish_inventory");
+  const fishInventory = ((fishInvData ?? []) as FishStack[]) || [];
+  const { data: fishDiffRows } = await supabase
+    .from("game_settings")
+    .select("value_json")
+    .eq("key", "fish_difficulty_percent")
+    .maybeSingle();
+  const fishDifficultyPercent = Number(fishDiffRows?.value_json ?? 100) || 100;
+
   const visibility = VISIBILITY_OPTIONS.find(
     (v) => v.value === profile.leaderboard_visibility,
   );
@@ -243,6 +257,9 @@ export default async function DashboardPage() {
         garden={garden}
         store={store}
         lottery={lottery}
+        canFish={canFish}
+        fishInventory={fishInventory}
+        fishDifficultyPercent={fishDifficultyPercent}
         ceremonyInvite={ceremonyInvite}
         checklist={checklist}
         leaderboard={leaderboard}

@@ -203,6 +203,46 @@ Every other reward is a currency — **Water, Seed, Fertilizer, or Coins 🪙** 
     (`get_season_lottery_summary`), own-only profile lottery stats, and an
     Admin → Lottery tab (rounds, force resolve, cancel & refund; audit-logged).
 
+## 🎣 Fishing (Phase 1 — admin-only preview, 2026-07-11)
+A new gameplay module. **Admin-only while previewing** (`fishing_admin_only`
+setting, default true) — non-admins see the map's **Fishing Lake** pin grayed
+out and every fishing RPC rejects them via `fishing_allowed()`.
+- **Migration `20260711050000_fishing_phase1.sql` — APPLIED + verified live.**
+  Tables: `fish_definitions` (8 species, common→legendary), `fish_inventory`
+  (per-user stacks, SEPARATE from Water/Seeds/Fertilizer/Fruits), `fish_catches`,
+  `fish_sales`. RLS = own-rows read; all writes via SECURITY DEFINER fns
+  (`cast_fishing_line`, `record_fish_catch`, `sell_fish`, `get_fish_inventory`,
+  `fishing_allowed`) that gate on `fishing_allowed()`. Sales pay **Coins only**
+  (`coin_events.reason` gained `'fish_sale'`); Fruits never touched. Settings
+  validator bumped to **v12** (fishing keys injected via the same
+  pg_get_functiondef pattern — ordering caveat still applies). `mark_feature_intro_seen`
+  whitelist gained `'fishing_lake'`.
+- **Client:** `src/lib/fish.ts` (species + per-rarity minigame behavior),
+  `src/app/fishing/actions.ts` (cast/record/sell), `src/components/game/FishingLake.tsx`
+  (lake scene + Stardew-style hold/release minigame + hut selling). Wired into
+  GameShell as `location: "lake"`; map pin in `MapPanel.tsx`; dashboard fetches
+  `fishing_allowed` / `get_fish_inventory` / difficulty. Art: composed
+  `public/sprites/fishing/lake_scene.png` from the fishing bundle (lake, dock,
+  hut, reeds, ducks, rocks, trees) + 8 sliced fish sprites in
+  `public/sprites/fishing/fish/`.
+- **Minigame:** vertical track, green bar (hold=rise, release=fall, pointer
+  events → mouse+touch), fish darts/pauses per rarity, meter fills inside /
+  drains outside; 100%=catch, 0%=escape. Difficulty tunable via
+  `fish_difficulty_percent`.
+- **Admin settings** (Game settings → Fishing): fishing_enabled, fishing_admin_only,
+  fish_sell_percent, fish_difficulty_percent, fishing_legendary_chance_percent,
+  plus THREE future placeholders (seasonal/weather/rod — settings only, NO
+  mechanics). **Wiki:** new `fishing` chapter. **Feature popup:** `fishing_lake`
+  key shows on first lake visit.
+- **Verified live as Dom (admin):** map pin ungrayed, feature popup, cast→bite→
+  minigame opens + meter fills, hut sell (bluegill 3→30 coins, crystal trout
+  60), coins credited, fish removed from inventory, non-admin (Hanz) blocked
+  with FISHING_LOCKED. Test fish/coins cleaned up after.
+- **Future fishing roadmap (NOT built — settings placeholders only):** rods,
+  bait, upgrades, stamina, weather, seasonal fish, quests, achievements,
+  multiplayer fishing, fishing leaderboard. Dedicated fishing SFX (cast/splash/
+  nibble/catch/escape/sell) currently reuse existing sounds as placeholders.
+
 ## Migrations (all applied + verified)
 Recent additions: Community Garden, Coins, General Store + Xtra Goose Entry +
 ceremony invites + water-%5 rule, generic location presence + checklist coins +

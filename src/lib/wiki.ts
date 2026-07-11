@@ -511,6 +511,22 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
     ],
   },
   {
+    id: "fishing",
+    title: "Fishing",
+    icon: "🎣",
+    sections: [
+      {
+        heading: "A relaxing skill activity",
+        body: [
+          "Head to the Fishing Lake from the map, cast your line, and wait for a bite. When you see the “!”, tap quickly to start reeling.",
+          "In the catch minigame, hold to raise the green bar and let go to lower it. Keep the fish inside the bar to fill the catch meter — if it slips out for too long, the fish escapes.",
+          "Different fish behave differently: common ones are calm and slow, while rarer fish are faster and more erratic. Every fish you catch can be sold for Coins at the fishing hut on the shore.",
+          "Fishing is in an early preview right now. More fishing features — rods, bait, seasonal fish, and more — are coming in future updates. 🎣",
+        ],
+      },
+    ],
+  },
+  {
     id: "report-bug",
     title: "Leave Feedback",
     icon: "💬",

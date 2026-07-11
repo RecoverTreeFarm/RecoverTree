@@ -16,6 +16,8 @@ import { FeatureGuidePopup, type FeatureKey } from "./FeatureGuide";
 import { GoosePanel } from "./GoosePanel";
 import { GardenScene } from "./GardenPanel";
 import { StoreScene } from "./GeneralStore";
+import { FishingScene } from "./FishingLake";
+import type { FishStack } from "@/lib/fish";
 import { TravelCinematic } from "./TravelCinematic";
 import { MapModalBody } from "./MapPanel";
 import { CeremonyInvitePopup } from "./CeremonyInvite";
@@ -41,7 +43,7 @@ type PanelId =
   | "profile";
 
 /** Places the player can BE (walkable scenes, reached via the map). */
-type LocationId = "farm" | "garden" | "store";
+type LocationId = "farm" | "garden" | "store" | "lake";
 
 /** 1 → "1st", 22 → "22nd", 23 → "23rd" — for the season date chip. */
 function ordinal(n: number): string {
@@ -117,6 +119,7 @@ const LOCATION_LABELS: Record<LocationId, string> = {
   farm: "your farm",
   garden: "the Community Garden",
   store: "the General Store",
+  lake: "the Fishing Lake",
 };
 
 export type GameShellProps = {
@@ -151,6 +154,11 @@ export type GameShellProps = {
   garden: GardenState | null;
   store: StoreState | null;
   lottery: LotteryState | null;
+  /** Fishing (Phase 1, admin-only preview): whether this user may fish, their
+   *  fish inventory, and the admin difficulty knob. */
+  canFish: boolean;
+  fishInventory: FishStack[];
+  fishDifficultyPercent: number;
   /** a completed season whose ceremony this user hasn't seen/dismissed yet */
   ceremonyInvite: { season_id: string; season_name: string } | null;
   checklist: ChecklistItem[];
@@ -372,6 +380,7 @@ export function GameShell(props: GameShellProps) {
     if (open === "code") key = "meeting_code";
     else if (open === "lottery") key = "lottery";
     else if (location === "store") key = "store";
+    else if (location === "lake") key = "fishing_lake";
     else if (location === "garden") key = "community_garden";
     else if (basketOnFarm || open === "basket") key = "traveling_basket";
     else if (gooseEvent || open === "goose") key = "golden_goose";
@@ -439,6 +448,18 @@ export function GameShell(props: GameShellProps) {
               </>
             }
           />
+        ) : location === "lake" ? (
+          <FishingScene
+            avatarSrc={props.avatarSrc}
+            fishInventory={props.fishInventory}
+            fishDifficultyPercent={props.fishDifficultyPercent}
+            notificationSlot={
+              <>
+                <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
+                <WikiHelp />
+              </>
+            }
+          />
         ) : props.garden ? (
           <GardenScene
             state={props.garden}
@@ -489,7 +510,9 @@ export function GameShell(props: GameShellProps) {
             <MapModalBody
               onOpenGarden={() => travel("garden")}
               onOpenStore={() => travel("store")}
+              onOpenLake={() => travel("lake")}
               onGoHome={() => travel("farm")}
+              canFish={props.canFish}
             />
           )}
           {open === "lottery" &&

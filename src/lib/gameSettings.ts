@@ -442,6 +442,17 @@ export const SETTING_DEFS: SettingDef[] = [
     help: "A win at or above this prize counts toward the Big Orchard Win ceremony badge.",
   },
 
+  // --- Fishing (Phase 1 preview) -------------------------------------------
+  { key: "fishing_enabled", label: "Fishing enabled", kind: "boolean", default: true, help: "Master switch for the whole fishing module." },
+  { key: "fishing_admin_only", label: "Admin only", kind: "boolean", default: true, help: "While on, only admins can reach the Fishing Lake, catch, or sell (preview mode)." },
+  { key: "fish_sell_percent", label: "Fish sell multiplier (%)", kind: "number", default: 100, help: "Coins paid when selling fish, as a % of each fish's base value (100 = normal)." },
+  { key: "fish_difficulty_percent", label: "Catch difficulty (%)", kind: "number", default: 100, help: "Higher = the catch meter drains faster when the fish escapes the bar (100 = normal)." },
+  { key: "fishing_legendary_chance_percent", label: "Legendary chance (%)", kind: "number", default: 2, max: 100, help: "Chance a cast hooks a Legendary fish." },
+  // Future placeholders — settings only; the mechanics are NOT built yet.
+  { key: "fishing_seasonal_fish_enabled", label: "Seasonal fish (coming soon)", kind: "boolean", default: false, help: "Placeholder for a future update — no effect yet." },
+  { key: "fishing_weather_enabled", label: "Weather effects (coming soon)", kind: "boolean", default: false, help: "Placeholder for a future update — no effect yet." },
+  { key: "fishing_rod_durability_enabled", label: "Rod durability (coming soon)", kind: "boolean", default: false, help: "Placeholder for a future update — no effect yet." },
+
   // --- Debug (admin testing tools; off by default) -------------------------
   {
     key: "debug_settings_enabled",
@@ -553,6 +564,17 @@ export const SETTING_SECTIONS: SettingSection[] = [
       { title: "Schedule", keys: ["lottery_draw_weekday", "lottery_draw_time", "lottery_timezone", "lottery_sales_cutoff_minutes", "lottery_auto_draw_enabled"] },
       { title: "Display & privacy", keys: ["lottery_show_ticket_count", "lottery_show_participant_count", "lottery_show_pot", "lottery_show_winner_publicly"] },
       { title: "Awards", keys: ["lottery_big_win_threshold"] },
+    ],
+  },
+  {
+    id: "fishing",
+    title: "Fishing",
+    blurb:
+      "🎣 The Fishing Lake (Phase 1 preview). Cast → catch minigame → sell fish for Coins at the hut. Fish are a separate inventory and never touch Water/Seeds/Fertilizer/Fruits; sales pay Coins only. Admin-only while previewing.",
+    groups: [
+      { title: "Access", keys: ["fishing_enabled", "fishing_admin_only"] },
+      { title: "Balance", keys: ["fish_sell_percent", "fish_difficulty_percent", "fishing_legendary_chance_percent"] },
+      { title: "Coming soon (no effect yet)", keys: ["fishing_seasonal_fish_enabled", "fishing_weather_enabled", "fishing_rod_durability_enabled"] },
     ],
   },
   {
