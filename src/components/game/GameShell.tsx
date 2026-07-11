@@ -134,6 +134,33 @@ export function GameShell(props: GameShellProps) {
     setSeedNotifId(`seeds-${new Date().toISOString().slice(0, 10)}-c${cycle}`);
   }, [props.farm.seeds]);
 
+  // Mailbox read-state: the envelope shows for UNREAD mail only. Opening the
+  // Mailbox window records the current batch (count + newest date) so the
+  // envelope disappears — and reappears the moment a NEW KudoSeed arrives
+  // (the batch key changes). Persisted per browser.
+  const mailKey =
+    props.kudoseeds.length > 0
+      ? `${props.kudoseeds.length}-${props.kudoseeds[0]?.given_on_date ?? ""}`
+      : "";
+  const [mailReadKey, setMailReadKey] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMailReadKey(window.localStorage.getItem("rf-mail-read"));
+    } catch {
+      /* private mode — envelope just stays visible */
+    }
+  }, []);
+  function openMailbox() {
+    setOpen("mail");
+    setMailReadKey(mailKey);
+    try {
+      window.localStorage.setItem("rf-mail-read", mailKey);
+    } catch {
+      /* ignore */
+    }
+  }
+
   // A "!" sits on the Goals button whenever a goal has been completed that
   // the player hasn't looked at yet. Opening the Goals window marks the
   // current set of completed goals as seen (persisted per browser).
@@ -321,8 +348,8 @@ export function GameShell(props: GameShellProps) {
             submissionBoxRole={submissionBox}
             tutorialActive={tutorial.active}
             tutorialTreeId={tutorial.tutorialTreeId}
-            hasMail={props.kudoseeds.length > 0}
-            onOpenMail={() => setOpen("mail")}
+            hasMail={props.kudoseeds.length > 0 && mailKey !== mailReadKey}
+            onOpenMail={openMailbox}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />

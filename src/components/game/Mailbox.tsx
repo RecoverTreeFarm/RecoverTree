@@ -1,10 +1,12 @@
 "use client";
 
 /**
- * A little mailbox beside the farmer's home. When a KudoSeed has arrived, an
- * envelope bobs above it and the flag stands up. Tap to open the Mailbox
- * window (received mail + send a KudoSeed). Drawn in CSS to match the store
- * interior style — there's no mailbox sprite in the asset packs yet.
+ * The mailbox beside the farmer's home — the owner's sprite from
+ * CozySpriteBundle/Mailbox.png (trimmed to public/sprites/misc/mailbox.png,
+ * 57x108: a grey box with a red flag on a wooden post). When unread KudoSeed
+ * mail is waiting, an envelope bobs above it; once the player opens the
+ * Mailbox window, the envelope goes away until NEW mail arrives (read-state
+ * lives in GameShell / localStorage).
  */
 export function Mailbox({
   hasMail,
@@ -32,37 +34,13 @@ export function Mailbox({
           ✉️
         </span>
       )}
-      <span className="relative block" style={{ width: 24, height: 30 }}>
-        {/* post */}
-        <span
-          className="absolute bottom-0 left-1/2 -translate-x-1/2"
-          style={{ width: 5, height: 16, background: "var(--rf-wood)", border: "1px solid var(--rf-ink)" }}
-        />
-        {/* box body */}
-        <span
-          className="absolute left-0 top-0 rounded-t-lg"
-          style={{
-            width: 24,
-            height: 16,
-            background: hasMail ? "var(--rf-red)" : "var(--rf-blue)",
-            border: "2px solid var(--rf-ink)",
-            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.25)",
-          }}
-        />
-        {/* raised flag when there's mail */}
-        <span
-          className="absolute"
-          style={{
-            right: -3,
-            top: hasMail ? -1 : 8,
-            width: 5,
-            height: 6,
-            background: "var(--rf-gold)",
-            border: "1px solid var(--rf-ink)",
-            transition: "top 0.3s ease",
-          }}
-        />
-      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/sprites/misc/mailbox.png"
+        alt=""
+        className="pixelated"
+        style={{ width: 22, height: "auto" }}
+      />
     </button>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SPRITES } from "@/lib/sprites";
-import { PixelIcon, type ItemIconName } from "@/components/pixel/Sprite";
+import { PixelIcon } from "@/components/pixel/Sprite";
 import { STORE_ITEMS, type StoreItemKey, type StoreState } from "@/lib/store";
 import { purchaseStoreItem, greetStorePet } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
@@ -36,29 +36,32 @@ import {
  * SALE shelf. Purchases spend Coins server-side — never Fruits.
  * ------------------------------------------------------------------------- */
 
-/* Scene geometry (percent coords). The counter spans the middle of the room;
-   its rectangle is a walk blocker. */
-const COUNTER = { left: 22, right: 78, bottom: 26, top: 42 };
+/* Scene geometry (percent coords), matched to the owner's painted interior
+   (public/sprites/store/store_bg.png, 780x874) and its same-canvas table
+   overlay (store_table.png — measured: x 20.6–77.8%, css-bottom 26–34.9%).
+   The table sits just above the heart rug and is the service counter; its
+   rectangle is a walk blocker. */
+const COUNTER = { left: 20.6, right: 77.8, bottom: 26, top: 35 };
 const COUNTER_BLOCKER: Blocker[] = [COUNTER];
-/** The register sits on the counter's top edge; the shopkeeper stands right
- *  behind it, low enough that the counter (drawn later, higher z) hides his
+/** The register sits on the table's top surface; the shopkeeper stands right
+ *  behind it, low enough that the table (drawn later, higher z) hides his
  *  legs — otherwise he looks like he's floating above it. */
-const REGISTER_POS = { left: 50, bottom: 42 };
+const REGISTER_POS = { left: 50, bottom: 34 };
 /** Right behind the register, a shoulder to its left so both his head and his
- *  "!" stay readable — the register (higher z) still overlaps his lower body,
+ *  "!" stay readable — the table (higher z) still overlaps his lower body,
  *  so he reads as standing behind the counter rather than floating over it. */
-const KEEPER_POS = { left: 44, bottom: 44 };
-/** Where the farmer stands to be served — leaning on the counter. */
-const FARMER_AT_COUNTER = { left: 50, bottom: 23 };
+const KEEPER_POS = { left: 44, bottom: 36 };
+/** Where the farmer stands to be served — leaning on the table. */
+const FARMER_AT_COUNTER = { left: 50, bottom: 20 };
 const FARMER_HOME = { left: 30, bottom: 12 };
 /**
- * Walkable region is the WOOD FLOOR in FRONT of the counter only. maxBottom is
- * held below the counter (bottom 26) so the farmer can never climb onto the
- * counter or the back wall, and — because every walk is a straight line — can
- * never pass through the counter to reach the far side either. The counter
+ * Walkable region is the brick FLOOR in FRONT of the table only. maxBottom is
+ * held below the table (bottom 26) so the farmer can never climb onto the
+ * table or the back wall, and — because every walk is a straight line — can
+ * never pass through the table to reach the far side either. The table
  * stays a blocker too, as a belt-and-suspenders end-position guard.
  */
-const WALK_BOUNDS = { minLeft: 6, maxLeft: 92, minBottom: 6, maxBottom: 24 };
+const WALK_BOUNDS = { minLeft: 6, maxLeft: 92, minBottom: 6, maxBottom: 23 };
 
 /** Shoppers browse the front floor, spread out and clear of the counter. */
 const SHOPPER_SPOTS = [
@@ -84,22 +87,6 @@ function Bang() {
   );
 }
 
-/** A wall shelf holding a few goods (real item sprites, decor only). */
-function WallShelf({ items, style }: { items: ItemIconName[]; style?: React.CSSProperties }) {
-  return (
-    <div aria-hidden className="absolute flex flex-col items-center" style={style}>
-      <span className="flex items-end gap-1.5 leading-none">
-        {items.map((n, i) => (
-          <PixelIcon key={i} name={n} size={16} />
-        ))}
-      </span>
-      <span
-        className="mt-0.5 block h-2 w-24 rounded-sm"
-        style={{ background: "var(--rf-wood)", border: "2px solid var(--rf-ink)", boxShadow: "0 2px 0 rgba(0,0,0,0.25)" }}
-      />
-    </div>
-  );
-}
 
 /* ---------------------------------------------------------------------------
  * The shop pet — a little yorkie that wanders the store floor. Pat it (same
@@ -275,46 +262,23 @@ export function StoreScene({
     <div>
       <div
         className="relative overflow-hidden rounded border-[3px] border-[var(--rf-ink)]"
-        style={{ height: "clamp(340px, 52vh, 560px)" }}
+        style={{
+          // the owner's painted interior IS the room — full-size aspect keeps
+          // the %-geometry (table blocker, spots) aligned with the image
+          aspectRatio: "780 / 874",
+          backgroundImage: "url(/sprites/store/store_bg.png)",
+          backgroundSize: "100% 100%",
+          imageRendering: "pixelated",
+        }}
         onClick={walkToClick}
       >
-        {/* wall */}
-        <div className="pointer-events-none absolute inset-x-0 top-0" style={{ height: "56%", background: "#c9a889" }} />
-        <div
-          className="pointer-events-none absolute inset-x-0"
-          style={{ top: "54%", height: 6, background: "var(--rf-soil-dark)", borderTop: "2px solid var(--rf-ink)" }}
-        />
-        {/* wooden floor */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0"
-          style={{
-            top: "56%",
-            background:
-              "repeating-linear-gradient(0deg, var(--rf-wood) 0 22px, var(--rf-soil) 22px 24px)",
-          }}
-        />
-
-        {/* sign + window + shelves on the wall */}
+        {/* sign over the door */}
         <div
           className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-wood)] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[var(--rf-cream)]"
           style={{ boxShadow: "0 2px 0 var(--rf-ink)", zIndex: 30 }}
         >
           🏪 General Store
         </div>
-        <span
-          aria-hidden
-          className="pointer-events-none absolute rounded"
-          style={{ left: "8%", top: "10%", width: 52, height: 40, background: "var(--rf-sky)", border: "3px solid var(--rf-ink)", boxShadow: "inset 0 0 0 2px var(--rf-cream)" }}
-        />
-        <WallShelf items={["basket", "coin", "sprout"]} style={{ right: "8%", top: "10%" }} />
-        <WallShelf items={["seed", "water", "fertilizer"]} style={{ right: "30%", top: "18%" }} />
-        <WallShelf items={["sprout", "basket", "water"]} style={{ left: "22%", top: "20%" }} />
-        {/* rug */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-[50%]"
-          style={{ bottom: "4%", width: 150, height: 30, background: "var(--rf-red)", opacity: 0.55, border: "2px solid var(--rf-ink)" }}
-        />
 
         {/* the shopkeeper stands BEHIND the register (drawn first = behind) */}
         <button
@@ -335,27 +299,18 @@ export function StoreScene({
           </span>
         </button>
 
-        {/* the counter — solid: the farmer can't walk through it */}
-        <div
-          className="pointer-events-none absolute -translate-x-1/2"
-          style={{
-            left: "50%",
-            bottom: `${COUNTER.bottom}%`,
-            width: `${COUNTER.right - COUNTER.left}%`,
-            height: `${COUNTER.top - COUNTER.bottom}%`,
-            zIndex: 12,
-          }}
-        >
-          <div
-            className="h-full w-full"
-            style={{
-              background: "repeating-linear-gradient(90deg, var(--rf-wood) 0 26px, var(--rf-soil) 26px 30px)",
-              border: "3px solid var(--rf-ink)",
-              borderRadius: 4,
-              boxShadow: "0 4px 0 rgba(0,0,0,0.25), inset 0 6px 0 rgba(255,255,255,0.15)",
-            }}
-          />
-        </div>
+        {/* the table (owner's sprite, same canvas as the background) — the
+            service counter, just above the heart rug. Solid: its rectangle is
+            a walk blocker; the farmer can't walk through it. Drawn over the
+            keeper so his legs disappear behind it. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/sprites/store/store_table.png"
+          alt=""
+          aria-hidden
+          className="pixelated pointer-events-none absolute inset-0 h-full w-full"
+          style={{ zIndex: 12 }}
+        />
 
         {/* the register sits ON the counter, in front of the shopkeeper */}
         <button

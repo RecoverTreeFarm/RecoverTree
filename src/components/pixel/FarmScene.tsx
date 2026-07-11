@@ -35,11 +35,13 @@ export const MAX_TREES = GRID_COLS * GRID_ROWS;
 /** The farmer idles ABOVE the plot, roughly centered. */
 export const FARMER_HOME: FarmerPos = { left: 45, bottom: 66 };
 
-// Plot geometry (scene %): a wide dirt band across the bottom-middle.
-const PLOT_LEFT = 6;
-const PLOT_WIDTH = 88;
-const PLOT_BOTTOM = 5;
-const PLOT_HEIGHT = 48;
+// Plot geometry (scene %), matched to the tilled-soil rectangle painted in
+// public/sprites/ground/farm_plot.png (measured from the image: x 9.3–91.8%,
+// y 48–83.5% from the top). The 4 grid columns land on its 4 soil strips.
+const PLOT_LEFT = 9;
+const PLOT_WIDTH = 83;
+const PLOT_BOTTOM = 16.5;
+const PLOT_HEIGHT = 35.5;
 
 /** Event objects stand ON the top edge of the dirt, left of centre. */
 export const PLOT_TOP_EDGE = PLOT_BOTTOM + PLOT_HEIGHT; // 53%
@@ -262,11 +264,17 @@ export function FarmScene({
 
   return (
     <div
-      className="grass-tile relative w-full overflow-hidden rounded-lg"
+      className="pixelated relative w-full overflow-hidden rounded-lg"
       style={{
         border: "3px solid var(--rf-ink)",
         boxShadow: "4px 4px 0 rgba(58,42,26,0.25)",
-        height: compact ? 230 : "clamp(360px, 60vh, 640px)",
+        // the painted farm scene IS the ground now; full-size aspect keeps the
+        // plot %-geometry aligned exactly with the image's soil rectangle
+        backgroundImage: "url(/sprites/ground/farm_plot.png)",
+        backgroundSize: compact ? "cover" : "100% 100%",
+        backgroundPosition: "center",
+        imageRendering: "pixelated",
+        ...(compact ? { height: 230 } : { aspectRatio: "840 / 1326" }),
         cursor: onGroundClick ? "pointer" : undefined,
       }}
       onClick={handleSceneClick}
@@ -290,7 +298,7 @@ export function FarmScene({
       {mailboxObject && (
         <div
           className="absolute"
-          style={{ left: compact ? "30%" : "27%", top: "9%", zIndex: 7 }}
+          style={{ left: compact ? "44%" : "42%", top: "8%", zIndex: 7 }}
           onClick={(e) => e.stopPropagation()}
         >
           {mailboxObject}
@@ -336,18 +344,15 @@ export function FarmScene({
         </div>
       </div>
 
-      {/* Raised-bed dirt plot */}
+      {/* The tree grid overlays the tilled plot PAINTED into the background
+          image — no CSS dirt/border of its own anymore. */}
       <div
-        className="soil-tile absolute"
+        className="absolute"
         style={{
           left: `${PLOT_LEFT}%`,
           bottom: `${PLOT_BOTTOM}%`,
           width: `${PLOT_WIDTH}%`,
           height: `${PLOT_HEIGHT}%`,
-          border: `${compact ? 4 : 6}px solid var(--rf-wood)`,
-          borderRadius: 6,
-          boxShadow:
-            "inset 0 0 0 2px var(--rf-soil-dark), 0 3px 0 rgba(58,42,26,0.3)",
         }}
       >
         <div
@@ -370,6 +375,10 @@ export function FarmScene({
               const tappable = canSelectEmpty && !!onSlotClick;
               return (
                 <div key={cellIdx} className="relative flex items-end justify-center">
+                  {/* Invisible hit area — the painted soil IS the visual now
+                      (no dark "hole"), but the spot stays tappable to plant.
+                      A soft gold ring appears on hover while a seed is
+                      available so the slot is still discoverable. */}
                   <button
                     type="button"
                     aria-label={tappable ? "empty patch — plant a seed" : "empty patch"}
@@ -380,10 +389,9 @@ export function FarmScene({
                     }}
                     className={`rounded-full ${tappable ? "cursor-pointer hover:ring-2 hover:ring-[var(--rf-gold)]" : "cursor-default"}`}
                     style={{
-                      width: d,
-                      height: d,
-                      background: "rgba(58,42,26,0.4)",
-                      boxShadow: "inset 0 2px 2px rgba(0,0,0,0.3)",
+                      width: d * 1.6,
+                      height: d * 1.6,
+                      background: "transparent",
                       border: "none",
                       padding: 0,
                     }}
