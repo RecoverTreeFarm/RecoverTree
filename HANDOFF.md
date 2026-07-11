@@ -8,32 +8,37 @@ through a small farming game. Design source of truth:
 
 ## 🚦 Next agent: start here
 
-The owner wants a **hard launch**. All game features are built and verified.
-What's left is entirely **launch logistics**, not gameplay — the owner has
-made the calls below, so don't re-litigate them:
+**RecoverTree is LIVE.** As of 2026-07-10 the hard launch is essentially done —
+both former blockers below are resolved. Deployment facts:
 
-1. **Wire a transactional email provider — Resend or Postmark, whichever is
-   cheaper — then integrate it as Supabase's Auth SMTP sender.** This is the
-   one hard launch blocker: Supabase's built-in mailer caps out around
-   2 emails/hour, which will silently drop signup/reset emails once more than
-   a couple of people join in the same hour. Compare current pricing for both
-   (as of this session, Resend's free tier — 3,000 emails/mo, 100/day — was
-   the more generous free tier for an app this size; Postmark's free tier is
-   a one-time 100-email trial, then paid plans start around $15/mo). Confirm
-   current numbers before deciding, since pricing changes. Once picked:
-   create the account, verify a sending domain (SPF/DKIM), then wire it into
-   **Supabase Dashboard → Authentication → Emails → SMTP Settings** (both
-   providers have first-class SMTP docs for Supabase). No app code changes
-   needed for this — it's entirely a Supabase Auth config change.
-2. **Push to GitHub, connect Vercel, set the two env vars, deploy.** The repo
-   has no remote configured yet (`git remote -v` is empty). Standard flow:
-   create a GitHub repo, push this branch, then in Vercel "Import Project"
-   from that repo. Set `NEXT_PUBLIC_SUPABASE_URL` and
-   `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (values in `.env.local`, **not**
-   committed) as Vercel project env vars. No `vercel.json` or custom build
-   config needed — it's a stock `next build`. Confirm the build succeeds on
-   Vercel (it passes locally as of this commit) before sharing the URL
-   around. A custom domain can be added after, in Vercel's dashboard.
+- **Live URL:** https://recover-tree.vercel.app (Vercel, stock `next build`).
+- **GitHub:** `origin` = https://github.com/RecoverTreeFarm/RecoverTree.git
+  (`main` pushed + tracking; account `RecoverTreeFarm`, HTTPS via `gh`).
+- **Vercel env vars set:** `NEXT_PUBLIC_SUPABASE_URL` +
+  `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (Production + Preview). Remember:
+  `NEXT_PUBLIC_` values are baked at build time — changing one needs a redeploy.
+- **Email:** transactional email is wired. The owner set up **Resend** (own
+  verified sending domain) and pointed **Supabase → Authentication → Emails →
+  SMTP Settings** at it (`smtp.resend.com`, user `resend`, API key as
+  password). This replaced Supabase's ~2/hr built-in mailer — the one launch
+  blocker. Done with ChatGPT's help, owner reports it working.
+
+**Final verification checklist (confirm before inviting a group):**
+- [ ] **Supabase → Auth → URL Configuration:** Site URL + Redirect URLs set to
+  `https://recover-tree.vercel.app` (else confirmation links point at
+  localhost). ⚠️ Easy to miss — verify it's set.
+- [ ] **Confirm email** toggled back ON (Auth → Providers → Email; was OFF
+  during testing).
+- [ ] One real signup on the live site: email arrives, is **from the Resend
+  domain** (not `supabase.co`), link points at `recover-tree.vercel.app`, and
+  clicking it activates the account. Cross-check Resend → Emails/Logs.
+
+If email doesn't arrive, the usual cause is the Resend domain not fully
+**Verified** yet (DNS still propagating) — Resend's logs will say.
+
+**Optional, post-launch (none blocking):** add a custom domain in Vercel (then
+update Supabase Site URL again); delete the `/debug/auth` temp page; the
+Guidebook bug-report form is still a placeholder (could reuse Resend).
 
 **Deliberately deferred, do not "fix" unless the owner asks:**
 - `debug_settings_enabled` stays **ON** in the live DB — the owner wants
@@ -53,7 +58,9 @@ made the calls below, so don't re-litigate them:
 - **Supabase** (Postgres + Auth + RLS) via `@supabase/ssr`
 - Art source in `CozySpriteBundle/`, generated into `public/sprites/`
 - Run locally: `npm run dev` → **http://localhost:3000**
-- Test account: `dominictallariti+rf-test@gmail.com` / `pixel-farm-test-1234` (sunny_tester)
+- Test accounts: the old `sunny_tester`/`FriendlyPal` accounts were DELETED
+  on 2026-07-11 (real users exist now). Make a fresh throwaway account for
+  testing; the owner can promote/demote roles from /admin.
 
 ## ⚠️ MOST IMPORTANT RULE — the economy
 **Fruits are the score, and Fruits ONLY come from harvesting trees.**
@@ -255,8 +262,9 @@ variables for maybe-unassigned data. (Fixed in `20260709250000`.)
   owner is confident they won't need it for troubleshooting after launch.
 
 ## What still needs building before a hard launch
-See **"Next agent: start here"** at the top of this file — email provider
-integration and the GitHub/Vercel deploy are the only two remaining items.
+**Nothing — the app is deployed and email is wired (see "Next agent: start
+here" at the top).** Only the final verification checklist remains (URL config,
+Confirm-email toggle, one real signup test). Everything else is optional polish.
 
 ## Secrets / safety
 - `.env.local` holds the Supabase URL + **publishable** (browser-safe) key and is
@@ -264,11 +272,11 @@ integration and the GitHub/Vercel deploy are the only two remaining items.
 - No service-role/secret keys, DB passwords, or API secrets are in the repo.
 
 ## Next recommended step
-See **"Next agent: start here"** at the top of this file. In short: wire
-Resend or Postmark into Supabase Auth SMTP, then push to GitHub, connect
-Vercel, set the two env vars, and deploy. If asked to build instead of ship:
-swap the CSS store interior for real interior sprites is the next-best use of
-time.
+App is live at https://recover-tree.vercel.app with Resend email wired. Run the
+final verification checklist at the top (URL config + Confirm-email + one real
+signup) to fully close out launch. After that, if asked to build instead of
+ship: swapping the CSS store interior for real interior sprites is the
+next-best use of time.
 
 ## Promotional poster (marketing asset, not part of the app)
 Built once this session as a self-contained HTML file composited from real

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Fruit } from "@/components/pixel/Sprite";
+import { Fruit, PixelIcon } from "@/components/pixel/Sprite";
 import { SPRITES } from "@/lib/sprites";
 import type { FarmItemKind } from "@/components/pixel/FarmPanel";
 import { ICON } from "@/lib/icons";
@@ -67,11 +67,11 @@ export function InventoryPanel({
     kind?: FarmItemKind;
     confirmLabel?: string;
   }[] = [
-    { icon: <span aria-hidden>{ICON.water}</span>, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage.", kind: "water", confirmLabel: "Water all?" },
+    { icon: <PixelIcon name="water" size={20} />, label: "Water", value: farm.water, hint: "Earn by attending or hosting meetings and giving Seeds. Each plant drinks 10 per growth stage.", kind: "water", confirmLabel: "Water all?" },
     { icon: <Fruit scale={1.7} />, label: "Fruits", value: farm.fruitTotal, hint: "Your Season score — only harvesting trees makes Fruits." },
-    { icon: <span aria-hidden>{ICON.fertilizer}</span>, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
+    { icon: <PixelIcon name="fertilizer" size={20} />, label: "Fertilizer", value: farm.fertilizer, hint: "Win medals, badges, and goals. Instantly ripens a waiting tree.", kind: "fert", confirmLabel: "Fertilize all?" },
     { icon: <img src={SPRITES.seedPacket} alt="" className="pixelated h-5 w-5" />, label: "Seeds to plant", value: farm.seeds, hint: "Received from other farmers — plant one to grow an extra tree.", kind: "seed", confirmLabel: "Plant all?" },
-    { icon: <span aria-hidden>{ICON.coin}</span>, label: "Coins", value: farm.coins, hint: "Earned alongside Seed and Fertilizer rewards. For future shop goodies — Coins never affect the leaderboard." },
+    { icon: <PixelIcon name="coin" size={20} />, label: "Coins", value: farm.coins, hint: "Earned alongside Seed and Fertilizer rewards. For future shop goodies — Coins never affect the leaderboard." },
     { icon: <span aria-hidden>🌳</span>, label: "Trees", value: farm.treeCount, hint: "More trees = a bigger harvest (max 20)." },
   ];
 
@@ -233,6 +233,79 @@ export function LeaderboardPanel({ rows }: { rows: LeaderboardRow[] }) {
       <Link href="/leaderboard" className="mt-3 inline-block text-[11px] font-bold underline">
         See the full leaderboard
       </Link>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Mailbox — the KudoSeed inbox (opened from the mailbox beside the house).
+ * Lists KudoSeeds received recently and offers to send one back, disabled
+ * once today's KudoSeed has been sent. Extensible: only seeds arrive here for
+ * now, but the "mail" framing leaves room for future kinds.
+ * ------------------------------------------------------------------------- */
+const fmtMailDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+export function MailPanel({
+  kudoseeds,
+  sentToday,
+  onSend,
+}: {
+  kudoseeds: { from: string; message: string | null; given_on_date: string }[];
+  sentToday: boolean;
+  onSend: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-[var(--rf-ink-soft)]">
+        Your mailbox. Right now you get KudoSeeds here — more kinds of mail are
+        coming in a future update. 🌱
+      </p>
+
+      {kudoseeds.length === 0 ? (
+        <p className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-4 text-center text-sm text-[var(--rf-ink-soft)]">
+          📭 No mail yet. When a neighbor sends you a KudoSeed, it’ll arrive here.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {kudoseeds.map((k, i) => (
+            <li
+              key={i}
+              className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] p-2.5"
+            >
+              <div className="flex items-center gap-2">
+                <PixelIcon name="seed" size={18} />
+                <span className="text-sm font-extrabold">
+                  {k.from} sent you a KudoSeed
+                </span>
+              </div>
+              {k.message && (
+                <p className="mt-1 text-xs italic text-[var(--rf-ink-soft)]">
+                  “{k.message}”
+                </p>
+              )}
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
+                {fmtMailDate(k.given_on_date)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={sentToday}
+        title={
+          sentToday
+            ? "You already sent today’s KudoSeed"
+            : "Send a KudoSeed to a neighbor"
+        }
+        className="w-full rounded border-2 border-[var(--rf-ink)] px-3 py-2 text-sm font-extrabold uppercase tracking-wide text-[var(--rf-ink)] disabled:cursor-not-allowed disabled:opacity-50"
+        style={{ background: sentToday ? "var(--rf-cream)" : "var(--rf-gold)" }}
+      >
+        {sentToday ? "✅ KudoSeed sent today" : "🌱 Send a KudoSeed"}
+      </button>
     </div>
   );
 }

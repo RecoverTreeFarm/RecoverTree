@@ -115,9 +115,16 @@ const PET_SPOTS: Pos[] = [
   { left: 72, bottom: 20 },
 ];
 
+const PET_MOVE_MS = 2000; // must match the CSS transition below
+
 function StorePet({ heart, onPat }: { heart: boolean; onPat: (spot: Pos) => void }) {
   const [idx, setIdx] = useState(0);
   const [facing, setFacing] = useState<1 | -1>(1);
+  // The yorkie only plays its WALK cycle while it's actually moving between
+  // spots; the rest of the time it shows the calm "sit" idle. (Previously the
+  // walk GIF ran non-stop, so the dog looked like it was forever running in
+  // place.)
+  const [moving, setMoving] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -132,6 +139,9 @@ function StorePet({ heart, onPat }: { heart: boolean; onPat: (spot: Pos) => void
           setFacing(PET_SPOTS[next].left >= PET_SPOTS[prev].left ? 1 : -1);
           return next;
         });
+        setMoving(true);
+        const stop = setTimeout(() => setMoving(false), PET_MOVE_MS);
+        local.push(stop);
         step();
       }, wait);
       local.push(t);
@@ -144,6 +154,11 @@ function StorePet({ heart, onPat }: { heart: boolean; onPat: (spot: Pos) => void
   }, []);
 
   const spot = PET_SPOTS[idx];
+  const src = moving
+    ? facing === 1
+      ? SPRITES.yorkieWalkRight
+      : SPRITES.yorkieWalkLeft
+    : SPRITES.yorkieSit;
   return (
     <button
       type="button"
@@ -157,20 +172,15 @@ function StorePet({ heart, onPat }: { heart: boolean; onPat: (spot: Pos) => void
       style={{
         left: `${spot.left}%`,
         bottom: `${spot.bottom}%`,
-        zIndex: Math.round(60 - spot.bottom),
-        transition: "left 2s linear, bottom 2s linear",
+        // stay a floor character: always below the wall sign (z30), the store
+        // menu and the HUD (z70) so it can never render "over" a menu.
+        zIndex: Math.min(24, Math.round(28 - spot.bottom)),
+        transition: `left ${PET_MOVE_MS}ms linear, bottom ${PET_MOVE_MS}ms linear`,
       }}
     >
       {heart && <span aria-hidden className="rf-reward-pop absolute -top-4 text-base">💗</span>}
-      {/* dedicated left/right animated GIFs — the browser plays the 4-frame
-          walk cycle; no CSS flip needed. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={facing === 1 ? SPRITES.yorkieWalkRight : SPRITES.yorkieWalkLeft}
-        alt=""
-        className="pixelated"
-        style={{ width: 40, height: 40 }}
-      />
+      <img src={src} alt="" className="pixelated" style={{ width: 40, height: 40 }} />
     </button>
   );
 }
@@ -248,7 +258,9 @@ export function StoreScene({
       }
       playSfx("seed");
       setPetHeart(true);
-      announceReward(`💧 +${r.water_earned} water — the shop pup loves you!`);
+      announceReward(
+        `💧 +${r.water_earned} water · ✨ +${r.fertilizer_earned} fertilizer — the shop pup loves you!`,
+      );
       setTimeout(() => setPetHeart(false), 2600);
       router.refresh();
     });

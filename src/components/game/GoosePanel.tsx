@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { GooseSprite } from "@/components/pixel/GooseSprite";
+import { PixelIcon } from "@/components/pixel/Sprite";
 import { SPRITES } from "@/lib/sprites";
 import { GOOSE_QUESTIONS, type GooseState } from "@/lib/goose";
 import {
@@ -364,10 +365,10 @@ function EggReveal({ rewards }: { rewards: { reward_type: string; amount: number
       </div>
       <p className="text-xs text-[var(--rf-ink-soft)]">The Golden Goose Egg opened:</p>
       <div className="mt-1 flex justify-center gap-3 text-sm font-extrabold">
-        {water > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.05s" }}>💧 {water}</span>}
-        {seed > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.2s" }}>🌰 {seed}</span>}
-        {fert > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.35s" }}>🧴 {fert}</span>}
-        {coin > 0 && <span className="rf-reward-pop" style={{ animationDelay: "0.5s" }}>🪙 {coin}</span>}
+        {water > 0 && <span className="rf-reward-pop inline-flex items-center gap-1" style={{ animationDelay: "0.05s" }}><PixelIcon name="water" size={16} /> {water}</span>}
+        {seed > 0 && <span className="rf-reward-pop inline-flex items-center gap-1" style={{ animationDelay: "0.2s" }}><PixelIcon name="seed" size={16} /> {seed}</span>}
+        {fert > 0 && <span className="rf-reward-pop inline-flex items-center gap-1" style={{ animationDelay: "0.35s" }}><PixelIcon name="fertilizer" size={16} /> {fert}</span>}
+        {coin > 0 && <span className="rf-reward-pop inline-flex items-center gap-1" style={{ animationDelay: "0.5s" }}><PixelIcon name="coin" size={16} /> {coin}</span>}
       </div>
     </div>
   );

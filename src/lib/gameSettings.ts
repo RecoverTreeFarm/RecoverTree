@@ -126,9 +126,9 @@ export const SETTING_DEFS: SettingDef[] = [
     key: "blossom_fruit_multiplier",
     label: "Blossom fruit multiplier",
     kind: "number",
-    default: 2,
+    default: 3,
     min: 1,
-    help: "A blossom tree pays this many times the normal Fruits on harvest.",
+    help: "A blossom tree pays this many times the normal Fruits on harvest (3 = 30 Fruits). Blossom harvests also gift +1 Seed and +1 Fertilizer.",
   },
 
   // --- Traveling Basket (live mechanic) ------------------------------------
@@ -257,10 +257,10 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: "garden_daily_water_limit", label: "Daily limit — water per person", kind: "number", default: 50 },
   { key: "garden_daily_seed_limit", label: "Daily limit — seeds per person", kind: "number", default: 3 },
   { key: "garden_daily_fertilizer_limit", label: "Daily limit — fertilizer per person", kind: "number", default: 3 },
-  { key: "garden_reward_water", label: "Garden Share Bundle — water", kind: "number", default: 25 },
-  { key: "garden_reward_seeds", label: "Garden Share Bundle — seeds", kind: "number", default: 2 },
-  { key: "garden_reward_fertilizer", label: "Garden Share Bundle — fertilizer", kind: "number", default: 1 },
-  { key: "garden_reward_coins", label: "Garden Share Bundle — coins", kind: "number", default: 15 },
+  { key: "garden_reward_water", label: "Garden Share Bundle — water", kind: "number", default: 50 },
+  { key: "garden_reward_seeds", label: "Garden Share Bundle — seeds", kind: "number", default: 4 },
+  { key: "garden_reward_fertilizer", label: "Garden Share Bundle — fertilizer", kind: "number", default: 2 },
+  { key: "garden_reward_coins", label: "Garden Share Bundle — coins", kind: "number", default: 30 },
   {
     key: "garden_partial_reward_enabled",
     label: "Partial reward enabled",

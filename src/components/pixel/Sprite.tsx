@@ -47,9 +47,9 @@ export function Sprite({
  * Where the 3 fruits hang on a bearing tree (32x44 canopy sheet-pixel coords).
  */
 const FRUIT_SPOTS: [number, number][] = [
-  [8, 14],
-  [19, 11],
-  [13, 21],
+  [8, 18],
+  [19, 15],
+  [13, 25],
 ];
 
 /**

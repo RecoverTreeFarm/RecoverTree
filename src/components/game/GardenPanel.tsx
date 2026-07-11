@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { SPRITES } from "@/lib/sprites";
-import { type ItemIconName } from "@/components/pixel/Sprite";
+import { PixelIcon, type ItemIconName } from "@/components/pixel/Sprite";
 import { gardenTreeStage, type GardenState } from "@/lib/garden";
 import { contributeToGarden } from "@/app/dashboard/actions";
 import { playSfx } from "@/lib/sfx";
@@ -275,11 +275,11 @@ function Decorations() {
   );
 }
 
-function GoalBar({ icon, cur, req }: { icon: string; cur: number; req: number }) {
+function GoalBar({ icon, cur, req }: { icon: React.ReactNode; cur: number; req: number }) {
   const pct = Math.min(100, Math.round((cur / req) * 100));
   return (
     <div className="flex items-center gap-1.5">
-      <span aria-hidden className="w-5 text-center text-sm leading-none">{icon}</span>
+      <span aria-hidden className="flex w-5 items-center justify-center text-sm leading-none">{icon}</span>
       <div className="h-3 flex-1 overflow-hidden rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)]">
         <div className="h-full bg-[var(--rf-grass)]" style={{ width: `${pct}%`, transition: "width 0.4s ease" }} />
       </div>
@@ -467,9 +467,9 @@ export function GardenScene({
                 : "The garden wrapped up for the week."}
           </p>
           <div className="mt-2 space-y-1.5">
-            <GoalBar icon="💧" cur={state.current_water} req={state.required_water} />
-            <GoalBar icon="🌰" cur={state.current_seeds} req={state.required_seeds} />
-            <GoalBar icon={ICON.fertilizer} cur={state.current_fertilizer} req={state.required_fertilizer} />
+            <GoalBar icon={<PixelIcon name="water" size={16} />} cur={state.current_water} req={state.required_water} />
+            <GoalBar icon={<PixelIcon name="seed" size={16} />} cur={state.current_seeds} req={state.required_seeds} />
+            <GoalBar icon={<PixelIcon name="fertilizer" size={16} />} cur={state.current_fertilizer} req={state.required_fertilizer} />
           </div>
           {state.i_contributed && (
             <p className="mt-2 text-[11px] text-[var(--rf-ink-soft)]">
@@ -655,9 +655,9 @@ function DonationCloseup({
         </p>
         <div className="mt-2 space-y-2">
           {/* water always moves in fives — the app-wide water rule */}
-          <DonateRow icon="💧" label="Water" value={water} max={maxWater} have={myWater} todayLeft={state.today_water_left} onChange={setWater} step={5} />
-          <DonateRow icon="🌰" label="Seeds" value={seed} max={maxSeed} have={mySeeds} todayLeft={state.today_seed_left} onChange={setSeed} />
-          <DonateRow icon={ICON.fertilizer} label="Fertilizer" value={fert} max={maxFert} have={myFertilizer} todayLeft={state.today_fertilizer_left} onChange={setFert} />
+          <DonateRow icon={<PixelIcon name="water" size={16} />} label="Water" value={water} max={maxWater} have={myWater} todayLeft={state.today_water_left} onChange={setWater} step={5} />
+          <DonateRow icon={<PixelIcon name="seed" size={16} />} label="Seeds" value={seed} max={maxSeed} have={mySeeds} todayLeft={state.today_seed_left} onChange={setSeed} />
+          <DonateRow icon={<PixelIcon name="fertilizer" size={16} />} label="Fertilizer" value={fert} max={maxFert} have={myFertilizer} todayLeft={state.today_fertilizer_left} onChange={setFert} />
         </div>
 
         {msg && (
@@ -706,7 +706,7 @@ function DonateRow({
   onChange,
   step = 1,
 }: {
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   value: number;
   max: number;
@@ -723,7 +723,7 @@ function DonateRow({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="min-w-0">
-        <span className="text-xs font-bold">
+        <span className="inline-flex items-center gap-1 text-xs font-bold">
           {icon} {label}
         </span>
         <span className="ml-1.5 text-[10px] text-[var(--rf-ink-soft)]">({capNote})</span>

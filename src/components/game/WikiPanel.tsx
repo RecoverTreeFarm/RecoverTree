@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WIKI_CHAPTERS, BUG_REPORT_EMAIL, type WikiChapter } from "@/lib/wiki";
+import { WIKI_CHAPTERS, SUPPORT_EMAIL, FEEDBACK_TYPES, type WikiChapter } from "@/lib/wiki";
+import { submitFeedback } from "@/app/feedback/actions";
 import { openWiki, closeWiki, subscribeWiki } from "@/lib/wikiController";
 import { requestTutorialReplay } from "@/lib/tutorialController";
 
@@ -192,7 +193,7 @@ function WikiPanel({
                 </button>
               </div>
             )}
-            {chapter.id === "report-bug" && <BugReportForm />}
+            {chapter.id === "report-bug" && <FeedbackForm />}
           </div>
         </div>
       </div>
@@ -201,45 +202,85 @@ function WikiPanel({
 }
 
 /**
- * Placeholder bug-report form. Not wired to anything yet — a future pass will
- * send these to BUG_REPORT_EMAIL once an email backend exists. Kept as a
- * separate component so wiring it later touches only this spot.
+ * Leave Feedback — the real thing. The feedback type IS the subject; the
+ * server action saves to feedback_reports (validated + rate-limited in the
+ * database) and best-effort emails SUPPORT_EMAIL via Resend.
  */
-function BugReportForm() {
-  const [note, setNote] = useState<string | null>(null);
+function FeedbackForm() {
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
   const fieldCls =
     "w-full rounded border-2 border-[var(--rf-ink)] bg-white/70 px-2 py-1.5 text-sm";
 
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (sending || sent) return;
+    setSending(true);
+    setNote(null);
+    const form = e.currentTarget;
+    const r = await submitFeedback(new FormData(form));
+    setSending(false);
+    if (r.ok) {
+      setSent(true);
+      form.reset();
+      setNote({ ok: true, text: "Sent — thank you for helping the orchard grow! 🌱" });
+    } else {
+      setNote({ ok: false, text: r.message });
+    }
+  }
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setNote("Coming soon! Bug reports aren't connected yet — thank you for the thought. 🌱");
-      }}
-      className="mt-1 flex max-w-md flex-col gap-2"
-    >
+    <form onSubmit={onSubmit} className="mt-1 flex max-w-md flex-col gap-2">
       <label className="text-xs font-bold">
-        What happened?
-        <textarea rows={3} className={`${fieldCls} mt-1`} placeholder="The goose did a somersault…" />
+        Feedback type
+        <select name="type" defaultValue="bug" className={`${fieldCls} mt-1`}>
+          {Object.entries(FEEDBACK_TYPES).map(([slug, label]) => (
+            <option key={slug} value={slug}>
+              {label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="text-xs font-bold">
-        What were you trying to do?
-        <textarea rows={2} className={`${fieldCls} mt-1`} placeholder="I was watering my plants…" />
+        Your message
+        <textarea
+          name="message"
+          rows={4}
+          required
+          maxLength={2000}
+          className={`${fieldCls} mt-1`}
+          placeholder="Tell us what happened, what you wish existed, or anything else…"
+        />
       </label>
       <label className="text-xs font-bold">
         Contact info (optional)
-        <input type="text" className={`${fieldCls} mt-1`} placeholder="So we can follow up" />
+        <input
+          type="text"
+          name="contact"
+          maxLength={200}
+          className={`${fieldCls} mt-1`}
+          placeholder="So we can follow up"
+        />
       </label>
-      <button type="submit" className="pixel-btn pixel-btn--secondary self-start text-xs">
-        Send Bug Report
+      <button
+        type="submit"
+        disabled={sending || sent}
+        className="pixel-btn pixel-btn--secondary self-start text-xs disabled:opacity-50"
+      >
+        {sent ? "✅ Feedback sent" : sending ? "Sending…" : "💬 Leave Feedback"}
       </button>
       <p className="text-[11px] text-[var(--rf-ink-soft)]">
-        Bug reports are not connected yet. Future reports will be sent to {BUG_REPORT_EMAIL}.
+        Your note goes to the RecoverTree team at {SUPPORT_EMAIL}.
       </p>
       {note && (
-        <p role="status" className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-2 py-1 text-xs font-bold">
-          {note}
+        <p
+          role="status"
+          className="rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-2 py-1 text-xs font-bold"
+          style={note.ok ? undefined : { borderColor: "var(--rf-red)" }}
+        >
+          {note.text}
         </p>
       )}
     </form>

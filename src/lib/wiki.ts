@@ -8,8 +8,17 @@
  * come from harvesting trees, and harvested Fruits are the leaderboard score.
  */
 
-/** Future bug reports will be emailed here (not wired up yet). */
-export const BUG_REPORT_EMAIL = "dominictallariti@gmail.com";
+/** Feedback lands in the feedback_reports table and is emailed here. */
+export const SUPPORT_EMAIL = "support@recovertree.com";
+
+/** Selectable feedback types — the slug is stored; the label is the email
+ *  subject. Must match submit_feedback()'s allowed types. */
+export const FEEDBACK_TYPES = {
+  bug: "Bug Report",
+  feature: "Feature Request",
+  general: "General Feedback",
+} as const;
+export type FeedbackType = keyof typeof FEEDBACK_TYPES;
 
 export type WikiSection = {
   heading?: string;
@@ -143,7 +152,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
         heading: "Rare Cherry Blossom trees",
         body: [
           "Every now and then, a tree turns into a Cherry Blossom while it grows — you'll see it bloom pink. Cherry Blossoms are rare, so it's a treat when one appears.",
-          "A Cherry Blossom produces Cherries, and Cherries are still Fruits. They give x2 Cherries — double the usual harvest. Like every Fruit, they count only when you harvest the tree; nothing hands you Cherries as a reward.",
+          "A Cherry Blossom produces Cherries, and Cherries are still Fruits. Harvesting one pays 30 Cherries (triple the usual harvest) plus a bonus Seed and Fertilizer. Like every Fruit, the Cherries count only when you harvest the tree; nothing hands you Cherries as a reward.",
         ],
         sprites: [{ src: "/sprites/plants/tree_cherry.png", label: "cherry blossom", height: 52 }],
       },
@@ -285,7 +294,7 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
       {
         heading: "You're not alone out there",
         body: [
-          "Anywhere you travel, farmers who are there right now appear too — wandering between spots, stopping to look around. Tap one to walk over and say hello. A heart pops up over you both and you earn 💧 10 water for reaching out. Once per neighbor per day.",
+          "Anywhere you travel, farmers who are there right now appear too — wandering between spots, stopping to look around. Tap one to walk over and say hello. A heart pops up over you both and you earn 💧 20 water for reaching out. Once per neighbor per day.",
           "Farmers who go quiet for five minutes head home on their own.",
         ],
       },
@@ -503,12 +512,12 @@ export const WIKI_CHAPTERS: WikiChapter[] = [
   },
   {
     id: "report-bug",
-    title: "Report a Bug",
-    icon: "🐛",
+    title: "Leave Feedback",
+    icon: "💬",
     sections: [
       {
         body: [
-          "Found something weird? This will eventually send a bug report to the app admin.",
+          "Found something weird, wish a feature existed, or just want to say hi? Pick a feedback type and tell us — every note goes straight to the RecoverTree team.",
         ],
       },
     ],

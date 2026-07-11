@@ -162,6 +162,7 @@ export function FarmScene({
   onGroundClick,
   basketObject,
   gooseBoxObject,
+  mailboxObject,
 }: {
   trees?: TreeView[];
   fruitTotal?: number;
@@ -193,6 +194,8 @@ export function FarmScene({
   basketObject?: React.ReactNode;
   /** the Golden Goose submission box, when this farm has one */
   gooseBoxObject?: React.ReactNode;
+  /** the mailbox beside the house (KudoSeed inbox + send) */
+  mailboxObject?: React.ReactNode;
 }) {
   const treeList = (trees.length > 0 ? trees : [{ stage: 1 }]).slice(0, MAX_TREES);
   const treeCount = treeList.length;
@@ -270,6 +273,18 @@ export function FarmScene({
           </div>
         )}
       </div>
+
+      {/* Mailbox beside the house — KudoSeed inbox + send. Sits in the grass
+          band next to the home, clear of the (bottom-anchored) tree grid. */}
+      {mailboxObject && (
+        <div
+          className="absolute"
+          style={{ left: compact ? "30%" : "27%", top: "9%", zIndex: 7 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {mailboxObject}
+        </div>
+      )}
 
       {/* Event objects stand ON the top edge of the dirt, clear of the house.
           Their z-index is depth-sorted against the farmer (see objectZIndex),

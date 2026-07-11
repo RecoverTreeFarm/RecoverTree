@@ -91,7 +91,7 @@ const STEP_DEFS: Record<Step, StepDef> = {
     placement: "top",
     blocking: true,
     title: "Rare blooms",
-    body: "Every now and then, a tree may become a Cherry Blossom while it grows. Cherry Blossoms are rare, and when they produce cherries, they give x2 Cherries.",
+    body: "Every now and then, a tree may become a Cherry Blossom while it grows. Cherry Blossoms are rare — harvesting one gives 30 Cherries plus a bonus Seed and Fertilizer.",
     cta: "Continue",
   },
   fertilize: {

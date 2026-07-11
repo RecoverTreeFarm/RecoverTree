@@ -12,12 +12,19 @@ export const metadata: Metadata = {
 /**
  * viewportFit "cover" lets the game frame extend under iPhone notches / the
  * home indicator, with env(safe-area-inset-*) padding on the header and
- * bottom menu keeping controls tappable. Deliberately NO maximum-scale /
- * user-scalable — accessibility zoom always stays available.
+ * bottom menu keeping controls tappable.
+ *
+ * Zoom lock (owner request — players kept accidentally pinch/double-tap
+ * zooming): maximumScale 1 + userScalable false, plus touch-action:
+ * manipulation in globals.css (kills double-tap zoom). iOS deliberately
+ * ignores these flags for its accessibility pinch-zoom, so screen-zoom
+ * users aren't locked out.
  */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

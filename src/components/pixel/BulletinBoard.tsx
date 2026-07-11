@@ -37,7 +37,8 @@ export async function BulletinBoard() {
           boxShadow: "inset 0 0 0 3px rgba(58,42,26,0.18), 4px 4px 0 rgba(58,42,26,0.25)",
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        {/* One column always — notices stack, never sit side by side. */}
+        <div className="grid gap-3">
           {posts.map((post, i) => {
             const style = CATEGORY_STYLE[post.category] ?? CATEGORY_STYLE.update;
             const tilt = i % 3 === 0 ? "-0.5deg" : i % 3 === 1 ? "0.6deg" : "-0.2deg";

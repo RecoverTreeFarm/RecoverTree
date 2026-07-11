@@ -7,7 +7,7 @@ import { BasketPanel, type BasketState } from "@/components/pixel/BasketPanel";
 import { CodeForm } from "@/components/meeting/CodeForm";
 import type { TreeView } from "@/components/pixel/FarmScene";
 import { ProfilePanel, type ProfileInfo } from "./ProfilePanel";
-import { ChecklistPanel, LeaderboardPanel, InventoryPanel } from "./panels";
+import { ChecklistPanel, LeaderboardPanel, InventoryPanel, MailPanel } from "./panels";
 import type { ChecklistItem, LeaderboardRow } from "./panels";
 import { NotificationCenter, type FarmNotification } from "./NotificationCenter";
 import { WikiHelp, WikiRoot } from "./WikiPanel";
@@ -31,6 +31,7 @@ type PanelId =
   | "inventory"
   | "code"
   | "seed"
+  | "mail"
   | "map"
   | "basket"
   | "goose"
@@ -207,6 +208,7 @@ export function GameShell(props: GameShellProps) {
     inventory: "Your items",
     code: "Enter meeting code",
     seed: "Today’s KudoSeed",
+    mail: "📬 Mailbox",
     map: "🗺️ World map",
     basket: "Traveling Basket",
     goose: "Golden Goose",
@@ -319,6 +321,8 @@ export function GameShell(props: GameShellProps) {
             submissionBoxRole={submissionBox}
             tutorialActive={tutorial.active}
             tutorialTreeId={tutorial.tutorialTreeId}
+            hasMail={props.kudoseeds.length > 0}
+            onOpenMail={() => setOpen("mail")}
             notificationSlot={
               <>
                 <NotificationCenter notifications={buildNotifications(props, seedNotifId)} />
@@ -404,6 +408,13 @@ export function GameShell(props: GameShellProps) {
               members={props.members}
               sentToday={props.sentToday}
               sentToName={props.sentToName}
+            />
+          )}
+          {open === "mail" && (
+            <MailPanel
+              kudoseeds={props.kudoseeds}
+              sentToday={props.sentToday}
+              onSend={() => setOpen("seed")}
             />
           )}
           {open === "basket" &&

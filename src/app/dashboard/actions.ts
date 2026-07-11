@@ -400,8 +400,8 @@ export async function pingLocationPresence(location: "garden" | "store") {
   return { ok: true as const, others: row.others ?? [] };
 }
 
-/** Pat the shop yorkie — the same +10 water once-a-day bonus as greeting a
- *  neighbor (server-enforced; separate from neighbor greetings). */
+/** Pat the shop yorkie — a once-a-day bonus of 20 water + 1 fertilizer
+ *  (server-enforced; separate from neighbor greetings). */
 export async function greetStorePet() {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("greet_store_pet");
@@ -414,8 +414,12 @@ export async function greetStorePet() {
       return { ok: false as const, message: "Your account can’t do that right now." };
     return { ok: false as const, message: "The pup scampered off — try again." };
   }
-  const row = data as { water_earned: number };
-  return { ok: true as const, water_earned: row.water_earned };
+  const row = data as { water_earned: number; fertilizer_earned: number };
+  return {
+    ok: true as const,
+    water_earned: row.water_earned,
+    fertilizer_earned: row.fertilizer_earned ?? 0,
+  };
 }
 
 /** Say hi to a neighbor — hearts + a little water for reaching out

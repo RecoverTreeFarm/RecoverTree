@@ -16,6 +16,7 @@ import {
   type SlotAction,
 } from "./FarmScene";
 import { FarmBasket, GoldenSubmissionBox } from "./FarmObjects";
+import { Mailbox } from "@/components/game/Mailbox";
 import { HarvestCinematic } from "./HarvestCinematic";
 // `useFertilizer` is a server action, not a hook — aliased so the hooks
 // linter doesn't mistake calls in loops for hook calls.
@@ -66,6 +67,8 @@ export function FarmPanel({
   submissionBoxRole = null,
   tutorialActive = false,
   tutorialTreeId = null,
+  hasMail = false,
+  onOpenMail,
 }: {
   trees: TreeView[];
   water: number;
@@ -96,6 +99,10 @@ export function FarmPanel({
   tutorialActive?: boolean;
   /** the specific tree the tutorial's Water/Fertilizer taps should target */
   tutorialTreeId?: string | null;
+  /** the mailbox has unread KudoSeeds (envelope + raised flag) */
+  hasMail?: boolean;
+  /** open the Mailbox window (received KudoSeeds + send one) */
+  onOpenMail?: () => void;
 }) {
   const router = useRouter();
   const [farmerAnim, setFarmerAnim] = useState<FarmerAnim>("idle");
@@ -140,10 +147,14 @@ export function FarmPanel({
     setOverride(null);
   }, [trees]);
 
-  /** The cherry tree's moment: a sparkle ring + its own chime. */
+  /** the lucky-day popup shown the moment a tree turns into a cherry tree */
+  const [cherryAlert, setCherryAlert] = useState(false);
+
+  /** The cherry tree's moment: a sparkle ring + its own chime + the popup. */
   function celebrateCherry(index: number) {
     playSfx("cherry");
     setCherryPop(index);
+    setCherryAlert(true);
     setTimeout(() => setCherryPop(null), 800);
   }
 
@@ -158,6 +169,8 @@ export function FarmPanel({
       const idx = trees.findIndex((t) => t.isBlossom);
       playSfx("cherry");
       setCherryPop(idx >= 0 ? idx : null);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCherryAlert(true);
       const t = setTimeout(() => setCherryPop(null), 800);
       return () => clearTimeout(t);
     }
@@ -576,7 +589,7 @@ export function FarmPanel({
       } else {
         setMessage(
           result.was_blossom
-            ? `🌸 Harvested the cherry blossom for ${result.fruits_earned} Fruits — double! 🎉`
+            ? `🌸 Harvested the cherry blossom: ${result.fruits_earned} Fruits + 1 Seed + 1 Fertilizer! 🎉`
             : `Harvested for ${result.fruits_earned} Fruits! 🎉`,
         );
       }
@@ -637,7 +650,7 @@ export function FarmPanel({
         if (result.became_blossom) celebrateCherry(index);
         setMessage(
           result.became_blossom
-            ? `🌸 A cherry blossom! It pays double when you harvest it. 💧 ${result.water_left} water left.`
+            ? `🌸 A cherry blossom! It pays 30 Fruits + 1 Seed + 1 Fertilizer when you harvest it. 💧 ${result.water_left} water left.`
             : result.new_stage === 4
               ? `Fully watered — fruit in 4 hours. 💧 ${result.water_left} water left.`
               : `Watered! 💧 ${result.water_left} water left.`,
@@ -889,6 +902,11 @@ export function FarmPanel({
               />
             ) : null
           }
+          mailboxObject={
+            onOpenMail && !cinematic ? (
+              <Mailbox hasMail={hasMail} onClick={onOpenMail} />
+            ) : null
+          }
           // The action closures only read animation refs when clicked, never
           // during render — safe despite the conservative lint trace.
           // eslint-disable-next-line react-hooks/refs
@@ -916,6 +934,44 @@ export function FarmPanel({
           >
             ⏭ Skip
           </button>
+        )}
+
+        {/* Lucky-day popup — a tree just turned into a cherry blossom. */}
+        {cherryAlert && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="A rare cherry blossom tree appeared"
+            className="absolute inset-0 z-40 flex items-center justify-center p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setCherryAlert(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <div
+              className="relative w-full max-w-xs rounded-lg border-[3px] border-[var(--rf-ink)] bg-[var(--rf-cream)] p-4 text-center"
+              style={{ boxShadow: "4px 4px 0 rgba(58,42,26,0.35)" }}
+            >
+              <span aria-hidden className="text-3xl leading-none">🌸</span>
+              <h3 className="pixel-heading mt-1 text-base text-[var(--rf-ink)]">
+                A Rare Cherry Blossom Tree!
+              </h3>
+              <p className="mt-2 text-xs leading-5 text-[var(--rf-ink-soft)]">
+                This tree has a rare chance of growing and gives you 30 fruit,
+                1 seed and 1 fertilizer. It’s your lucky day!
+              </p>
+              <button
+                type="button"
+                onClick={() => setCherryAlert(false)}
+                className="pixel-btn mt-3 text-xs"
+              >
+                🌸 Lucky me!
+              </button>
+            </div>
+          </div>
         )}
 
         {/* The Golden Goose hangs out on the Keeper's farm with a bouncing "!"

@@ -11,7 +11,7 @@ import { playSfx } from "@/lib/sfx";
 /* ---------------------------------------------------------------------------
  * Shared "other players are here" plumbing. This is the standard for EVERY
  * location: a 60s presence heartbeat, privacy-filtered neighbors idling in
- * fixed spots, a 5-minute inactivity walk-off, and tap-to-greet (+10 water,
+ * fixed spots, a 5-minute inactivity walk-off, and tap-to-greet (+20 water,
  * once per neighbor per day, server-enforced).
  * ------------------------------------------------------------------------- */
 

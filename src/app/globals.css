@@ -47,6 +47,9 @@ body {
   color: var(--foreground);
   font-family: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
   letter-spacing: 0.02em;
+  /* zoom lock: disables double-tap-to-zoom (the usual accidental zoom) while
+     keeping taps/pans fast; pairs with maximumScale in layout.tsx viewport */
+  touch-action: manipulation;
 }
 
 /* ---------------------------------------------------------------------------

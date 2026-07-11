@@ -50,11 +50,21 @@ export default async function ProfilePage({
 
   const isOwn = user?.id === profile.user_id;
 
+  // The real farm snapshot — works for VISITORS too. get_public_farm is a
+  // SECURITY DEFINER function that only answers for public, non-banned
+  // farmers (privacy rules identical to the rest of the app).
+  const { data: snapshotData } = await supabase.rpc("get_public_farm", {
+    p_user: profile.user_id,
+  });
+  const snapshot = (snapshotData ?? null) as {
+    fruit_total: number;
+    trees: { stage: number; is_blossom: boolean }[];
+  } | null;
+  const treeCount = snapshot?.trees.length ?? 0;
+
   // Extra detail is only shown to the profile's owner (their farm stats are
   // RLS-protected anyway — this just avoids pointless queries for visitors).
   let farm: { fruit_total: number; fertilizer_count: number } | null = null;
-  let treeCount = 0;
-  let treeStages: number[] = [];
   if (isOwn) {
     const { data: season } = await supabase
       .from("seasons")
@@ -69,16 +79,6 @@ export default async function ProfilePage({
         .eq("season_id", season.id)
         .maybeSingle();
       farm = farmRow;
-      if (farmRow) {
-        const { data: treeRows } = await supabase
-          .from("trees")
-          .select("growth_stage")
-          .eq("farm_id", farmRow.id)
-          .neq("status", "vanished")
-          .order("created_at");
-        treeStages = (treeRows ?? []).map((t) => t.growth_stage as number);
-        treeCount = treeStages.length;
-      }
     }
   }
 
@@ -232,13 +232,23 @@ export default async function ProfilePage({
         </Panel>
 
         <div>
+          {/* The farmer's REAL farm: their trees, avatar, house, and fruit
+              crates — not a stock vignette. Falls back to a small default
+              scene only if the snapshot isn't available. */}
           <FarmScene
             trees={
-              isOwn && treeStages.length > 0
-                ? treeStages.map((stage) => ({ stage }))
+              snapshot && snapshot.trees.length > 0
+                ? snapshot.trees.map((t) => ({
+                    stage: t.stage,
+                    isBlossom: t.is_blossom,
+                  }))
                 : [{ stage: 1 }, { stage: 3 }, { stage: 5 }]
             }
+            farmerSrc={avatarSprite(profile.avatar_config)}
+            house={{ src: house.src, w: house.w, h: house.h }}
+            fruitTotal={snapshot?.fruit_total ?? 0}
           />
+
           <Panel className="mt-4">
             <h2 className="pixel-heading mb-2 text-lg">Awards</h2>
             {medals.length === 0 && badges.length === 0 ? (

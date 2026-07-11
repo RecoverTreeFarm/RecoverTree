@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SPRITES } from "@/lib/sprites";
+import { SPRITES, HOUSE_SPRITES, houseKey } from "@/lib/sprites";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SoundToggle } from "@/components/pixel/SoundToggle";
@@ -7,8 +7,7 @@ import { MusicToggle } from "@/components/pixel/MusicToggle";
 
 const memberLinks: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Farm" },
-  { href: "/meeting-code", label: "Code" },
-  { href: "/leaderboard", label: "Leaders" },
+  { href: "/news", label: "News" },
 ];
 
 const navBtn =
@@ -27,14 +26,18 @@ export async function SiteNav() {
   // Role-aware links: Host for meeting_host/admin, Admin for admin only.
   let role: string | null = null;
   let musicEnabled = true;
+  let houseSrc: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, music_enabled")
+      .select("role, music_enabled, avatar_config")
       .eq("user_id", user.id)
       .maybeSingle();
     role = profile?.role ?? null;
     musicEnabled = (profile?.music_enabled as boolean | undefined) ?? true;
+    houseSrc =
+      HOUSE_SPRITES[houseKey(profile?.avatar_config)]?.src ??
+      HOUSE_SPRITES.house_1.src;
   }
   const links = [
     ...memberLinks,
@@ -55,17 +58,21 @@ export async function SiteNav() {
       }}
     >
       <nav className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-3 py-2">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          {/* the pink cherry blossom tree is the app's emblem */}
+        <Link
+          href={user ? "/dashboard" : "/"}
+          className="flex shrink-0 items-center gap-2"
+        >
+          {/* Logged-in: the player's chosen house doubles as a "Return to
+              Farm" button. Logged-out visitors still see the cherry-blossom
+              emblem + wordmark. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={SPRITES.treeBlossom}
+            src={user && houseSrc ? houseSrc : SPRITES.treeBlossom}
             alt=""
             className="pixelated h-11 w-auto"
           />
-          {/* wordmark hides on narrow phones so wrapped nav buttons don't overlap it */}
-          <span className="pixel-heading hidden text-lg text-[var(--rf-ink)] sm:inline">
-            RecoverTree
+          <span className="pixel-heading text-sm text-[var(--rf-ink)] sm:text-lg">
+            {user ? "Return to Farm" : "RecoverTree"}
           </span>
         </Link>
 
