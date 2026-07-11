@@ -403,14 +403,10 @@ const SHELF_GRID: ShelfEntry[] = [
   { kind: "item", key: "seed" },
   { kind: "item", key: "goose_entry" },
   { kind: "lottery" },
-  { kind: "empty" },
-  { kind: "empty" },
-  { kind: "empty" },
-  { kind: "empty" },
 ];
 
 function shelfCellCls(disabled: boolean) {
-  return `relative flex h-20 flex-col items-center justify-end rounded border-2 border-[var(--rf-ink)] pb-1 ${
+  return `relative flex h-[68px] flex-col items-center justify-end rounded border-2 border-[var(--rf-ink)] pb-1 ${
     disabled ? "bg-[var(--rf-cream)] opacity-60" : "bg-[var(--rf-cream)] hover:bg-[var(--rf-gold)]/30"
   }`;
 }
@@ -501,7 +497,7 @@ function StoreMenu({
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true" aria-label="General Store menu">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/50" />
-      <div className="ui-frame absolute left-1/2 top-1/2 max-h-[86vh] w-[min(94vw,calc(var(--game-w)-1rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-[var(--rf-cream)] p-4">
+      <div className="ui-frame absolute left-1/2 top-1/2 max-h-[92vh] w-[min(94vw,calc(var(--game-w)-1rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto bg-[var(--rf-cream)] p-3">
         <div className="flex items-center justify-between">
           <h2 className="pixel-heading text-base">Pick something for the farm 🏪</h2>
           <button
@@ -517,8 +513,8 @@ function StoreMenu({
           You have <PixelIcon name="coin" size={13} /> {state.coins}.
         </p>
 
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-          {/* main 3x3 shelf */}
+        <div className="mt-2 flex flex-row gap-2">
+          {/* item shelf */}
           <div className="grid flex-1 grid-cols-3 gap-1.5">
             {SHELF_GRID.map((cell, i) => {
               if (cell.kind === "empty") {
@@ -591,16 +587,16 @@ function StoreMenu({
           </div>
 
           {/* SALE shelf */}
-          <div className="sm:w-32">
-            <p className="mb-1 text-center text-[10px] font-extrabold uppercase tracking-widest">
-              🏷️ Today’s Sale
+          <div className="w-[92px] shrink-0">
+            <p className="mb-1 text-center text-[9px] font-extrabold uppercase tracking-widest">
+              🏷️ Sale
             </p>
             {state.sale ? (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => pick(state.sale!.item_key, true)}
-                className="relative flex h-28 w-full flex-col items-center justify-end rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-gold)]/35 pb-2 hover:bg-[var(--rf-gold)]/60"
+                className="relative flex h-[calc(2*68px+0.375rem)] w-full flex-col items-center justify-center gap-1 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-gold)]/35 pb-2 hover:bg-[var(--rf-gold)]/60"
               >
                 <span className="absolute -top-2 right-1 rotate-6 rounded border border-[var(--rf-ink)] bg-[var(--rf-red)] px-1 text-[9px] font-extrabold text-[var(--rf-cream)]">
                   −{state.sale.discount_percent}%
@@ -624,9 +620,9 @@ function StoreMenu({
                 </span>
               </button>
             ) : (
-              <div className="flex h-28 w-full flex-col items-center justify-center rounded border-2 border-dashed border-[var(--rf-ink)]/40 text-center">
+              <div className="flex h-[calc(2*68px+0.375rem)] w-full flex-col items-center justify-center rounded border-2 border-dashed border-[var(--rf-ink)]/40 text-center">
                 <span className="px-2 text-[10px] text-[var(--rf-ink-soft)]">
-                  The sale shelf is being restocked.
+                  Restocking soon.
                 </span>
               </div>
             )}
@@ -635,7 +631,7 @@ function StoreMenu({
 
         {/* confirm panel */}
         {selected && (
-          <div className="mt-3 rounded border-2 border-[var(--rf-ink)] bg-white/60 p-3">
+          <div className="mt-2 rounded border-2 border-[var(--rf-ink)] bg-white/60 p-2">
             <p className="flex items-center gap-1 text-xs font-bold">
               <PixelIcon name={STORE_ITEMS[selected.key].sprite} size={16} />
               {selected.key === "water" ? `${state.water_amount} Water` : STORE_ITEMS[selected.key].name}
@@ -722,7 +718,7 @@ function StoreMenu({
         {msg && (
           <p
             role={msg.ok ? "status" : "alert"}
-            className={`mt-3 rounded border-2 border-[var(--rf-ink)] px-3 py-2 text-xs font-bold ${
+            className={`mt-2 rounded border-2 border-[var(--rf-ink)] px-3 py-1.5 text-xs font-bold ${
               msg.ok ? "bg-[var(--rf-grass)]" : "bg-[var(--rf-red)] text-[var(--rf-cream)]"
             }`}
           >

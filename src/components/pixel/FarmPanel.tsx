@@ -1051,10 +1051,16 @@ export function FarmPanel({
           style={{ bottom: "6.5rem", background: "transparent", border: "none", padding: 0 }}
         >
           <span
-            className="max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-4 py-1.5 text-center text-xs font-extrabold"
+            className="relative max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] py-1.5 pl-4 pr-7 text-center text-xs font-extrabold"
             style={{ boxShadow: "0 2px 0 var(--rf-ink)" }}
           >
             {message}
+            <span
+              aria-hidden
+              className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] text-[10px] font-black leading-none"
+            >
+              ✕
+            </span>
           </span>
         </button>
       )}

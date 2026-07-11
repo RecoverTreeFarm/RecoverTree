@@ -57,6 +57,8 @@ export function RewardBannerHost() {
 
   if (banners.length === 0) return null;
 
+  const dismiss = (id: number) => setBanners((b) => b.filter((x) => x.id !== id));
+
   return (
     <div
       className="rf-fixed-game-w pointer-events-none fixed z-[85] flex flex-col items-center gap-1.5"
@@ -64,14 +66,22 @@ export function RewardBannerHost() {
       aria-live="polite"
     >
       {banners.map((b) => (
-        <p
+        <div
           key={b.id}
           role="status"
-          className="rf-reward-banner w-fit max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-4 py-1.5 text-center text-xs font-extrabold uppercase tracking-wide"
+          className="rf-reward-banner pointer-events-auto relative w-fit max-w-[calc(100%-2rem)] rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] py-1.5 pl-4 pr-7 text-center text-xs font-extrabold uppercase tracking-wide"
           style={{ boxShadow: "0 2px 0 var(--rf-ink)" }}
         >
           {b.text}
-        </p>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => dismiss(b.id)}
+            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] text-[10px] font-black leading-none hover:bg-[var(--rf-gold)]"
+          >
+            ✕
+          </button>
+        </div>
       ))}
     </div>
   );
