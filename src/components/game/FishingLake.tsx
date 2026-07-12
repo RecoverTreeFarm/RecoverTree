@@ -403,19 +403,12 @@ function FishMinigame({
         </p>
 
         <div className="flex items-stretch gap-3" style={{ height: 260 }}>
-          {/* the vertical track + green bar + fish */}
+          {/* the vertical track + green bar + fish — DISPLAY ONLY (not
+              interactive, so touch never tries to select/highlight it). */}
           <div
-            role="button"
-            tabIndex={0}
-            aria-label="Hold to raise the bar"
-            onPointerDown={(e) => { e.preventDefault(); hold(); }}
-            onPointerUp={letGo}
-            onPointerLeave={letGo}
-            onPointerCancel={letGo}
-            onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") hold(); }}
-            onKeyUp={letGo}
-            className="relative w-16 cursor-pointer select-none rounded border-2 border-[var(--rf-ink)]"
-            style={{ background: "linear-gradient(var(--rf-sky), var(--rf-sky-2))", touchAction: "none" }}
+            aria-hidden
+            className="pointer-events-none relative w-16 select-none rounded border-2 border-[var(--rf-ink)]"
+            style={{ background: "linear-gradient(var(--rf-sky), var(--rf-sky-2))" }}
           >
             {/* green catch bar */}
             <div
@@ -440,7 +433,7 @@ function FishMinigame({
           </div>
 
           {/* catch meter — height driven directly by the loop (no transition) */}
-          <div className="relative w-4 overflow-hidden rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)]">
+          <div className="pointer-events-none relative w-4 select-none overflow-hidden rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)]">
             <div
               ref={meterEl}
               className="absolute inset-x-0 bottom-0"
@@ -449,8 +442,32 @@ function FishMinigame({
           </div>
         </div>
 
+        {/* the ONLY control: a big HOLD button below the game. Press-and-hold
+            (mouse or touch) raises the bar; release drops it. Kept off the
+            track itself so a long-press never triggers text selection / the
+            iOS callout. */}
+        <button
+          type="button"
+          aria-label="Hold to raise the bar"
+          onPointerDown={(e) => { e.preventDefault(); hold(); }}
+          onPointerUp={letGo}
+          onPointerLeave={letGo}
+          onPointerCancel={letGo}
+          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") hold(); }}
+          onKeyUp={letGo}
+          onContextMenu={(e) => e.preventDefault()}
+          className="pixel-btn mt-1 w-full justify-center py-3 text-sm"
+          style={{
+            touchAction: "none",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
+          }}
+        >
+          ⬆ HOLD TO RAISE
+        </button>
         <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-          Hold to rise · release to fall
+          Hold the button to rise · release to fall
         </p>
       </div>
     </div>
