@@ -227,62 +227,44 @@ export function FishingScene({
         {/* the player */}
         <PlayerFarmer src={avatarSrc} pos={pos} walking={walking} walkMs={walkMs} heart={false} size={46} />
 
-        {/* the bite "!" appears over the player while a fish is on the line */}
-        {(phase === "bite") && (
-          <button
-            type="button"
-            aria-label="Strike!"
-            onClick={(e) => {
-              e.stopPropagation();
-              strike();
-            }}
-            className="absolute -translate-x-1/2 rf-throb text-2xl font-black"
+        {/* the bite "!" pops up HIGH over the water — out where the line is,
+            not over the player's head. Visual only; reel with the button. */}
+        {phase === "bite" && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 -translate-x-1/2 rf-throb text-4xl font-black"
             style={{
-              left: `${pos.left}%`,
-              bottom: `calc(${pos.bottom}% + 44px)`,
+              bottom: "74%",
               color: "var(--rf-red)",
-              WebkitTextStroke: "1.5px var(--rf-ink)",
+              WebkitTextStroke: "2px var(--rf-ink)",
               zIndex: 40,
             }}
           >
             !
-          </button>
-        )}
-
-        {/* cast prompt — only when standing out on the dock */}
-        {phase === "idle" && atDock && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={(e) => {
-              e.stopPropagation();
-              cast();
-            }}
-            className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 text-xs disabled:opacity-50"
-            style={{ zIndex: 24 }}
-          >
-            🎣 Cast Line
-          </button>
-        )}
-        {phase === "waiting" && (
-          <span
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded border-2 border-[var(--rf-ink)] bg-[var(--rf-cream)] px-3 py-1 text-xs font-bold"
-            style={{ zIndex: 24 }}
-          >
-            Waiting for a bite…
           </span>
         )}
-        {phase === "bite" && (
+
+        {/* ONE bottom button that transforms in place, so it's always obvious
+            where to tap: Cast Line (gold) → Waiting… → Reel In! (red). */}
+        {(phase === "waiting" || phase === "bite" || (phase === "idle" && atDock)) && (
           <button
             type="button"
+            disabled={busy || phase === "waiting"}
             onClick={(e) => {
               e.stopPropagation();
-              strike();
+              if (phase === "idle") cast();
+              else if (phase === "bite") strike();
             }}
-            className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 animate-pulse text-xs"
-            style={{ zIndex: 24 }}
+            className={`pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 text-xs disabled:opacity-60 ${
+              phase === "bite" ? "animate-pulse" : ""
+            }`}
+            style={
+              phase === "bite"
+                ? { zIndex: 24, background: "var(--rf-red)", color: "var(--rf-cream)", borderColor: "var(--rf-ink)" }
+                : { zIndex: 24 }
+            }
           >
-            Tap to reel! ❗
+            {phase === "idle" ? "🎣 Cast Line" : phase === "waiting" ? "Waiting for a bite…" : "🎣 Reel In!"}
           </button>
         )}
         {phase === "idle" && !atDock && (
