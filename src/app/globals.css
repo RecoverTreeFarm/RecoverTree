@@ -217,6 +217,26 @@ body {
 }
 .rf-idle { animation: rf-bob 1.6s ease-in-out infinite; }
 
+/* Ambient fish drifting under the lake surface. Two lanes so shoals don't
+   move in lockstep; each fish flips to face its direction of travel and bobs
+   slightly. The parent clips to the water area so they never surface. */
+@keyframes rf-swim-a {
+  0%   { transform: translate(0, 0) scaleX(1); }
+  48%  { transform: translate(46px, 6px) scaleX(1); }
+  50%  { transform: translate(46px, 6px) scaleX(-1); }
+  98%  { transform: translate(0, 0) scaleX(-1); }
+  100% { transform: translate(0, 0) scaleX(1); }
+}
+@keyframes rf-swim-b {
+  0%   { transform: translate(0, 0) scaleX(-1); }
+  48%  { transform: translate(-40px, -7px) scaleX(-1); }
+  50%  { transform: translate(-40px, -7px) scaleX(1); }
+  98%  { transform: translate(0, 0) scaleX(1); }
+  100% { transform: translate(0, 0) scaleX(-1); }
+}
+.rf-swim-a { animation: rf-swim-a 13s ease-in-out infinite; }
+.rf-swim-b { animation: rf-swim-b 16s ease-in-out infinite; }
+
 /* Walking: same bob, but faster so it reads as movement */
 .rf-walk { animation: rf-bob 0.32s ease-in-out infinite; }
 

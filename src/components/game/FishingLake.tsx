@@ -181,6 +181,12 @@ export function FishingScene({
           🎣 Fishing Lake
         </div>
 
+        {/* ambient shoal — catchable species drifting UNDER the surface. The
+            container is clipped to the water rectangle (matched to the lake
+            art) so fish never swim onto the shore/dock. Heavy blue tint +
+            low opacity reads as "underwater". */}
+        <SwimmingFish />
+
         {/* dock hotspot: a bobbing "!" over the dock end. Tap it (or walk onto
             the dock) to head out to the casting spot. */}
         {phase === "idle" && !atDock && (
@@ -329,7 +335,14 @@ function FishMinigame({
   const diff = Math.max(0.4, difficultyPercent / 100);
 
   // track is 0 (bottom) .. 100 (top). bar spans BAR_H; fish is a point.
-  const BAR_H = Math.max(14, 26 - (fish.rarity === "legendary" ? 8 : fish.rarity === "rare" ? 4 : 0));
+  // BASE_WINDOW is intentionally small — future fishing poles will INCREASE
+  // this (a per-pole multiplier grows the catch window as you upgrade). Harder
+  // fish shave a little off. Floor keeps even the hardest catch playable.
+  const BASE_WINDOW = 16;
+  const BAR_H = Math.max(
+    9,
+    BASE_WINDOW - (fish.rarity === "legendary" ? 6 : fish.rarity === "rare" ? 3 : 0),
+  );
 
   // DOM refs — the loop writes styles DIRECTLY every frame (no React re-render
   // per frame, no CSS transitions), so the bar/fish/meter animate smoothly at
@@ -470,6 +483,53 @@ function FishMinigame({
           Hold the button to rise · release to fall
         </p>
       </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * Ambient shoal — catchable species drift under the lake surface. Positioned
+ * inside a container clipped to the water rectangle (matched to lake_scene.png:
+ * left 10%, top 12.5%, 80% x 45% of the scene), so they never swim onto the
+ * shore or dock. A heavy blue wash (sepia + hue-rotate toward blue, dimmed and
+ * semi-transparent) makes them read as submerged.
+ * ------------------------------------------------------------------------- */
+const SHOAL: { sp: string; left: number; top: number; lane: "a" | "b"; delay: number; size: number }[] = [
+  { sp: "bluegill", left: 16, top: 30, lane: "a", delay: 0, size: 22 },
+  { sp: "sunset_perch", left: 30, top: 60, lane: "b", delay: 2.2, size: 20 },
+  { sp: "mossy_carp", left: 22, top: 13, lane: "a", delay: 5, size: 20 },
+  { sp: "crystal_trout", left: 70, top: 24, lane: "b", delay: 1, size: 22 },
+  { sp: "reed_catfish", left: 85, top: 54, lane: "a", delay: 3.5, size: 20 },
+  { sp: "pond_smelt", left: 66, top: 72, lane: "b", delay: 6, size: 18 },
+];
+
+function SwimmingFish() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute overflow-hidden"
+      style={{ left: "10%", top: "12.5%", width: "80%", height: "45%", borderRadius: "44px", zIndex: 4 }}
+    >
+      {SHOAL.map((f, i) => (
+        <span
+          key={i}
+          className={`absolute ${f.lane === "a" ? "rf-swim-a" : "rf-swim-b"}`}
+          style={{ left: `${f.left}%`, top: `${f.top}%`, animationDelay: `${f.delay}s` }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={FISH[f.sp]?.sprite}
+            alt=""
+            className="pixelated"
+            style={{
+              width: f.size,
+              height: f.size,
+              opacity: 0.6,
+              filter: "brightness(0.7) saturate(0.6) sepia(0.45) hue-rotate(165deg)",
+            }}
+          />
+        </span>
+      ))}
     </div>
   );
 }
