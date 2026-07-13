@@ -288,24 +288,25 @@ export function FishingScene({
             {notificationSlot}
           </div>
         )}
+
+        {/* Minigame + result render INSIDE the scene so their primary button
+            sits at the exact same bottom-3 spot as Cast Line / Reel In!. */}
+        {phase === "playing" && hooked && (
+          <FishMinigame
+            fish={hooked}
+            difficultyPercent={fishDifficultyPercent}
+            onDone={onMinigameDone}
+          />
+        )}
+        {phase === "result" && result && (
+          <ResultCard result={result} onClose={() => setPhase("idle")} />
+        )}
       </div>
 
       <p className="mt-2 text-xs font-bold">The old fishing lake. 🎣</p>
       <p className="text-[11px] text-[var(--rf-ink-soft)]">
         Tap the water to walk the shore. Step onto the dock to cast, reel when you feel a bite, and keep the fish in the green bar. Tap the hut to sell your catch for Coins.
       </p>
-
-      {phase === "playing" && hooked && (
-        <FishMinigame
-          fish={hooked}
-          difficultyPercent={fishDifficultyPercent}
-          onDone={onMinigameDone}
-        />
-      )}
-
-      {phase === "result" && result && (
-        <ResultCard result={result} onClose={() => setPhase("idle")} />
-      )}
 
       {hutOpen && (
         <HutSell
@@ -407,15 +408,25 @@ function FishMinigame({
   const letGo = () => (holding.current = false);
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Fishing minigame">
-      <div className="absolute inset-0 bg-black/50" />
-      <div className="ui-frame relative flex w-[min(92vw,320px)] flex-col items-center gap-2 bg-[var(--rf-cream)] p-4">
+    // Scoped to the lake scene (absolute inset-0) so the HOLD button can share
+    // the exact bottom-3 spot as Cast Line / Reel In!.
+    <div
+      className="absolute inset-0 z-[50]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Fishing minigame"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="absolute inset-0 bg-black/45" />
+
+      {/* game panel — the track + meter, floating in the upper area */}
+      <div className="ui-frame absolute left-1/2 top-[4%] flex -translate-x-1/2 flex-col items-center gap-1.5 bg-[var(--rf-cream)] px-4 py-3">
         <p className="pixel-heading text-sm">Reel it in! 🎣</p>
         <p className="text-[11px] font-bold" style={{ color: RARITY_COLOR[fish.rarity as FishRarity] }}>
           {RARITY_LABEL[fish.rarity as FishRarity]} · {fish.name}
         </p>
 
-        <div className="flex items-stretch gap-3" style={{ height: 260 }}>
+        <div className="flex items-stretch gap-3" style={{ height: 210 }}>
           {/* the vertical track + green bar + fish — DISPLAY ONLY (not
               interactive, so touch never tries to select/highlight it). */}
           <div
@@ -454,35 +465,35 @@ function FishMinigame({
             />
           </div>
         </div>
-
-        {/* the ONLY control: a big HOLD button below the game. Press-and-hold
-            (mouse or touch) raises the bar; release drops it. Kept off the
-            track itself so a long-press never triggers text selection / the
-            iOS callout. */}
-        <button
-          type="button"
-          aria-label="Hold to raise the bar"
-          onPointerDown={(e) => { e.preventDefault(); hold(); }}
-          onPointerUp={letGo}
-          onPointerLeave={letGo}
-          onPointerCancel={letGo}
-          onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") hold(); }}
-          onKeyUp={letGo}
-          onContextMenu={(e) => e.preventDefault()}
-          className="pixel-btn mt-1 w-full justify-center py-3 text-sm"
-          style={{
-            touchAction: "none",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            WebkitTouchCallout: "none",
-          }}
-        >
-          ⬆ HOLD TO RAISE
-        </button>
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--rf-ink-soft)]">
-          Hold the button to rise · release to fall
-        </p>
       </div>
+
+      {/* hint just above the button */}
+      <span className="pointer-events-none absolute bottom-12 left-1/2 -translate-x-1/2 rounded bg-black/45 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--rf-cream)]">
+        Hold to rise · release to fall
+      </span>
+
+      {/* the control — SAME bottom-3 spot & style as Cast Line / Reel In! */}
+      <button
+        type="button"
+        aria-label="Hold to raise the bar"
+        onPointerDown={(e) => { e.preventDefault(); hold(); }}
+        onPointerUp={letGo}
+        onPointerLeave={letGo}
+        onPointerCancel={letGo}
+        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") hold(); }}
+        onKeyUp={letGo}
+        onContextMenu={(e) => e.preventDefault()}
+        className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 text-xs"
+        style={{
+          zIndex: 24,
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+        }}
+      >
+        ⬆ HOLD TO RAISE
+      </button>
     </div>
   );
 }
@@ -543,9 +554,12 @@ function ResultCard({
 }) {
   const { won, fish } = result;
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center" role="dialog" aria-modal="true">
-      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/45" />
-      <div className="ui-frame relative w-[min(90vw,300px)] bg-[var(--rf-cream)] p-4 text-center">
+    // Scoped to the lake scene so the button shares the bottom-3 spot.
+    <div className="absolute inset-0 z-[50]" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <div className="absolute inset-0 bg-black/45" />
+
+      {/* result card in the upper area */}
+      <div className="ui-frame absolute left-1/2 top-[10%] w-[min(86%,280px)] -translate-x-1/2 bg-[var(--rf-cream)] p-4 text-center">
         {won ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -563,10 +577,17 @@ function ResultCard({
             <p className="mt-1 text-xs text-[var(--rf-ink-soft)]">The {fish.name} slipped off the line. Try again!</p>
           </>
         )}
-        <button type="button" onClick={onClose} className="pixel-btn mt-3 text-xs">
-          {won ? "🎣 Cast again" : "Try again"}
-        </button>
       </div>
+
+      {/* button — SAME bottom-3 spot & style as Cast Line / Reel In! */}
+      <button
+        type="button"
+        onClick={onClose}
+        className="pixel-btn absolute bottom-3 left-1/2 -translate-x-1/2 text-xs"
+        style={{ zIndex: 24 }}
+      >
+        {won ? "🎣 Cast again" : "Try again"}
+      </button>
     </div>
   );
 }
